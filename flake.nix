@@ -71,6 +71,7 @@
             jq
             llvmPackages.libclang
             nixfmt
+            nushell
             openssl
             pkg-config
             python3
