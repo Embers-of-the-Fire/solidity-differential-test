@@ -74,8 +74,13 @@ for source in $sources {
         $status = 1
     }
 
-    if (show-diff ($case_out | path join "solc.stderr") ($case_out | path join "solang.stderr")) != 0 {
-        $status = 1
+    let solc_status = (open ($case_out | path join "solc.status") | str trim)
+    let solang_status = (open ($case_out | path join "solang.status") | str trim)
+
+    if $solc_status != "success" or $solang_status != "success" {
+        if (show-diff ($case_out | path join "solc.stderr") ($case_out | path join "solang.stderr")) != 0 {
+            $status = 1
+        }
     }
 }
 
