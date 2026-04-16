@@ -20,7 +20,9 @@ nix develop
 Then run the compile comparison harness:
 
 ```bash
+python3 ./working/scripts/generate_seeds.py
 nu ./working/scripts/compare-compile.nu
+python3 ./working/scripts/classify_mismatches.py
 ```
 
 The script writes normalized outputs into `working/out/` and prints unified diffs when it detects a mismatch.
@@ -31,3 +33,5 @@ The script writes normalized outputs into `working/out/` and prints unified diff
 
 - Solidity samples should include comments explaining the intent of the test.
 - Start by collecting compile-time mismatches; add runtime harnesses under `scripts/` and `repro/` as cases mature.
+- Generated seeds are written to `working/cases/generated/` so hand-written repros can stay in `working/cases/`.
+- The generator is deterministic, which makes it easier to bisect and minimize compiler disagreements.

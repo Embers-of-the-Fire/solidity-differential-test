@@ -75,6 +75,7 @@
             openssl
             pkg-config
             python3
+            ruff
             rustc
             shellcheck
             shfmt

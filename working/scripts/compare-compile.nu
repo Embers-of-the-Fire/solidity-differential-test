@@ -48,7 +48,7 @@ require-tool solc
 require-tool solang
 
 mut status = 0
-let sources = (glob ($cases_dir | path join "*.sol") | sort)
+let sources = (glob ($cases_dir | path join "**" "*.sol") | sort)
 
 for source in $sources {
     let base = ($source | path parse | get stem)
