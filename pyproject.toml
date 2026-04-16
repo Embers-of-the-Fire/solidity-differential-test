@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "solidity-diff-fuzz"
+version = "0.1.0"
+description = "Mutation-based Solidity compiler differential fuzzer"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "jinja2>=3.1.6",
+]
+
+[project.scripts]
+solidity-diff-fuzz = "solidity_diff_fuzz.cli:main"
+
+[dependency-groups]
+dev = [
+  "pytest>=8.4.1",
+  "ruff>=0.13.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/solidity_diff_fuzz"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

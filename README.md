@@ -48,3 +48,25 @@ python3 ./working/scripts/run_issue_variants.py
 - The generated corpus intentionally avoids obvious expected rejections. The goal is to surface internal compiler failures or cases that should compile on both compilers but do not.
 
 See `working/README.md` for the workspace-specific layout.
+
+## Python Fuzzer
+
+There is also a clean-room Python prototype for mutation-based compiler fuzzing under `src/solidity_diff_fuzz/`.
+
+It is compile-focused:
+
+- generates Solidity from file-based Jinja2 templates in `templates/`
+- mutates the generated program specification in modern Python
+- runs both `solc` and `solang`
+- compares normalized compiler behavior instead of raw artifact text
+- currently treats only crashes, acceptance mismatches, and diagnostic-class mismatches as interesting
+
+Quick start:
+
+```bash
+uv sync
+uv run solidity-diff-fuzz generate --seed 0 --case-index 0
+uv run solidity-diff-fuzz campaign --iterations 10 --mutate-rounds 2
+```
+
+The Python fuzzer writes rendered inputs and run records under `artifacts/`.

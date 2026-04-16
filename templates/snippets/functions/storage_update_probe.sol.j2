@@ -1,0 +1,10 @@
+    function {{ probe_name }}_store({{ int_type }} key, {{ alt_int_type }} value) external returns ({{ alt_int_type }}) {
+{% if "snippets/state/mapping_state.sol.j2" in state_templates %}
+        {{ mapping_name }}[key] = value;
+        return {{ mapping_name }}[key];
+{% else %}
+        {{ state_var_name }} = {{ int_type }}(value);
+        {{ secondary_state_var_name }} = {{ state_var_name }} > 0;
+        return value;
+{% endif %}
+    }
