@@ -27,7 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
     campaign.add_argument("--iterations", type=int, default=10)
     campaign.add_argument("--seed", type=int, default=0)
     campaign.add_argument("--mutate-rounds", type=int, default=2)
-    campaign.add_argument("--solang-target", default="solana")
+    campaign.add_argument("--solang-target", default="evm")
 
     return parser
 

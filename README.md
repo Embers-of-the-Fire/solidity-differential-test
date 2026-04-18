@@ -59,7 +59,17 @@ It is compile-focused:
 - mutates the generated program specification in modern Python
 - runs both `solc` and `solang`
 - compares normalized compiler behavior instead of raw artifact text
-- currently treats only crashes, acceptance mismatches, and diagnostic-class mismatches as interesting
+- biases toward bug-prone behaviors like tuple assignment, modifier ordering, fixed-array copies, internal-function encoding, and state initializers with `this.` calls
+- now also exercises a more complex nested case that combines fixed-array copies, struct assignment, storage writes, and compound assignment
+- now also exercises tuple assignment into struct-backed storage fixed arrays, which exposes another Solang EVM backend crash path
+- currently treats only crashes, acceptance mismatches, and diagnostic-class mismatches as interesting, and ignores plain `unsupported` gaps
+
+Tracked repros currently include:
+
+- encoding-related Solang panics where `solc` emits normal diagnostics
+- simple fixed-array and compound-assignment EVM backend crashes
+- a higher-complexity nested struct/fixed-array/storage-update repro in `repros/complex_struct_array_compound_assignment.sol`
+- a tuple-assignment-on-struct-storage repro in `repros/tuple_struct_storage_swap.sol`
 
 Quick start:
 

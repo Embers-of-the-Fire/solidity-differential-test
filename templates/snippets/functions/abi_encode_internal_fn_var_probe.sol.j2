@@ -1,0 +1,8 @@
+    function {{ helper_name }}() internal pure returns ({{ int_type }}) {
+        return {{ int_type }}({{ literal_b }});
+    }
+
+    function {{ probe_name }}_encode_internal_var() external pure returns (bytes memory) {
+        function() internal pure returns ({{ int_type }}) fn = {{ helper_name }};
+        return {{ encode_mode }}(fn);
+    }

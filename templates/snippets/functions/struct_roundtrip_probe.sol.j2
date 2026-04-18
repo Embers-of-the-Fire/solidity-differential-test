@@ -1,0 +1,13 @@
+    struct {{ struct_name }} {
+        {{ int_type }} left;
+        {{ int_type }} right;
+    }
+
+    function {{ secondary_helper_name }}({{ int_type }} a, {{ int_type }} b) internal pure returns ({{ struct_name }} memory) {
+        return {{ struct_name }}({left: a + 1, right: b + 2});
+    }
+
+    function {{ probe_name }}_struct({{ int_type }} a, {{ int_type }} b) external pure returns ({{ int_type }}, {{ int_type }}) {
+        {{ struct_name }} memory pair = {{ secondary_helper_name }}(a, b);
+        return (pair.left, pair.right);
+    }

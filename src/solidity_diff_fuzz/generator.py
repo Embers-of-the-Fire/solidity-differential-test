@@ -13,14 +13,30 @@ STATE_TEMPLATES = [
     "snippets/state/mapping_state.sol.j2",
     "snippets/state/array_state.sol.j2",
 ]
+SCALAR_STATE_TEMPLATE = "snippets/state/scalar_state.sol.j2"
 FUNCTION_TEMPLATES = [
+    "snippets/functions/compound_assignment_probe.sol.j2",
+    "snippets/functions/complex_struct_array_compound_assignment_probe.sol.j2",
+    "snippets/functions/tuple_struct_storage_swap_probe.sol.j2",
+    "snippets/functions/short_circuit_probe.sol.j2",
     "snippets/functions/pure_math_probe.sol.j2",
+    "snippets/functions/fixed_array_probe.sol.j2",
+    "snippets/functions/struct_roundtrip_probe.sol.j2",
+    "snippets/functions/modifier_state_gate_probe.sol.j2",
+    "snippets/functions/nested_loop_probe.sol.j2",
     "snippets/functions/storage_update_probe.sol.j2",
     "snippets/functions/tuple_probe.sol.j2",
     "snippets/functions/bytes_hash_probe.sol.j2",
+    "snippets/functions/abi_encode_internal_fn_var_probe.sol.j2",
+    "snippets/functions/abi_encode_internal_fn_packed_probe.sol.j2",
+    "snippets/functions/abi_encode_rational_probe.sol.j2",
+    "snippets/functions/state_initializer_external_call_probe.sol.j2",
 ]
 INT_TYPES = ["uint8", "uint16", "uint32", "uint64", "uint128", "uint256"]
 OPERATORS = ["+", "-", "^", "|", "&"]
+COMPARE_OPERATORS = [">", ">=", "!="]
+ENCODE_MODES = ["abi.encode", "abi.encodePacked"]
+RATIONAL_LITERALS = ["24.24", "7.5", "0.125"]
 
 
 def _contract_name(index: int) -> str:
@@ -28,8 +44,14 @@ def _contract_name(index: int) -> str:
 
 
 def make_program_spec(rng: random.Random, case_index: int) -> ProgramSpec:
-    state_templates = rng.sample(STATE_TEMPLATES, k=rng.randint(1, 2))
-    function_templates = rng.sample(FUNCTION_TEMPLATES, k=rng.randint(1, 3))
+    extra_state_templates = [
+        template for template in STATE_TEMPLATES if template != SCALAR_STATE_TEMPLATE
+    ]
+    state_templates = [SCALAR_STATE_TEMPLATE]
+    state_templates.extend(
+        rng.sample(extra_state_templates, k=rng.randint(0, len(extra_state_templates)))
+    )
+    function_templates = rng.sample(FUNCTION_TEMPLATES, k=rng.randint(2, 4))
     int_type = rng.choice(INT_TYPES)
     context = {
         "pragma": "^0.8.20",
@@ -40,11 +62,19 @@ def make_program_spec(rng: random.Random, case_index: int) -> ProgramSpec:
         "array_name": f"items_{case_index}",
         "probe_name": f"probe_{case_index}",
         "helper_name": f"helper_{case_index}",
+        "secondary_helper_name": f"helper2_{case_index}",
+        "modifier_name": f"bump_{case_index}",
+        "struct_name": f"Pair{case_index}",
+        "seed_method_name": f"seed_{case_index}",
         "int_type": int_type,
         "alt_int_type": rng.choice([kind for kind in INT_TYPES if kind != int_type]),
         "operator": rng.choice(OPERATORS),
+        "compare_operator": rng.choice(COMPARE_OPERATORS),
+        "encode_mode": rng.choice(ENCODE_MODES),
+        "rational_literal": rng.choice(RATIONAL_LITERALS),
         "literal_a": rng.randint(0, 17),
         "literal_b": rng.randint(1, 17),
+        "loop_bound": rng.randint(2, 5),
     }
     return ProgramSpec(
         base_template=BASE_TEMPLATE,

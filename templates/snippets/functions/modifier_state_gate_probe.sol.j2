@@ -1,0 +1,9 @@
+    modifier {{ modifier_name }}({{ int_type }} amount) {
+        {{ state_var_name }} += amount;
+        _;
+    }
+
+    function {{ probe_name }}_modifier({{ int_type }} amount) external {{ modifier_name }}(amount) returns ({{ int_type }}) {
+        {{ state_var_name }} += 1;
+        return {{ state_var_name }};
+    }

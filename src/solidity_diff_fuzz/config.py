@@ -8,7 +8,7 @@ from pathlib import Path
 class CampaignConfig:
     root_dir: Path
     artifact_dir: Path
-    solang_target: str = "solana"
+    solang_target: str = "evm"
     timeout_seconds: int = 20
     seed: int = 0
 

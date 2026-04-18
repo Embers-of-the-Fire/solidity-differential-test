@@ -1,0 +1,16 @@
+    struct {{ struct_name }}Tuple {
+        {{ int_type }}[2] items;
+        {{ int_type }} total;
+    }
+
+    {{ struct_name }}Tuple public tuple_{{ state_var_name }};
+
+    function {{ probe_name }}_tuple_storage_swap({{ int_type }} a, {{ int_type }} b, {{ int_type }} c) external returns ({{ int_type }}, {{ int_type }}, {{ int_type }}) {
+        {{ int_type }}[2] memory items = [a, b];
+        tuple_{{ state_var_name }} = {{ struct_name }}Tuple({items: items, total: c});
+        (tuple_{{ state_var_name }}.items[0], tuple_{{ state_var_name }}.items[1]) = (
+            tuple_{{ state_var_name }}.items[1],
+            tuple_{{ state_var_name }}.items[0] + c
+        );
+        return (tuple_{{ state_var_name }}.items[0], tuple_{{ state_var_name }}.items[1], tuple_{{ state_var_name }}.total);
+    }

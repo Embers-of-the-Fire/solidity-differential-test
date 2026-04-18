@@ -1,0 +1,7 @@
+    function {{ secondary_helper_name }}({{ int_type }} value) internal pure returns ({{ int_type }}) {
+        return value + 1;
+    }
+
+    function {{ probe_name }}_encode_internal_packed() external pure returns (bytes memory) {
+        return abi.encodePacked({{ secondary_helper_name }}, uint8({{ literal_b }}));
+    }

@@ -1,0 +1,15 @@
+    struct {{ struct_name }}Complex {
+        {{ int_type }}[2] items;
+        {{ int_type }} total;
+    }
+
+    {{ struct_name }}Complex public complex_{{ state_var_name }};
+
+    function {{ probe_name }}_complex_struct({{ int_type }} a, {{ int_type }} b, {{ int_type }} c) external returns ({{ int_type }}, {{ int_type }}, {{ int_type }}) {
+        {{ int_type }}[2] memory items = [a, b];
+        {{ struct_name }}Complex memory first = {{ struct_name }}Complex({items: items, total: c});
+        {{ struct_name }}Complex memory second = first;
+        complex_{{ state_var_name }} = second;
+        complex_{{ state_var_name }}.items[0] += c;
+        return (complex_{{ state_var_name }}.items[0], complex_{{ state_var_name }}.items[1], complex_{{ state_var_name }}.total);
+    }
