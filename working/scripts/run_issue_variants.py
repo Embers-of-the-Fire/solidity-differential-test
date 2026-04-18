@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-import subprocess
 
 
 @dataclass(frozen=True)
@@ -28,7 +28,10 @@ def build_cases(root_dir: Path) -> list[VariantCase]:
             path=base / "abi_encode_internal_fn_packed_tuple.sol",
             target="evm",
             issue="#1862",
-            note="internal function reference used as one variadic abi.encodePacked argument",
+            note=(
+                "internal function reference used as one variadic "
+                "abi.encodePacked argument"
+            ),
         ),
         VariantCase(
             path=base / "abi_encode_rational_tuple.sol",
@@ -53,18 +56,6 @@ def build_cases(root_dir: Path) -> list[VariantCase]:
             target="solana",
             issue="#1869",
             note="external call hidden behind a conditional initializer",
-        ),
-        VariantCase(
-            path=base / "type_operator_if.sol",
-            target="evm",
-            issue="#1873",
-            note="type(T) moved from ternary condition into if-condition",
-        ),
-        VariantCase(
-            path=base / "type_operator_logical_and.sol",
-            target="evm",
-            issue="#1873",
-            note="type(T) used as the left operand of &&",
         ),
     ]
 

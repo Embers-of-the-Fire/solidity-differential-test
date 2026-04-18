@@ -70,6 +70,8 @@ Tracked repros currently include:
 - simple fixed-array and compound-assignment EVM backend crashes
 - a higher-complexity nested struct/fixed-array/storage-update repro in `repros/complex_struct_array_compound_assignment.sol`
 - a tuple-assignment-on-struct-storage repro in `repros/tuple_struct_storage_swap.sol`
+- a try/catch-in-initializer repro in `repros/try_catch_initializer.sol`
+- a base-constructor free-function-argument repro in `repros/base_constructor_free_function_arg.sol`
 
 Quick start:
 
