@@ -67,6 +67,7 @@
             diffutils
             findutils
             gawk
+            go-ethereum
             gnugrep
             jq
             llvmPackages.libclang
@@ -82,6 +83,7 @@
             self.packages.${pkgs.system}.solang
             solc
             statix
+            wasm-tools
           ];
 
           shellHook = ''
