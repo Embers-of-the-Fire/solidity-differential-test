@@ -1,0 +1,27 @@
+scenario: mock-stateful-counter
+expected_observations:
+  - step: instantiate counter
+    status: success
+    contract_id: counter
+    query_after_step:
+      get: [5]
+  - step: tx increment by bob
+    status: success
+    emitted_events:
+      - contract: counter
+        name: Incremented
+        args:
+          caller: bob
+          by: 3
+          newValue: 8
+  - step: query get
+    status: success
+    returns: [8]
+  - step: tx increment zero
+    status: revert
+    error:
+      kind: Error(string)
+      reason: zero increment
+normalization_notes:
+  - Compare logical values, not raw Wasm memory bytes.
+  - Treat transaction return data as non-authoritative; use status, events, storage-visible queries, and revert data.

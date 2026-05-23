@@ -1,0 +1,38 @@
+name: tool-availability
+purpose: Record which proposed solution backends are executable in the current Nix dev shell.
+command_checked: nix develop -c bash -lc 'command -v aqd; command -v cargo-contract; command -v solang; command -v wasm-tools; command -v pnpm; command -v node; command -v chopsticks; command -v substrate-contracts-node'
+observed_available:
+  - solang
+  - wasm-tools
+  - substrate-contracts-node
+  - pnpm
+  - node
+  - solidity-diff-fuzz transaction-smoke
+observed_missing:
+  - aqd
+  - cargo-contract
+  - chopsticks
+runnable_runtime_checks:
+  - command: nix develop -c substrate-contracts-node --version
+    status: pass
+    inspected_behavior:
+      - substrate-contracts-node 0.42.0-f209befc88c is available from the Nix dev shell
+  - command: nix develop -c substrate-contracts-node --dev --tmp --rpc-port 9944 --rpc-cors all
+    status: pass-starts-long-lived-process
+    inspected_behavior:
+      - local development chain starts
+      - JSON-RPC listens on 127.0.0.1:9944
+  - command: nix develop -c uv run solidity-diff-fuzz transaction-smoke workspace/solang-transaction-testing/contracts/StatefulCounter.sol --work-dir /tmp/opencode/transaction-smoke-run
+    status: pass
+    inspected_behavior:
+      - deploy succeeded
+      - get after deploy decoded to 5
+      - increment by 3 succeeded and emitted an event
+      - get after increment decoded to 8
+      - increment by 0 reverted
+coverage:
+  report_sections:
+    - Solution 3: Use aqd Against a Local Contracts-Pallet Chain
+    - Solution 4: Use cargo-contract Directly
+    - Solution 5: Use Chopsticks for Forked Chain Testing
+    - Final Recommendation

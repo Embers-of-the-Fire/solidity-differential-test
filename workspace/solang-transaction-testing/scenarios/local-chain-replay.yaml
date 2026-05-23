@@ -1,0 +1,48 @@
+name: local-chain-replay
+purpose: Replay a mock-discovered candidate on a real local contracts-pallet chain.
+backend: local-contracts-pallet
+status: blocked-until-tooling-available
+blocked_by:
+  - aqd is not available in the current Nix dev shell
+  - cargo-contract is not available in the current Nix dev shell
+contract: ../contracts/StatefulCounter.sol
+coverage:
+  report_sections:
+    - Solution 3: Use aqd Against a Local Contracts-Pallet Chain
+    - Solution 4: Use cargo-contract Directly
+    - Recommended Path: Second backend
+    - Implementation Order: step 5
+accounts:
+  alice:
+    key_uri: //Alice
+  bob:
+    key_uri: //Bob
+steps:
+  - upload:
+      from: alice
+      artifact: StatefulCounter.contract
+      expect:
+        success: true
+  - instantiate:
+      id: counter
+      from: alice
+      constructor: new
+      args: [5]
+      value: 10
+      expect:
+        success: true
+  - tx:
+      contract: counter
+      from: bob
+      message: increment
+      args: [3]
+      value: 7
+      expect:
+        success: true
+  - query:
+      contract: counter
+      from: alice
+      message: get
+      args: []
+      expect:
+        returns: [8]

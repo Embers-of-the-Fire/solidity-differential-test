@@ -1,0 +1,29 @@
+scenario: mock-contract-call
+expected_observations:
+  - step: instantiate counter
+    status: success
+    contract_id: counter
+  - step: instantiate proxy
+    status: success
+    contract_id: proxy
+  - step: proxy forwardIncrement
+    status: success
+    emitted_events:
+      - contract: counter
+        name: Incremented
+        args:
+          caller: proxy
+          by: 4
+          newValue: 5
+      - contract: proxy
+        name: Forwarded
+        args:
+          target: counter
+          by: 4
+          valueSent: 11
+  - step: proxy readCounter
+    status: success
+    returns: [5]
+normalization_notes:
+  - Contract references are symbolic in fixtures and must be resolved by the backend.
+  - The forwarded call should make the counter observe the proxy as caller.

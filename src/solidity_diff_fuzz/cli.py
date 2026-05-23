@@ -26,6 +26,7 @@ from .mutators import mutate_spec
 from .runtime import format_runtime_smoke_text, run_runtime_smoke
 from .target import format_target_check_json, format_target_check_text, run_target_check
 from .template_loader import build_environment
+from .transaction_smoke import format_transaction_smoke_text, run_transaction_smoke
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -71,6 +72,14 @@ def build_parser() -> argparse.ArgumentParser:
     runtime_smoke.add_argument("source", type=Path)
     runtime_smoke.add_argument("--work-dir", type=Path)
     runtime_smoke.add_argument("--json", action="store_true")
+
+    transaction_smoke = subparsers.add_parser(
+        "transaction-smoke",
+        help="Run an inspectable Solang Polkadot transaction smoke scenario",
+    )
+    transaction_smoke.add_argument("source", type=Path)
+    transaction_smoke.add_argument("--work-dir", type=Path)
+    transaction_smoke.add_argument("--json", action="store_true")
 
     target_check = subparsers.add_parser(
         "target-check",
@@ -184,6 +193,13 @@ def main() -> None:
         else:
             print(format_runtime_smoke_text(result))
         return
+    if args.command == "transaction-smoke":
+        result = run_transaction_smoke(args.source, config, args.work_dir)
+        if args.json:
+            print(json.dumps(result.to_json(), indent=2, sort_keys=True))
+        else:
+            print(format_transaction_smoke_text(result))
+        raise SystemExit(0 if result.passed else 1)
     if args.command == "target-check":
         config.solang_target = args.solang_target
         check = run_target_check(args.source, config, args.work_dir)

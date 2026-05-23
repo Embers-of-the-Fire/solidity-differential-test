@@ -1,0 +1,59 @@
+name: mock-stateful-counter
+purpose: Exercise the proposed fast mock transaction backend.
+backend: mock-polkadot-wasm
+status: proposed-fixture
+contract: ../contracts/StatefulCounter.sol
+coverage:
+  report_sections:
+    - Solution 1: Extend the Current Wasm Runner
+    - Recommended Path: First backend
+    - Implementation Order: steps 1-4
+accounts:
+  alice:
+    balance: 1000000000000
+  bob:
+    balance: 1000000000000
+steps:
+  - instantiate:
+      id: counter
+      contract: StatefulCounter
+      from: alice
+      constructor: new
+      args: [5]
+      value: 10
+      expect:
+        success: true
+        storage_visible_queries:
+          get: [5]
+  - tx:
+      contract: counter
+      from: bob
+      message: increment
+      args: [3]
+      value: 7
+      expect:
+        success: true
+        events:
+          - name: Incremented
+            args:
+              caller: bob
+              by: 3
+              newValue: 8
+  - query:
+      contract: counter
+      from: alice
+      message: get
+      args: []
+      expect:
+        returns: [8]
+  - tx:
+      contract: counter
+      from: alice
+      message: increment
+      args: [0]
+      value: 0
+      expect:
+        success: false
+        revert:
+          kind: Error(string)
+          reason: zero increment

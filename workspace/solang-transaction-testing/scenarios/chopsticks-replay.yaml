@@ -1,0 +1,24 @@
+name: chopsticks-replay
+purpose: Reserve a forked-chain replay fixture for state- or block-dependent candidates.
+backend: chopsticks-fork
+status: blocked-until-tooling-available
+blocked_by:
+  - chopsticks is not available in the current Nix dev shell
+coverage:
+  report_sections:
+    - Solution 5: Use Chopsticks for Forked Chain Testing
+    - Implementation Order: step 6
+fork_requirements:
+  endpoint: local-or-public-contracts-pallet-chain
+  block: fixed-block-number-or-hash
+  storage_overrides:
+    - account balances for deterministic replay
+    - contract code or contract instance state if minimizing a real-chain case
+steps:
+  - set_block_build_mode: manual
+  - import_storage: deterministic-account-state
+  - replay_candidate: ../scenarios/local-chain-replay.yaml
+  - build_block:
+      count: 1
+      expect:
+        candidate_reproduces: true

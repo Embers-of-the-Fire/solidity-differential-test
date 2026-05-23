@@ -1,0 +1,66 @@
+name: mock-contract-call
+purpose: Exercise mock support for contract-to-contract calls and forwarded value.
+backend: mock-polkadot-wasm
+status: proposed-fixture
+contracts:
+  - ../contracts/StatefulCounter.sol
+  - ../contracts/CallerProxy.sol
+coverage:
+  report_sections:
+    - Solution 1: Extend the Current Wasm Runner
+    - Solution 2: Reuse Solang's Own Mock VM Ideas
+accounts:
+  alice:
+    balance: 1000000000000
+steps:
+  - instantiate:
+      id: counter
+      contract: StatefulCounter
+      from: alice
+      constructor: new
+      args: [1]
+      value: 0
+      expect:
+        success: true
+  - instantiate:
+      id: proxy
+      contract: CallerProxy
+      from: alice
+      constructor: new
+      args: []
+      value: 0
+      expect:
+        success: true
+  - tx:
+      contract: proxy
+      from: alice
+      message: forwardIncrement
+      args:
+        - ref: counter
+        - 4
+      value: 11
+      expect:
+        success: true
+        events:
+          - contract: counter
+            name: Incremented
+            args:
+              caller:
+                ref: proxy
+              by: 4
+              newValue: 5
+          - contract: proxy
+            name: Forwarded
+            args:
+              target:
+                ref: counter
+              by: 4
+              valueSent: 11
+  - query:
+      contract: proxy
+      from: alice
+      message: readCounter
+      args:
+        - ref: counter
+      expect:
+        returns: [5]

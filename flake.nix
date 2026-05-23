@@ -50,9 +50,23 @@
               install -Dm755 "$src" "$out/bin/solang"
             '';
           };
+
+          substrate-contracts-node = pkgs.stdenvNoCC.mkDerivation {
+            pname = "substrate-contracts-node";
+            version = "0.42.0";
+
+            src = pkgs.fetchurl {
+              url = "https://github.com/paritytech/substrate-contracts-node/releases/download/v0.42.0/substrate-contracts-node-linux.tar.gz";
+              hash = "sha256-pjG06D3QXkvqzL13C+cJrEGRQYPUQxFsLk0kQWFZAmU=";
+            };
+
+            installPhase = ''
+              install -Dm755 substrate-contracts-node "$out/bin/substrate-contracts-node"
+            '';
+          };
         in
         {
-          inherit solang;
+          inherit solang substrate-contracts-node;
           default = solang;
         }
       );
@@ -81,6 +95,7 @@
             shellcheck
             shfmt
             self.packages.${pkgs.system}.solang
+            self.packages.${pkgs.system}.substrate-contracts-node
             solc
             statix
             wasm-tools
