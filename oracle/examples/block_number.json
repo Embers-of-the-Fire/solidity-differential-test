@@ -1,0 +1,10 @@
+{
+  "name": "block-number-env-divergence",
+  "_comment": "block.number differs between the two chains by design -> RETURN_MISMATCH demo",
+  "solidity": "contract bn { function f() public view returns (uint) { return block.number; } }",
+  "contract": "bn",
+  "oracle": { "storage": "off" },
+  "steps": [
+    { "action": "query", "function": "f" }
+  ]
+}

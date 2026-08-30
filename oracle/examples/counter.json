@@ -1,0 +1,17 @@
+{
+  "name": "counter-basic",
+  "source_file": "counter.sol",
+  "contract": "counter",
+  "constructor": { "args": [7] },
+  "solc": { "optimizer": false },
+  "solang": { "opt_level": "default" },
+  "oracle": { "storage": "count", "events": true, "revert_reasons": true, "gas": false },
+  "steps": [
+    { "action": "query", "function": "count" },
+    { "action": "call", "function": "inc", "args": [5], "sender": "alice" },
+    { "action": "query", "function": "count" },
+    { "action": "call", "function": "dec", "args": [2] },
+    { "action": "query", "function": "count", "sender": "bob" },
+    { "action": "call", "function": "fail" }
+  ]
+}

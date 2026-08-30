@@ -1,0 +1,9 @@
+{
+  "name": "blockhash-compile-asymmetry",
+  "_comment": "solc accepts blockhash(); solang rejects it on the polkadot target -> COMPILE_ASYMMETRY",
+  "solidity": "contract bh { function f(uint n) public view returns (bytes32) { return blockhash(n); } }",
+  "contract": "bh",
+  "steps": [
+    { "action": "query", "function": "f", "args": [1] }
+  ]
+}
