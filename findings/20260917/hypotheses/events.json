@@ -1,0 +1,81 @@
+{
+  "seed_id": "events",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "Indexed string/bytes event arguments are emitted as keccak256 hash topics by solc/EVM but emitted raw (unhashed) by solang/pallet-contracts; indexed value types (address, uint256, bytes32) match. Observed for both non-empty ('hello' -> 0x1c8aff... on EVM, raw 'hello' on polkadot) and empty strings.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "indexed-event-topics-ordering-probe",
+          "verdict": "DIVERGENCE",
+          "note": "Dyn(tag) step 0: EVM hashed tag to 0x1c8aff...deac8 (=keccak256('hello')), polkadot emitted raw 'hello'; step 4 empty string similarly hashed (0xc5d2...a470) vs raw ''."
+        }
+      ],
+      "next_probe": "Minimal probe: single event E(string indexed s) emitted once with 'x'; assert EVM arg == keccak256('x') and polkadot arg == 'x'. Then repeat with indexed bytes and indexed bytes32 to map exactly which dynamic types solang leaves unhashed."
+    },
+    {
+      "id": "h2",
+      "statement": "Events emitted inside a for-loop under solang capture the final loop-counter value for every iteration's event, while solc/EVM emits the per-iteration value. emitRepeat(3) produced EVM vals [0,0,1,1,2,2] but polkadot vals [2,2,2,2,2,2] with count/sender otherwise correct.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "indexed-event-topics-ordering-probe",
+          "verdict": "DIVERGENCE",
+          "note": "Step 2 emitRepeat(3): EVM emitted Two(bob,i) pairs with i=0,1,2; polkadot emitted six Two events all with val=2 (final i), strong solang loop-capture bug candidate."
+        },
+        {
+          "probe": "loop-var-event-capture-probe",
+          "verdict": "DIVERGENCE",
+          "note": "All three variants reproduced: counterLoop(3) EVM [0,1,2] vs polkadot [2,2,2]; accumLoop(3) EVM [0,1,3] vs polkadot [3,3,3]; derivedLoop(3) EVM Pair[(0,0),(1,10),(2,20)] vs polkadot [(2,20),(2,20),(2,20)]. Critically, the accumulator (a non-counter local) also collapsed to its final value, so this is not loop-variable-specific: solang late-binds event arguments for repeated emits in a loop. Storage/count agreed on both sides."
+        }
+      ],
+      "next_probe": "Contract with function loop(uint n) { for (uint i=0;i<n;i++){ emit E(i, i*10); } } plus a variant using a non-counter local (acc += i; emit E(acc)); check whether all solang events carry final values for both the counter and the accumulator, isolating loop-variable capture vs general per-iteration event codegen."
+    },
+    {
+      "id": "h3",
+      "statement": "pallet-contracts dry-run of any state-changing call that emits events returns status 'error' whose payload is the SCALE-encoded event buffer, not an actual execution failure; the event data itself is complete and ordered. This is a harness/oracle artifact, not a solc-vs-solang semantic divergence.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "indexed-event-topics-ordering-probe",
+          "verdict": "DIVERGENCE",
+          "note": "Steps 0/2/4 all show polkadot status 'error' with large hex blob containing the event encodings while EVM succeeded; event contents were still fully decoded from the blob."
+        }
+      ],
+      "next_probe": "Run a state-changing call that emits zero events (e.g., count += 1 only): prediction is polkadot dry-run status == success. Then a call emitting one event: status 'error' with payload length growing with event count, confirming payload-is-events."
+    },
+    {
+      "id": "h4",
+      "statement": "Event ordering, multiplicity, and non-indexed argument values agree between solc/EVM and solang/polkadot for sequences of mixed events in a single call (emitAll's 6 events in order, duplicated emits preserved); divergences so far are confined to indexed dynamic-type hashing and loop-variable capture.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "indexed-event-topics-ordering-probe",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0 and step 4: both sides emitted One,Two,Three,Dyn,Plain,One in identical order with identical value-type args (7/8, 0/1); only Dyn.tag encoding and address representation differed."
+        }
+      ],
+      "next_probe": "Interleave events across an internal function call and a modifier (emit in modifier body, before/after function body) and assert order agreement; also mix in an anonymous event to test topic-count handling on both sides."
+    },
+    {
+      "id": "h5",
+      "statement": "Solang's final-value event bug is not loop-specific: repeated emits referencing the same local variable anywhere (including straight-line code without loops) all emit the variable's final value, suggesting solang encodes event arguments by reference / defers argument evaluation rather than snapshotting at the emit statement. Loop probes showed the collapse for both counter and accumulator locals; a straight-line repeated-emit test would pin the scope.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "loop-var-event-capture-probe",
+          "verdict": "DIVERGENCE",
+          "note": "accumLoop showed a non-loop-counter local (acc) also emitted as its final value in all iterations, implying the late-binding applies to any local referenced by an emit, not just for-loop induction variables."
+        }
+      ],
+      "next_probe": "Contract with function seq() { uint256 x = 0; emit Val(x); x = 5; emit Val(x); x = 9; emit Val(x); } (no loop). Prediction: EVM emits [0,5,9]; if polkadot emits [9,9,9] the bug is general capture-by-reference; if polkadot emits [0,5,9] the bug is specific to loop codegen. Add a variant emitting two different locals interleaved to check whether the binding is per-variable."
+    }
+  ],
+  "updated_ts": 1789651430.315936
+}

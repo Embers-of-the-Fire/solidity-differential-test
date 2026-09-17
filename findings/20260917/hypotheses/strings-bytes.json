@@ -1,0 +1,48 @@
+{
+  "seed_id": "strings-bytes",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "Raw storage comparison for dynamic string/bytes yields artifactual divergences: solc uses the EVM short-string inline packing (low byte = 2*len+1, e.g. 0x41 for 32-byte boundary handling) and splits long bytes across slots, while solang/pallet-contracts stores content contiguously without those length slots. The actual values (count, string content, bytes content) agree, so this is an oracle artifact, not a behavioral bug.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "dynamic-string-bytes-roundtrip-probe",
+          "verdict": "DIVERGENCE",
+          "note": "EVM had extra nonzero slots (0x41 length marker, 0x45, 0xabab fragment) vs polkadot; logical values (count 0x02/0x03, string 'aaa...', bytes 0xabab...) identical on both. Triage: oracle_artifact."
+        }
+      ],
+      "next_probe": "The storage-off rerun was attempted but never reached runtime because solang panicked at compile time. Rerun the identical return-value-comparison spec (oracle.storage off) after removing whichever construct the bisection identifies as the panic trigger (likely drop `public` from storedString/storedBytes or drop getStringLen). Prediction: verdict becomes PASS on both chains, confirming h1."
+    },
+    {
+      "id": "h2",
+      "statement": "solang stores dynamic bytes/string of length >=32 as a single contiguous entry (e.g. 34-byte 0xabab... in one value) whereas solc splits EVM storage into 32-byte slots plus a length slot; therefore 'nonzero_entries' counts are structurally incomparable across the two targets for any dynamic type.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "dynamic-string-bytes-roundtrip-probe",
+          "verdict": "DIVERGENCE",
+          "note": "34-byte bytes value: polkadot stored it as one value '0xabab...ab' (34 bytes); EVM showed length slot 0x45 (=2*34+1) plus 32-byte chunk plus 0xabab tail chunk."
+        }
+      ],
+      "next_probe": "The 31/32/33-byte slot-count probe must use a source that avoids the solang compile panic (no public dynamic state vars combined with extra accessors). Use private bytes with only set/get functions, sweep lengths 31, 32, 33, and compare raw storage entry counts: solc should go 1->2->3 entries while solang stays at ~1 content entry."
+    },
+    {
+      "id": "h3",
+      "statement": "solang crashes (unrecoverable panic: Option::unwrap() on None at src/emit/instructions.rs:774) when compiling a contract that combines public dynamic string/bytes state variables (auto-generated getters) with explicit accessor functions returning string/bytes or their lengths. This is a hard compile asymmetry, not a runtime ABI difference: solc accepts the identical source, so any storage/ABI comparison for this pattern is blocked until the panic trigger is isolated.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "string-bytes-return-value-roundtrip-probe",
+          "verdict": "DIVERGENCE",
+          "note": "COMPILE_ASYMMETRY: solc compiled fine; solang panicked at src/emit/instructions.rs:774:54 'called Option::unwrap() on a None value'. No runtime steps executed on either chain."
+        }
+      ],
+      "next_probe": "Bisect the trigger with minimal compile-only probes: (a) contract with only `string public s;`, (b) contract with only `bytes public b;`, (c) contract with a private string plus a function doing `bytes(s).length`, (d) contract with a public string plus a separate view function returning the string. Prediction: exactly one of these minimal variants reproduces the panic, identifying whether the bug is in public-getter emission for dynamic types or in the bytes(string) length codegen path."
+    }
+  ],
+  "updated_ts": 1789652075.6019025
+}

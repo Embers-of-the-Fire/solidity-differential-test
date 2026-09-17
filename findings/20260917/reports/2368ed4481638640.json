@@ -1,0 +1,64 @@
+{
+  "name": "revert-reason-encoding-probe",
+  "contract": "RevertReasonProbe",
+  "tool_versions": {
+    "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+    "solang": "solang version v0.3.5",
+    "anvil": "anvil Version: 1.7.1-dev",
+    "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+  },
+  "oracle_config": {
+    "storage": "count",
+    "events": false,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "workdir": "/tmp/oracle-run-u38p7el7",
+  "compile": {
+    "solc": {
+      "compiler": "solc",
+      "ok": true,
+      "version": "Version: 0.8.33+commit.64118f21.Linux.g++",
+      "errors": null,
+      "warnings": [
+        "Warning: SPDX license identifier not provided in source file. Before publishing, consider adding a comment containing \"SPDX-License-Identifier: <SPDX-License>\" to each source file. Use \"SPDX-License-Identifier: UNLICENSED\" for non-open-source code. Please see https://spdx.org for more information.\n--> input.sol\n\n"
+      ],
+      "artifacts": {
+        "abi": true,
+        "bytecode_bytes": 303,
+        "wasm_bytes": 0,
+        "metadata": false
+      }
+    },
+    "solang": {
+      "compiler": "solang",
+      "ok": false,
+      "version": "solang version v0.3.5",
+      "errors": [
+        "\u001b[0m\u001b[1m\u001b[38;5;9merror\u001b[0m\u001b[1m: Variable 'a' is undefined\u001b[0m\n  \u001b[0m\u001b[34m\u250c\u2500\u001b[0m /tmp/solang-jio9sjzm/input.sol:5:17\n  \u001b[0m\u001b[34m\u2502\u001b[0m\n\u001b[0m\u001b[34m5\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m         uint256 \u001b[0m\u001b[31ma\u001b[0m;\n  \u001b[0m\u001b[34m\u2502\u001b[0m                 \u001b[0m\u001b[31m^\u001b[0m\n\u001b[0m\u001b[34m6\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m         return a - 1;\n  \u001b[0m\u001b[34m\u2502\u001b[0m                \u001b[0m\u001b[34m-\u001b[0m \u001b[0m\u001b[34mVariable read before being defined\u001b[0m"
+      ],
+      "warnings": null,
+      "artifacts": null
+    }
+  },
+  "deploy": {},
+  "steps": [],
+  "divergences": [
+    {
+      "kind": "COMPILE_ASYMMETRY",
+      "step": null,
+      "detail": "one compiler rejected the source while the other accepted it",
+      "evm": {
+        "solc_ok": true,
+        "errors": null
+      },
+      "polkadot": {
+        "solang_ok": false,
+        "errors": [
+          "\u001b[0m\u001b[1m\u001b[38;5;9merror\u001b[0m\u001b[1m: Variable 'a' is undefined\u001b[0m\n  \u001b[0m\u001b[34m\u250c\u2500\u001b[0m /tmp/solang-jio9sjzm/input.sol:5:17\n  \u001b[0m\u001b[34m\u2502\u001b[0m\n\u001b[0m\u001b[34m5\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m         uint256 \u001b[0m\u001b[31ma\u001b[0m;\n  \u001b[0m\u001b[34m\u2502\u001b[0m                 \u001b[0m\u001b[31m^\u001b[0m\n\u001b[0m\u001b[34m6\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m         return a - 1;\n  \u001b[0m\u001b[34m\u2502\u001b[0m                \u001b[0m\u001b[34m-\u001b[0m \u001b[0m\u001b[34mVariable read before being defined\u001b[0m"
+        ]
+      }
+    }
+  ],
+  "verdict": "DIVERGENCE"
+}

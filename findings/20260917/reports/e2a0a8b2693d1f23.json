@@ -1,0 +1,356 @@
+{
+  "name": "loop-var-event-capture-probe",
+  "contract": "LoopEventCapture",
+  "tool_versions": {
+    "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+    "solang": "solang version v0.3.5",
+    "anvil": "anvil Version: 1.7.1-dev",
+    "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+  },
+  "oracle_config": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "workdir": "/tmp/oracle-run-t6he0fyk",
+  "compile": {
+    "solc": {
+      "compiler": "solc",
+      "ok": true,
+      "version": "Version: 0.8.33+commit.64118f21.Linux.g++",
+      "errors": null,
+      "warnings": [
+        "Warning: SPDX license identifier not provided in source file. Before publishing, consider adding a comment containing \"SPDX-License-Identifier: <SPDX-License>\" to each source file. Use \"SPDX-License-Identifier: UNLICENSED\" for non-open-source code. Please see https://spdx.org for more information.\n--> input.sol\n\n"
+      ],
+      "artifacts": {
+        "abi": true,
+        "bytecode_bytes": 1044,
+        "wasm_bytes": 0,
+        "metadata": false
+      }
+    },
+    "solang": {
+      "compiler": "solang",
+      "ok": true,
+      "version": "solang version v0.3.5",
+      "errors": null,
+      "warnings": null,
+      "artifacts": {
+        "abi": false,
+        "bytecode_bytes": 0,
+        "wasm_bytes": 43373,
+        "metadata": true
+      }
+    }
+  },
+  "deploy": {
+    "evm": {
+      "status": "success",
+      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "tx_hash": "68b025f3bc67256187f77574238fc11ed661d83d64cedec6b5c9b02c670e4397",
+      "error": null
+    },
+    "polkadot": {
+      "status": "success",
+      "address": "5FH19HqNifMsVjhQB5LgR6HzqQuZfbnet4ZqHn1ivig4APVz",
+      "tx_hash": null,
+      "error": null
+    }
+  },
+  "steps": [
+    {
+      "index": 0,
+      "action": "call",
+      "function": "counterLoop",
+      "args": [
+        3
+      ],
+      "sender": "alice",
+      "value": 0,
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "712b8970ab26ad3458349657a1dd135bc27141e3ce836f2dcc27ca7039e6482a",
+          "block_hash": "82a462ff0def4731aaade6300e262f40df218ce27bf5cf51df71aff7fa2fdb7d",
+          "gas_used": 48322,
+          "events": [
+            {
+              "name": "Val",
+              "args": [
+                {
+                  "name": "v",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "name": "Val",
+              "args": [
+                {
+                  "name": "v",
+                  "value": 1
+                }
+              ]
+            },
+            {
+              "name": "Val",
+              "args": [
+                {
+                  "name": "v",
+                  "value": 2
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "evm",
+          "block": {
+            "number": 2,
+            "hash": "0x82a462ff0def4731aaade6300e262f40df218ce27bf5cf51df71aff7fa2fdb7d",
+            "timestamp": 1789651465
+          },
+          "contract": {
+            "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+            "balance": "0",
+            "nonce": 1
+          },
+          "storage": {
+            "0x0000000000000000000000000000000000000000000000000000000000000000": "0x0000000000000000000000000000000000000000000000000000000000000003"
+          }
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "error",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": null,
+          "debug_message": null,
+          "error": "0x0050005217000000000000000000000000000000000000014000000000000000c2945c3f551702000000010000000408d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d35916c61d2000000000000000000000000000100000008026be73d318ff41d453a8d388bc71088f64819f9c260da7774a3f711acff7e7ef0009fdd21610000000000000000000000d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d00000100000000038e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b765800000100000004008e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b765800ca9a3b0000000000000000000000000000010000000402d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d8e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b765800ca9a3b0000000000000000000000000000010000000800d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d8e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b76580000010000000808d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d8e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b765880c4d26c1700000000000000000000000000010000000407d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d4bd6a68bd100000000000000000000000000010000000600d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27deabac5d500000000000000000000000000000000000000000000000000000000000001000000000003db10c5d5d9610000000208038e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b765880000000000000000000000000000000000000000000000000000000000000000004f60f4f880de0ddcf2e78a7d895dc452ec587aa199e6c63024e6ccf29dc33a15f0208038e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b765880010000000000000000000000000000000000000000000000000000000000000004f60f4f880de0ddcf2e78a7d895dc452ec587aa199e6c63024e6ccf29dc33a15f0208038e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b765880020000000000000000000000000000000000000000000000000000000000000004f60f4f880de0ddcf2e78a7d895dc452ec587aa199e6c63024e6ccf29dc33a15f020806018eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a488e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b7658000208088eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a488e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b76580050005217000000000000000000000000"
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "0xe6334592eedc988858069e2b37528bdd1c1fc1cf6b09f67be322934034a8b7cf",
+          "block_hash": "0x16fd99e5ca7cd8396f1c869fd0f5176a6e084dd3e6810ff6cae6abdfd6e8e342",
+          "gas_used": 1781115046,
+          "events": [
+            {
+              "name": "Val",
+              "args": [
+                {
+                  "name": "v",
+                  "value": 2
+                }
+              ]
+            },
+            {
+              "name": "Val",
+              "args": [
+                {
+                  "name": "v",
+                  "value": 2
+                }
+              ]
+            },
+            {
+              "name": "Val",
+              "args": [
+                {
+                  "name": "v",
+                  "value": 2
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "polkadot",
+          "block": {
+            "number": 2,
+            "hash": "0x16fd99e5ca7cd8396f1c869fd0f5176a6e084dd3e6810ff6cae6abdfd6e8e342",
+            "timestamp": 1789651465952
+          },
+          "contract": {
+            "address": "5FH19HqNifMsVjhQB5LgR6HzqQuZfbnet4ZqHn1ivig4APVz",
+            "balance": "1000000000",
+            "nonce": 0
+          },
+          "storage": {
+            "0xff0f22492f44bac4c4b30ae58d0e8daa0000000000000000000000000000000000000000000000000000000000000000": "0x0300000000000000000000000000000000000000000000000000000000000000"
+          }
+        }
+      },
+      "divergences": [
+        {
+          "kind": "STATUS_MISMATCH",
+          "step": 0,
+          "detail": "dry-run status differs",
+          "evm": {
+            "status": "success",
+            "error": null
+          },
+          "polkadot": {
+            "status": "error",
+            "error": "0x0050005217000000000000000000000000000000000000014000000000000000c2945c3f551702000000010000000408d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d35916c61d2000000000000000000000000000100000008026be73d318ff41d453a8d388bc71088f64819f9c260da7774a3f711acff7e7ef0009fdd21610000000000000000000000d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d00000100000000038e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b765800000100000004008e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b765800ca9a3b0000000000000000000000000000010000000402d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d8e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b765800ca9a3b0000000000000000000000000000010000000800d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d8e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b76580000010000000808d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d8e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b765880c4d26c1700000000000000000000000000010000000407d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d4bd6a68bd100000000000000000000000000010000000600d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27deabac5d500000000000000000000000000000000000000000000000000000000000001000000000003db10c5d5d9610000000208038e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b765880000000000000000000000000000000000000000000000000000000000000000004f60f4f880de0ddcf2e78a7d895dc452ec587aa199e6c63024e6ccf29dc33a15f0208038e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b765880010000000000000000000000000000000000000000000000000000000000000004f60f4f880de0ddcf2e78a7d895dc452ec587aa199e6c63024e6ccf29dc33a15f0208038e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b765880020000000000000000000000000000000000000000000000000000000000000004f60f4f880de0ddcf2e78a7d895dc452ec587aa199e6c63024e6ccf29dc33a15f020806018eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a488e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b7658000208088eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a488e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b76580050005217000000000000000000000000"
+          }
+        },
+        {
+          "kind": "EVENT_MISMATCH",
+          "step": 0,
+          "detail": "emitted events differ",
+          "evm": [
+            {
+              "name": "Val",
+              "args": [
+                {
+                  "name": "v",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "name": "Val",
+              "args": [
+                {
+                  "name": "v",
+                  "value": 1
+                }
+              ]
+            },
+            {
+              "name": "Val",
+              "args": [
+                {
+                  "name": "v",
+                  "value": 2
+                }
+              ]
+            }
+          ],
+          "polkadot": [
+            {
+              "name": "Val",
+              "args": [
+                {
+                  "name": "v",
+                  "value": 2
+                }
+              ]
+            },
+            {
+              "name": "Val",
+              "args": [
+                {
+                  "name": "v",
+                  "value": 2
+                }
+              ]
+            },
+            {
+              "name": "Val",
+              "args": [
+                {
+                  "name": "v",
+                  "value": 2
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "divergences": [
+    {
+      "kind": "STATUS_MISMATCH",
+      "step": 0,
+      "detail": "dry-run status differs",
+      "evm": {
+        "status": "success",
+        "error": null
+      },
+      "polkadot": {
+        "status": "error",
+        "error": "0x0050005217000000000000000000000000000000000000014000000000000000c2945c3f551702000000010000000408d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d35916c61d2000000000000000000000000000100000008026be73d318ff41d453a8d388bc71088f64819f9c260da7774a3f711acff7e7ef0009fdd21610000000000000000000000d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d00000100000000038e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b765800000100000004008e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b765800ca9a3b0000000000000000000000000000010000000402d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d8e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b765800ca9a3b0000000000000000000000000000010000000800d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d8e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b76580000010000000808d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d8e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b765880c4d26c1700000000000000000000000000010000000407d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d4bd6a68bd100000000000000000000000000010000000600d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27deabac5d500000000000000000000000000000000000000000000000000000000000001000000000003db10c5d5d9610000000208038e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b765880000000000000000000000000000000000000000000000000000000000000000004f60f4f880de0ddcf2e78a7d895dc452ec587aa199e6c63024e6ccf29dc33a15f0208038e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b765880010000000000000000000000000000000000000000000000000000000000000004f60f4f880de0ddcf2e78a7d895dc452ec587aa199e6c63024e6ccf29dc33a15f0208038e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b765880020000000000000000000000000000000000000000000000000000000000000004f60f4f880de0ddcf2e78a7d895dc452ec587aa199e6c63024e6ccf29dc33a15f020806018eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a488e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b7658000208088eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a488e15d649ed878baeebedc8b26636038b9d797468ed7cbda87b24cae59e9b76580050005217000000000000000000000000"
+      }
+    },
+    {
+      "kind": "EVENT_MISMATCH",
+      "step": 0,
+      "detail": "emitted events differ",
+      "evm": [
+        {
+          "name": "Val",
+          "args": [
+            {
+              "name": "v",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "name": "Val",
+          "args": [
+            {
+              "name": "v",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "name": "Val",
+          "args": [
+            {
+              "name": "v",
+              "value": 2
+            }
+          ]
+        }
+      ],
+      "polkadot": [
+        {
+          "name": "Val",
+          "args": [
+            {
+              "name": "v",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "name": "Val",
+          "args": [
+            {
+              "name": "v",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "name": "Val",
+          "args": [
+            {
+              "name": "v",
+              "value": 2
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "verdict": "DIVERGENCE"
+}

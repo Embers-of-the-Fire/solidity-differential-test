@@ -1,0 +1,64 @@
+{
+  "name": "signed-shift-div-cast-probe",
+  "contract": "IntSemantics",
+  "tool_versions": {
+    "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+    "solang": "solang version v0.3.5",
+    "anvil": "anvil Version: 1.7.1-dev",
+    "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+  },
+  "oracle_config": {
+    "storage": "exact",
+    "events": false,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "workdir": "/tmp/oracle-run-9k8n_xx5",
+  "compile": {
+    "solc": {
+      "compiler": "solc",
+      "ok": false,
+      "version": "Version: 0.8.33+commit.64118f21.Linux.g++",
+      "errors": [
+        "TypeError: Explicit type conversion not allowed from \"uint8\" to \"int64\".\n --> input.sol:7:13:\n  |\n7 |         b = int64(uint8(x) >> 1);\n  |             ^^^^^^^^^^^^^^^^^^^^\n\n"
+      ],
+      "warnings": [
+        "Warning: SPDX license identifier not provided in source file. Before publishing, consider adding a comment containing \"SPDX-License-Identifier: <SPDX-License>\" to each source file. Use \"SPDX-License-Identifier: UNLICENSED\" for non-open-source code. Please see https://spdx.org for more information.\n--> input.sol\n\n"
+      ],
+      "artifacts": null
+    },
+    "solang": {
+      "compiler": "solang",
+      "ok": true,
+      "version": "solang version v0.3.5",
+      "errors": null,
+      "warnings": null,
+      "artifacts": {
+        "abi": false,
+        "bytecode_bytes": 0,
+        "wasm_bytes": 38279,
+        "metadata": true
+      }
+    }
+  },
+  "deploy": {},
+  "steps": [],
+  "divergences": [
+    {
+      "kind": "COMPILE_ASYMMETRY",
+      "step": null,
+      "detail": "one compiler rejected the source while the other accepted it",
+      "evm": {
+        "solc_ok": false,
+        "errors": [
+          "TypeError: Explicit type conversion not allowed from \"uint8\" to \"int64\".\n --> input.sol:7:13:\n  |\n7 |         b = int64(uint8(x) >> 1);\n  |             ^^^^^^^^^^^^^^^^^^^^\n\n"
+        ]
+      },
+      "polkadot": {
+        "solang_ok": true,
+        "errors": null
+      }
+    }
+  ],
+  "verdict": "DIVERGENCE"
+}

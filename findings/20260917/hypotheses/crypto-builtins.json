@@ -1,0 +1,67 @@
+{
+  "seed_id": "crypto-builtins",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "solang does not implement ecrecover at all: any contract calling ecrecover fails solang compilation with 'unknown function or type ecrecover', producing a COMPILE_ASYMMETRY against solc rather than a runtime divergence. This means ecrecover behavioral/curve-semantic differences cannot be probed at runtime and should be triaged as known_semantic compile asymmetry.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "crypto-builtins-hash-ecrecover-probe",
+          "verdict": "DIVERGENCE",
+          "note": "solc compiled fine; solang errored 'unknown function or type ecrecover' at input.sol:29, so no runtime steps executed."
+        }
+      ],
+      "next_probe": "Compile-only probe: a minimal contract containing a single ecrecover call, submitted to solang with no execution steps, to confirm the compile rejection is deterministic and not gated on pragma version or target flags."
+    },
+    {
+      "id": "h2",
+      "statement": "keccak256 (raw, empty, encodePacked), sha256, and ripemd160 builtins are supported by both solc and solang and produce identical digests (steps 0,1,2,4,5 all matched). However keccak256(abi.encode(...)) with dynamic args (uint8, string, bytes) diverges (step 3), so the earlier compile failure was not the only issue: the divergence lies in the abi.encode preimage, not in keccak256 itself, since the same keccak256 builtin agreed on all other inputs.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "crypto-builtins-hash-ecrecover-probe",
+          "verdict": "DIVERGENCE",
+          "note": "No solang errors were reported for keccak256/sha256/ripemd160 usage; only ecrecover triggered a compile error, but runtime agreement of hash builtins remains unverified."
+        },
+        {
+          "probe": "hash-builtins-no-ecrecover-probe",
+          "verdict": "DIVERGENCE",
+          "note": "kEmpty, k('hello'), kPacked(7,'hi',0x1234), sh, rip all returned identical digests on anvil and pallet-contracts; only kEncoded(7,'hi',0x1234) differed (evm 0x9e5b...13c5 vs polkadot 0xa074...4c9b), pointing at abi.encode rather than keccak256."
+        }
+      ],
+      "next_probe": "Re-run the identical probe with the rec() function and its steps removed, so the contract compiles under solang and the six hash query steps (k, kEmpty, kPacked, kEncoded, sh, rip) can be compared between anvil and pallet-contracts."
+    },
+    {
+      "id": "h3",
+      "statement": "solang's abi.encode produces a different byte layout than solc for arguments containing dynamic types (string/bytes) \u2014 e.g. different head/tail offsets, padding, or length-prefix handling \u2014 which surfaces as a divergent keccak256(abi.encode(...)) digest even though keccak256 itself agrees. abi.encodePacked agrees, so the divergence is specific to standard ABI encoding of dynamic types.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "hash-builtins-no-ecrecover-probe",
+          "verdict": "DIVERGENCE",
+          "note": "Step 3 RETURN_MISMATCH: keccak256(abi.encode(7,'hi',0x1234)) differs across toolchains while keccak256(abi.encodePacked(7,'hi',0x1234)) and all other hash queries matched."
+        }
+      ],
+      "next_probe": "Add a pure function returning abi.encode(uint8, string, bytes) directly as bytes (no hashing) and compare the raw return bytes between anvil and pallet-contracts; identical bytes would refute this and implicate the hash path, different bytes would confirm encoder divergence and pinpoint which fields differ."
+    },
+    {
+      "id": "h4",
+      "statement": "The step-6 exact-storage mismatch is a representation artifact, not a state divergence: pallet-contracts stores contract storage under hash-derived keys (0xff0f22... rather than slot 0x00...00) and encodes values little-endian/byte-reversed (deadbeeffeedface... stored as ...cefaedfeefbeadde). The subsequent 'stored' getter query (step 7) produced no divergence, indicating round-tripped values agree. Raw exact-storage oracle comparisons against pallet-contracts are therefore not meaningful and should be triaged as known_semantic.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "hash-builtins-no-ecrecover-probe",
+          "verdict": "DIVERGENCE",
+          "note": "STORAGE_MISMATCH at step 6: evm slot 0x00..00 = 0xdeadbeeffeedface... vs polkadot key 0xff0f22492f44bac4... = byte-reversed value; yet the 'stored' query at step 7 showed no divergence, so logical state agrees."
+        }
+      ],
+      "next_probe": "Probe with multiple public storage variables (different types/slots): write distinct values, then compare only getter-query results between chains while disabling exact-storage oracle; PASS on all getters confirms the representation-only nature."
+    }
+  ],
+  "updated_ts": 1789652392.413939
+}

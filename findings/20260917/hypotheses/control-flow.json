@@ -1,0 +1,34 @@
+{
+  "seed_id": "control-flow",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "Bounded control flow (for-loops with continue/break, nested loops with inner break, early return from deep nesting) compiles and executes identically under solc/EVM and solang/pallet-contracts at small iteration counts; metering-model divergence, if any, only manifests near gas/weight exhaustion boundaries.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "bounded-loop-break-recursion-probe",
+          "verdict": "PASS",
+          "note": "accumulate(10) with continue/break, nested(6,6) with inner break and early return, and all intermediate total() queries matched exactly between backends."
+        }
+      ],
+      "next_probe": "Repeat accumulate() and nested() with parameters scaled until EVM runs out of gas mid-loop (e.g., binary-search the largest n that succeeds on anvil), then replay the same sequence on solang and compare status at and around that boundary."
+    },
+    {
+      "id": "h2",
+      "statement": "Internal recursive calls (fibRec to depth 8) and revert-inside-loop semantics (revert reason 'loop-revert', full state rollback of total/iterations) behave identically across both toolchains; stack-depth and weight limits rather than semantics are the only expected divergence source.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "bounded-loop-break-recursion-probe",
+          "verdict": "PASS",
+          "note": "fib(8) recursion and revertAfter(10) reverting at i==5 produced identical results including revert reason and post-revert total() state."
+        }
+      ],
+      "next_probe": "Probe recursion depth limit: call fib(n) with n large enough that EVM approaches the 1024-call-frame stack limit (e.g., a linear-depth recursive counter function recursing 1000+ deep), then compare solang's failure mode (wasm stack trap vs weight exhaustion) and error surfacing."
+    }
+  ],
+  "updated_ts": 1789650609.1509776
+}

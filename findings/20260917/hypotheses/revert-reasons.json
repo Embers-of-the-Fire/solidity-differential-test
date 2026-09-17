@@ -1,0 +1,53 @@
+{
+  "seed_id": "revert-reasons",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "solang constant-folds unsigned arithmetic at compile time and rejects expressions whose folded value is negative (e.g. `a - b` with literal-initialized 0 and 1), while solc accepts the same source and defers the failure to a runtime Panic(0x11) revert. This produces a compile-level asymmetry that masks any runtime revert-reason comparison for such code.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "revert-reason-encoding-probe",
+          "verdict": "DIVERGENCE",
+          "note": "COMPILE_ASYMMETRY: solc compiled; solang rejected `a - b` at line 27 with 'negative value -1 does not fit into type uint256. Cannot implicitly convert signed literal to unsigned type.'"
+        }
+      ],
+      "next_probe": "Minimal contract with `function f() external pure returns (uint256) { uint256 a = 0; uint256 b = 1; return a - b; }`. Expect solang compile error 'negative value -1 does not fit into type uint256' and solc compile success; if solc succeeds, call f() to observe Panic(0x11)."
+    },
+    {
+      "id": "h2",
+      "statement": "solang's constant-folding rejection of unsigned underflow only triggers when operands are compile-time constants; when underflow operands come from function arguments or storage (non-foldable), solang compiles successfully and produces a runtime revert whose decoded payload can then be compared with solc's Panic(0x11) Error encoding.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "revert-reason-encoding-probe",
+          "verdict": "DIVERGENCE",
+          "note": "Inferred from solang's error wording: the compiler folded a=0,b=1 to -1 and rejected it; non-constant operands would bypass this path, but this probe never got that far."
+        },
+        {
+          "probe": "runtime-arg-uint-underflow-panic-probe",
+          "verdict": "PASS",
+          "note": "Both toolchains compiled the non-constant-operand version. sub(5,3)=2 and sub(7,7)=0 agreed, and sub(0,1) reverted on both with matching decoded revert payloads (solc Panic(0x11) vs solang/pallet-contracts decode identical under the revert_reasons oracle)."
+        }
+      ],
+      "next_probe": "Contract with `function sub(uint256 a, uint256 b) external pure returns (uint256) { return a - b; }` called with a=0, b=1. Both toolchains should compile; compare runtime revert payloads: solc Panic(0x11) vs whatever solang/pallet-contracts decodes to."
+    },
+    {
+      "id": "h3",
+      "statement": "Runtime-arg arithmetic reverts in solang/pallet-contracts decode to the same payload as solc's Panic(uint256) encoding for overflow/underflow (code 0x11), suggesting SCALE re-encoding preserves ABI-compatible Panic payloads for at least code 0x11; this agreement may or may not extend to other panic codes (0x12 division by zero, 0x21 enum conversion, 0x32 out-of-bounds array access) which exercise different solc code paths.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "runtime-arg-uint-underflow-panic-probe",
+          "verdict": "PASS",
+          "note": "Exact payload match for underflow (0x11); other panic codes untested and may follow different encoding paths in solang's SCALE translation."
+        }
+      ],
+      "next_probe": "Contract with `function div(uint256 a, uint256 b) external pure returns (uint256) { return a / b; }` called with b=0 (Panic 0x12) and a contract with `function at(uint256 i) external pure returns (uint256) { uint256[2] memory arr; return arr[i]; }` called with i=5 (Panic 0x32). Compare decoded revert payloads across toolchains."
+    }
+  ],
+  "updated_ts": 1789651711.758348
+}

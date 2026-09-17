@@ -1,0 +1,53 @@
+{
+  "seed_id": "value-transfers",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "Raw contract storage bytes are byte-order swapped between the backends: solc/anvil stores uint256 big-endian (0x03e8) while solang/polkadot stores the same value little-endian (0xe803). msg.value itself agrees numerically (1000 recorded identically on both). STORAGE_MISMATCHes of this form are encoding artifacts, not semantic divergences.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "payable-nonpayable-forward-probe",
+          "verdict": "DIVERGENCE",
+          "note": "After deposit(1000), both chains stored count=1 and lastValue=1000, but bytes were 0x03e8 (EVM) vs 0xe803 (polkadot) \u2014 same integer, reversed byte order."
+        }
+      ],
+      "next_probe": "Deploy a contract with `uint256 public x; function set() external { x = 256; }`, call set(), and compare raw storage: expect 0x0100 on EVM vs 0x0001 on polkadot, confirming pure endianness."
+    },
+    {
+      "id": "h2",
+      "statement": "Sending msg.value to a nonpayable function fails on both backends (no state committed in either), but the failure is classified differently: solc/anvil reports a pre-execution 'error' while solang/polkadot reports a 'revert'. This is a status-taxonomy divergence, not a behavioral one.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "payable-nonpayable-forward-probe",
+          "verdict": "DIVERGENCE",
+          "note": "reject(5) with value 500: EVM status=error, polkadot status=revert; step-3 storage identical (pre-state) on both, so both rejected the transfer."
+        }
+      ],
+      "next_probe": "Call a nonpayable function with value>0 whose body writes storage; verify on both backends that storage is unchanged afterward, and record whether polkadot surfaces a revert reason string vs an empty one."
+    },
+    {
+      "id": "h3",
+      "statement": "Low-level call{value: amt}(\"\") forwarding native value from a contract reverts unconditionally on solang/polkadot while succeeding on solc/anvil, leaving the contract balance and post-call state (count) unchanged. The existential deposit is NOT the cause: forwarding 5e11 to alice \u2014 a pre-funded account already above the ED \u2014 still reverted on polkadot, as did forwarding 1 unit to bob. The failure appears inherent to how solang emits value-carrying calls for pallet-contracts, independent of recipient account state or amount.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "payable-nonpayable-forward-probe",
+          "verdict": "DIVERGENCE",
+          "note": "forwardHalf(charlie, fresh account): EVM success (balance 1000->500, count=11), polkadot revert (balance stays 1000, count=1, lastValue never updated to 500)."
+        },
+        {
+          "probe": "call-value-forward-balance-probe",
+          "verdict": "DIVERGENCE",
+          "note": "Contract funded with 1e12 (myBalance agreed on both backends). forward(alice, 5e11): EVM success (count 1->12, balance 1e12->5e11); polkadot revert (count stays 1, balance stays 1e12). alice is pre-funded above any ED, yet the transfer still reverted \u2014 refuting the ED hypothesis from h3. forward(bob, 1) likewise succeeded on EVM (count->23) and reverted on polkadot (count stays 1)."
+        }
+      ],
+      "next_probe": "Fund the contract with a large amount and forwardHalf to (a) a pre-funded account already above the existential deposit and (b) a fresh account. If (a) succeeds and (b) reverts on polkadot, the cause is the existential deposit; if both revert, solang cannot forward value via call{value} at all."
+    }
+  ],
+  "updated_ts": 1789651816.1173856
+}

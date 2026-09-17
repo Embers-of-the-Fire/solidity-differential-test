@@ -1,0 +1,224 @@
+{
+  "name": "hash-builtins-no-ecrecover-probe",
+  "contract": "HashProbe",
+  "tool_versions": {
+    "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+    "solang": "solang version v0.3.5",
+    "anvil": "anvil Version: 1.7.1-dev",
+    "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+  },
+  "oracle_config": {
+    "storage": "exact",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "workdir": "/tmp/oracle-run-bw4e3j00",
+  "compile": {
+    "solc": {
+      "compiler": "solc",
+      "ok": true,
+      "version": "Version: 0.8.33+commit.64118f21.Linux.g++",
+      "errors": null,
+      "warnings": [
+        "Warning: SPDX license identifier not provided in source file. Before publishing, consider adding a comment containing \"SPDX-License-Identifier: <SPDX-License>\" to each source file. Use \"SPDX-License-Identifier: UNLICENSED\" for non-open-source code. Please see https://spdx.org for more information.\n--> input.sol\n\n",
+        "Warning: Function state mutability can be restricted to pure\n --> input.sol:1:95:\n  |\n1 |  ... on storeHash(bytes32 v)public{x=v;}function kEncoded(uint8 a,string memory s,bytes memory b)public returns(bytes32){return keccak256(abi.encode(a,s,b));}}\n  |                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\n"
+      ],
+      "artifacts": {
+        "abi": true,
+        "bytecode_bytes": 1351,
+        "wasm_bytes": 0,
+        "metadata": false
+      }
+    },
+    "solang": {
+      "compiler": "solang",
+      "ok": true,
+      "version": "solang version v0.3.5",
+      "errors": null,
+      "warnings": [
+        "\u001b[0m\u001b[1m\u001b[38;5;11mwarning\u001b[0m\u001b[1m: storage variable 'x' has been assigned, but never read\u001b[0m",
+        "\u001b[0m\u001b[1m\u001b[38;5;11mwarning\u001b[0m\u001b[1m: function can be declared 'pure'\u001b[0m"
+      ],
+      "artifacts": {
+        "abi": false,
+        "bytecode_bytes": 0,
+        "wasm_bytes": 42253,
+        "metadata": true
+      }
+    }
+  },
+  "deploy": {
+    "evm": {
+      "status": "success",
+      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "tx_hash": "293dee46b3546ac8b6cea30410a12613b7c1fa04af4da67eeaf908729cd95722",
+      "error": null
+    },
+    "polkadot": {
+      "status": "success",
+      "address": "5GNTyQfPngEJrij45P6YsLUUp7tUj91Ksa8uwDAvwWP2fzRc",
+      "tx_hash": null,
+      "error": null
+    }
+  },
+  "steps": [
+    {
+      "index": 0,
+      "action": "query",
+      "function": "kEncoded",
+      "args": [
+        7,
+        "hi",
+        "0x1234"
+      ],
+      "sender": "deployer",
+      "value": 0,
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": "0x9e5ba74149ec146117cb80663479f804de0ed0ac48b32fe7803c8338147613c5",
+          "revert_reason": null,
+          "return_data_raw": "0x9e5ba74149ec146117cb80663479f804de0ed0ac48b32fe7803c8338147613c5",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": "0xa0742a0bad768b14ef2a9cd1e7d1a56e6d5f616b860ac078796f2a5baf224c9b",
+          "revert_reason": null,
+          "return_data_raw": "0xa0742a0bad768b14ef2a9cd1e7d1a56e6d5f616b860ac078796f2a5baf224c9b",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "divergences": [
+        {
+          "kind": "RETURN_MISMATCH",
+          "step": 0,
+          "detail": "dry-run return values differ",
+          "evm": "0x9e5ba74149ec146117cb80663479f804de0ed0ac48b32fe7803c8338147613c5",
+          "polkadot": "0xa0742a0bad768b14ef2a9cd1e7d1a56e6d5f616b860ac078796f2a5baf224c9b"
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "action": "call",
+      "function": "storeHash",
+      "args": [
+        "0xdeadbeeffeedface000000000000000000000000000000000000000000000000"
+      ],
+      "sender": "alice",
+      "value": 0,
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "7525af9c56ed6d34ad62cf0a12889be6748e047f214784eca3ace263b5463d5a",
+          "block_hash": "e7d90cf52458fbffc872342daedc440e390d21d615db046b721bd42a3c3ffa0e",
+          "gas_used": 43780,
+          "events": [],
+          "error": null
+        },
+        "state": {
+          "chain": "evm",
+          "block": {
+            "number": 2,
+            "hash": "0xe7d90cf52458fbffc872342daedc440e390d21d615db046b721bd42a3c3ffa0e",
+            "timestamp": 1789652507
+          },
+          "contract": {
+            "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+            "balance": "0",
+            "nonce": 1
+          },
+          "storage": {
+            "0x0000000000000000000000000000000000000000000000000000000000000000": "0xdeadbeeffeedface000000000000000000000000000000000000000000000000"
+          }
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "0x62d201cd862920c96f8858296f77fc9a14dafe32313140020faa539726725d06",
+          "block_hash": "0x9772822039aa8f7721e5a5ffc0f96f711f886ac02d85089bcc928d09ea316a38",
+          "gas_used": 854345853,
+          "events": [],
+          "error": null
+        },
+        "state": {
+          "chain": "polkadot",
+          "block": {
+            "number": 2,
+            "hash": "0x9772822039aa8f7721e5a5ffc0f96f711f886ac02d85089bcc928d09ea316a38",
+            "timestamp": 1789652507228
+          },
+          "contract": {
+            "address": "5GNTyQfPngEJrij45P6YsLUUp7tUj91Ksa8uwDAvwWP2fzRc",
+            "balance": "1000000000",
+            "nonce": 0
+          },
+          "storage": {
+            "0xff0f22492f44bac4c4b30ae58d0e8daa0000000000000000000000000000000000000000000000000000000000000000": "0x000000000000000000000000000000000000000000000000cefaedfeefbeadde"
+          }
+        }
+      },
+      "divergences": [
+        {
+          "kind": "STORAGE_MISMATCH",
+          "step": 1,
+          "detail": "contract storage differs (mode=exact)",
+          "evm": {
+            "0x0000000000000000000000000000000000000000000000000000000000000000": "0xdeadbeeffeedface000000000000000000000000000000000000000000000000"
+          },
+          "polkadot": {
+            "0xff0f22492f44bac4c4b30ae58d0e8daa0000000000000000000000000000000000000000000000000000000000000000": "0x000000000000000000000000000000000000000000000000cefaedfeefbeadde"
+          }
+        }
+      ]
+    }
+  ],
+  "divergences": [
+    {
+      "kind": "RETURN_MISMATCH",
+      "step": 0,
+      "detail": "dry-run return values differ",
+      "evm": "0x9e5ba74149ec146117cb80663479f804de0ed0ac48b32fe7803c8338147613c5",
+      "polkadot": "0xa0742a0bad768b14ef2a9cd1e7d1a56e6d5f616b860ac078796f2a5baf224c9b"
+    },
+    {
+      "kind": "STORAGE_MISMATCH",
+      "step": 1,
+      "detail": "contract storage differs (mode=exact)",
+      "evm": {
+        "0x0000000000000000000000000000000000000000000000000000000000000000": "0xdeadbeeffeedface000000000000000000000000000000000000000000000000"
+      },
+      "polkadot": {
+        "0xff0f22492f44bac4c4b30ae58d0e8daa0000000000000000000000000000000000000000000000000000000000000000": "0x000000000000000000000000000000000000000000000000cefaedfeefbeadde"
+      }
+    }
+  ],
+  "verdict": "DIVERGENCE"
+}

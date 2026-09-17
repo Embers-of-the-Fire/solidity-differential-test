@@ -1,0 +1,81 @@
+{
+  "seed_id": "int-semantics",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "solang's type checker is more permissive than solc for explicit integer conversions that cross both signedness and width: solc rejects 'int64(uint8(x))' (and generally signed<->unsigned conversions of differing width) with a TypeError, while solang compiles them. Any probe relying on such casts will show a COMPILE_ASYMMETRY, masking all downstream runtime steps.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "signed-shift-div-cast-probe",
+          "verdict": "DIVERGENCE",
+          "note": "solc rejected 'int64(uint8(x) >> 1)' at compile time (explicit conversion uint8->int64 not allowed); solang compiled the entire contract. All runtime steps never executed, so shift/div/cast semantics remain untested."
+        }
+      ],
+      "next_probe": "Minimal single-function contract: function f(uint8 x) public returns (int64) { return int64(x); } plus the mirror-image function g(int8 x) public returns (uint64) { return uint64(x); }. Compile-only check on both toolchains; predict solc rejects both, solang accepts both."
+    },
+    {
+      "id": "h2",
+      "statement": "When solang accepts a cross-signedness, cross-width conversion that solc forbids (e.g., uint8 -> int64), its runtime lowering may not match solc-legal equivalents like int64(uint64(u)) \u2014 specifically it could sign-extend rather than zero-extend, producing behavioral divergence on values >= 2^7.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "signed-shift-div-cast-probe",
+          "verdict": "DIVERGENCE",
+          "note": "solang accepted the forbidden cast, meaning its lowering path for uint8->int64 exists and is untested against a solc-legal baseline; original probe could not observe runtime behavior."
+        }
+      ],
+      "next_probe": "Contract with two paths: f(uint8 x) { a = int64(x); } (solang-only, will compile-fail on solc) rewritten as solc-legal pair: f(uint8 x) { a = int64(uint64(x)); b = int64(uint64(x >> 1)); } and call with x=255 and x=128. Compare against solc baseline; expect a=255, b=127 if solang zero-extends; any negative result indicates sign-extension bug."
+    },
+    {
+      "id": "h3",
+      "statement": "Probes in the int-semantics area must use only solc-legal conversion patterns (two-step casts via same-sign intermediates, e.g., int64(uint64(u)) or int64(int16(x))) to avoid compile asymmetry; the arithmetic-shift and toward-zero division/modulo behaviors targeted by this probe are still completely untested.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "signed-shift-div-cast-probe",
+          "verdict": "DIVERGENCE",
+          "note": "Single non-conforming cast aborted the entire probe; fixing it to a solc-legal two-step cast is the cheapest way to actually exercise shifts, signed div/mod rounding, and sign-flip cast chains on both targets."
+        },
+        {
+          "probe": "int-shift-divmod-castchain-probe",
+          "verdict": "DIVERGENCE",
+          "note": "Rewritten with solc-legal two-step casts, the contract compiled on BOTH toolchains and every runtime value agreed: sArith=-4 (0xfc..fc), sLogic=124 (0x7c), q=-3 (0xfd..fd), r=-1, chain=65535 (0xffff). The reported DIVERGENCE is a storage-packing oracle artifact, not a semantic one \u2014 arithmetic shift, toward-zero div/mod, and the cast chain behave identically. Methodology claim confirmed: solc-legal conversion patterns unblock runtime testing."
+        }
+      ],
+      "next_probe": "Rerun the original probe with line 12 rewritten as b = int64(uint64(uint8(x) >> 1)); keep all other steps identical (shiftNeg(-8), divMod(-7,2), divMod(7,-2), castChain(-1)). Predict both compile and agree: a=-4, b=124 after shiftNeg; c=-3/a=-1 and c=-3/a=1 after divMod calls; d=255, b=255, c=-1 after castChain."
+    },
+    {
+      "id": "h4",
+      "statement": "The mode=count storage oracle produces false-positive divergences for any contract with multiple consecutive sub-32-byte state variables: solc/EVM packs them into a single 256-bit slot (e.g., 0x7cfffffffffffffffc holds both sLogic=124 and sArith=-4), while pallet-contracts stores each variable in its own cell (0x7c, 0xfcffffffffffffff). nonzero_entries and raw value lists will mismatch even when all semantics agree.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "int-shift-divmod-castchain-probe",
+          "verdict": "DIVERGENCE",
+          "note": "Triage category=oracle_artifact. EVM showed 1-2 packed slots while polkadot showed 2-5 individual cells, but every decoded value matched semantically (124, -4, -3, -1, 65535)."
+        }
+      ],
+      "next_probe": "Rerun the identical int-shift-divmod-castchain-probe spec with oracle.storage disabled (rely on the five getter query steps only). Predict a clean PASS, which would retire this artifact class and validate getter-based oracles for int-semantics probes."
+    },
+    {
+      "id": "h5",
+      "statement": "solang agrees with solc on core signed-integer lowering: arithmetic right shift of negative values (-8 >> 1 = -4), toward-zero rounding for signed division and modulo (-7/2=-3, -7%2=-1), and sign-truncation cast chains through same-sign intermediates (int16(-1) -> uint16 -> uint64 -> int64 = 65535). Baseline semantics are aligned; divergences, if any, live at edge cases.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "int-shift-divmod-castchain-probe",
+          "verdict": "DIVERGENCE",
+          "note": "DIVERGENCE verdict was purely storage-layout; decoded values from both targets matched exactly for shiftNeg(-8), divMod(-7,2), and castChain(-1), establishing semantic agreement on the happy paths."
+        }
+      ],
+      "next_probe": "Edge-case probe exercising: INT64_MIN / -1 (overflow trap in >=0.8.0 \u2014 does solang revert with matching behavior?), division/modulo by zero (compare revert_reasons since oracle captures them), x >> 64 and x >> 255 (shift amount >= width), and int8(-128) >> 7. Predict agreement on shifts; revert behavior on overflow/div-zero is the most likely fault line."
+    }
+  ],
+  "updated_ts": 1789652628.794039
+}

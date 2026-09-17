@@ -1,0 +1,639 @@
+{
+  "name": "indexed-event-topics-ordering-probe",
+  "contract": "EventProbe",
+  "tool_versions": {
+    "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+    "solang": "solang version v0.3.5",
+    "anvil": "anvil Version: 1.7.1-dev",
+    "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+  },
+  "oracle_config": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "workdir": "/tmp/oracle-run-iaqh5sw3",
+  "compile": {
+    "solc": {
+      "compiler": "solc",
+      "ok": true,
+      "version": "Version: 0.8.33+commit.64118f21.Linux.g++",
+      "errors": null,
+      "warnings": [
+        "Warning: SPDX license identifier not provided in source file. Before publishing, consider adding a comment containing \"SPDX-License-Identifier: <SPDX-License>\" to each source file. Use \"SPDX-License-Identifier: UNLICENSED\" for non-open-source code. Please see https://spdx.org for more information.\n--> input.sol\n\n"
+      ],
+      "artifacts": {
+        "abi": true,
+        "bytecode_bytes": 1953,
+        "wasm_bytes": 0,
+        "metadata": false
+      }
+    },
+    "solang": {
+      "compiler": "solang",
+      "ok": true,
+      "version": "solang version v0.3.5",
+      "errors": null,
+      "warnings": null,
+      "artifacts": {
+        "abi": false,
+        "bytecode_bytes": 0,
+        "wasm_bytes": 48114,
+        "metadata": true
+      }
+    }
+  },
+  "deploy": {
+    "evm": {
+      "status": "success",
+      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "tx_hash": "1bd004b1b283916f38c62c003992524e645de6590e8ba0253cf9a93811a46aa8",
+      "error": null
+    },
+    "polkadot": {
+      "status": "success",
+      "address": "5HHPf9ZEoRYXgoyDm6KEQw13bDGdSnBSxsrTGbSzSGsKVUzc",
+      "tx_hash": null,
+      "error": null
+    }
+  },
+  "steps": [
+    {
+      "index": 0,
+      "action": "call",
+      "function": "emitAll",
+      "args": [
+        0,
+        ""
+      ],
+      "sender": "charlie",
+      "value": 0,
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "b40206c79dcf5703ef57ddb8ff1f7d187b3d0574f5013ab7c3640fc43edefe23",
+          "block_hash": "7893bebae4bdb2d88c8ec050fe1493f3fd9b38810267addd0ace969245e4d0d3",
+          "gas_used": 37446,
+          "events": [
+            {
+              "name": "One",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+                }
+              ]
+            },
+            {
+              "name": "Two",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+                },
+                {
+                  "name": "val",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "name": "Three",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+                },
+                {
+                  "name": "a",
+                  "value": 0
+                },
+                {
+                  "name": "b",
+                  "value": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+                }
+              ]
+            },
+            {
+              "name": "Dyn",
+              "args": [
+                {
+                  "name": "tag",
+                  "value": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+                },
+                {
+                  "name": "val",
+                  "value": 1
+                }
+              ]
+            },
+            {
+              "name": "Plain",
+              "args": [
+                {
+                  "name": "x",
+                  "value": 0
+                },
+                {
+                  "name": "message",
+                  "value": ""
+                }
+              ]
+            },
+            {
+              "name": "One",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "evm",
+          "block": {
+            "number": 2,
+            "hash": "0x7893bebae4bdb2d88c8ec050fe1493f3fd9b38810267addd0ace969245e4d0d3",
+            "timestamp": 1789650863
+          },
+          "contract": {
+            "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+            "balance": "0",
+            "nonce": 1
+          },
+          "storage": {
+            "0x0000000000000000000000000000000000000000000000000000000000000000": "0x0000000000000000000000000000000000000000000000000000000000000002"
+          }
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "error",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": null,
+          "debug_message": null,
+          "error": "0x0000000000000000000000000000000000000000000000015400000000000000c2945c3f551702000000010000000408d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27dd9bea370d20000000000000000000000000001000000080294514e0d31771f528e67ae189a9483af4afaab0e7373708fea18d59cad9ba5244037cba6660000000000000000000000d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d0000010000000003e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c290000010000000400e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c2900ca9a3b0000000000000000000000000000010000000402d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27de6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c2900ca9a3b0000000000000000000000000000010000000803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c2980d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d081aaae41c33435cfd5315ddf37475aa219eb2d3df7a7f4d5040bc3617c78a3381d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d00010000000803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c299464000000000000000000000000000000000000000000000000000000000000001063746f7204891b6a90b333f1cb9e3ab4a24bdfd8a45d2675316b967c14dd562f8daacba77a00010000000800d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27de6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c290000010000000808d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27de6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c2980c4d26c1700000000000000000000000000010000000808d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27de6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c29005000521700000000000000000000000000010000000407d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27de7be2769d100000000000000000000000000010000000600d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27df2ff7b07010000000000000000000000000000000000000000000000000000000000010000000000075e437b07011a950100000000020803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c2980306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20081aaae41c33435cfd5315ddf37475aa219eb2d3df7a7f4d5040bc3617c78a3381306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20020803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c290101306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc2000000000000000000000000000000000000000000000000000000000000000000c08ceb68b319d706c795a103e30c6b6439677520a0c201572f22d3f443801e4cd306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc200000000000000000000000000000000000000000000000000000000000000000020803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c298101306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc200000000000000000000000000000000000000000000000000000000000000000c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a47010d75ea6bad8b46dbcffdcdb9d0f97d3ba4193d2c5ba98a1974a3b4f6867e1ae2f306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc200000000000000000000000000000000000000000000000000000000000000000c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470020803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c298400010000000000000000000000000000000000000000000000000000000000000008d7db0944143c62b029005bec67037412c83d3532e02746e22116182e0c0b7f3a0000000000000000000000000000000000000000000000000000000000000000020803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c298400000000000000000000000000000000000000000000000000000000000000000004891b6a90b333f1cb9e3ab4a24bdfd8a45d2675316b967c14dd562f8daacba77a020803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c2980306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20081aaae41c33435cfd5315ddf37475aa219eb2d3df7a7f4d5040bc3617c78a3381306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc2002080601306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c2900"
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "0xf2f1a8c255e1ffd84bb5401f8e5cbe8d9cd177821240800a3be3a722836c1fde",
+          "block_hash": "0xd43cc1f55bd5f0a481dcea849271defcf28c37041c8a9c2145701776b67701ec",
+          "gas_used": 2813643743,
+          "events": [
+            {
+              "name": "One",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+                }
+              ]
+            },
+            {
+              "name": "Two",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+                },
+                {
+                  "name": "val",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "name": "Three",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+                },
+                {
+                  "name": "a",
+                  "value": 0
+                },
+                {
+                  "name": "b",
+                  "value": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+                }
+              ]
+            },
+            {
+              "name": "Dyn",
+              "args": [
+                {
+                  "name": "tag",
+                  "value": ""
+                },
+                {
+                  "name": "val",
+                  "value": 1
+                }
+              ]
+            },
+            {
+              "name": "Plain",
+              "args": [
+                {
+                  "name": "x",
+                  "value": 0
+                },
+                {
+                  "name": "message",
+                  "value": ""
+                }
+              ]
+            },
+            {
+              "name": "One",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "polkadot",
+          "block": {
+            "number": 2,
+            "hash": "0xd43cc1f55bd5f0a481dcea849271defcf28c37041c8a9c2145701776b67701ec",
+            "timestamp": 1789650863591
+          },
+          "contract": {
+            "address": "5HHPf9ZEoRYXgoyDm6KEQw13bDGdSnBSxsrTGbSzSGsKVUzc",
+            "balance": "1000000000",
+            "nonce": 0
+          },
+          "storage": {
+            "0xff0f22492f44bac4c4b30ae58d0e8daa0000000000000000000000000000000000000000000000000000000000000000": "0x0200000000000000000000000000000000000000000000000000000000000000"
+          }
+        }
+      },
+      "divergences": [
+        {
+          "kind": "STATUS_MISMATCH",
+          "step": 0,
+          "detail": "dry-run status differs",
+          "evm": {
+            "status": "success",
+            "error": null
+          },
+          "polkadot": {
+            "status": "error",
+            "error": "0x0000000000000000000000000000000000000000000000015400000000000000c2945c3f551702000000010000000408d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27dd9bea370d20000000000000000000000000001000000080294514e0d31771f528e67ae189a9483af4afaab0e7373708fea18d59cad9ba5244037cba6660000000000000000000000d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d0000010000000003e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c290000010000000400e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c2900ca9a3b0000000000000000000000000000010000000402d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27de6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c2900ca9a3b0000000000000000000000000000010000000803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c2980d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d081aaae41c33435cfd5315ddf37475aa219eb2d3df7a7f4d5040bc3617c78a3381d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d00010000000803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c299464000000000000000000000000000000000000000000000000000000000000001063746f7204891b6a90b333f1cb9e3ab4a24bdfd8a45d2675316b967c14dd562f8daacba77a00010000000800d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27de6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c290000010000000808d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27de6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c2980c4d26c1700000000000000000000000000010000000808d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27de6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c29005000521700000000000000000000000000010000000407d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27de7be2769d100000000000000000000000000010000000600d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27df2ff7b07010000000000000000000000000000000000000000000000000000000000010000000000075e437b07011a950100000000020803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c2980306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20081aaae41c33435cfd5315ddf37475aa219eb2d3df7a7f4d5040bc3617c78a3381306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20020803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c290101306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc2000000000000000000000000000000000000000000000000000000000000000000c08ceb68b319d706c795a103e30c6b6439677520a0c201572f22d3f443801e4cd306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc200000000000000000000000000000000000000000000000000000000000000000020803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c298101306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc200000000000000000000000000000000000000000000000000000000000000000c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a47010d75ea6bad8b46dbcffdcdb9d0f97d3ba4193d2c5ba98a1974a3b4f6867e1ae2f306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc200000000000000000000000000000000000000000000000000000000000000000c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470020803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c298400010000000000000000000000000000000000000000000000000000000000000008d7db0944143c62b029005bec67037412c83d3532e02746e22116182e0c0b7f3a0000000000000000000000000000000000000000000000000000000000000000020803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c298400000000000000000000000000000000000000000000000000000000000000000004891b6a90b333f1cb9e3ab4a24bdfd8a45d2675316b967c14dd562f8daacba77a020803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c2980306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20081aaae41c33435cfd5315ddf37475aa219eb2d3df7a7f4d5040bc3617c78a3381306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc2002080601306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c2900"
+          }
+        },
+        {
+          "kind": "EVENT_MISMATCH",
+          "step": 0,
+          "detail": "emitted events differ",
+          "evm": [
+            {
+              "name": "One",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+                }
+              ]
+            },
+            {
+              "name": "Two",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+                },
+                {
+                  "name": "val",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "name": "Three",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+                },
+                {
+                  "name": "a",
+                  "value": 0
+                },
+                {
+                  "name": "b",
+                  "value": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+                }
+              ]
+            },
+            {
+              "name": "Dyn",
+              "args": [
+                {
+                  "name": "tag",
+                  "value": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+                },
+                {
+                  "name": "val",
+                  "value": 1
+                }
+              ]
+            },
+            {
+              "name": "Plain",
+              "args": [
+                {
+                  "name": "x",
+                  "value": 0
+                },
+                {
+                  "name": "message",
+                  "value": ""
+                }
+              ]
+            },
+            {
+              "name": "One",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+                }
+              ]
+            }
+          ],
+          "polkadot": [
+            {
+              "name": "One",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+                }
+              ]
+            },
+            {
+              "name": "Two",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+                },
+                {
+                  "name": "val",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "name": "Three",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+                },
+                {
+                  "name": "a",
+                  "value": 0
+                },
+                {
+                  "name": "b",
+                  "value": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+                }
+              ]
+            },
+            {
+              "name": "Dyn",
+              "args": [
+                {
+                  "name": "tag",
+                  "value": ""
+                },
+                {
+                  "name": "val",
+                  "value": 1
+                }
+              ]
+            },
+            {
+              "name": "Plain",
+              "args": [
+                {
+                  "name": "x",
+                  "value": 0
+                },
+                {
+                  "name": "message",
+                  "value": ""
+                }
+              ]
+            },
+            {
+              "name": "One",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "divergences": [
+    {
+      "kind": "STATUS_MISMATCH",
+      "step": 0,
+      "detail": "dry-run status differs",
+      "evm": {
+        "status": "success",
+        "error": null
+      },
+      "polkadot": {
+        "status": "error",
+        "error": "0x0000000000000000000000000000000000000000000000015400000000000000c2945c3f551702000000010000000408d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27dd9bea370d20000000000000000000000000001000000080294514e0d31771f528e67ae189a9483af4afaab0e7373708fea18d59cad9ba5244037cba6660000000000000000000000d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d0000010000000003e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c290000010000000400e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c2900ca9a3b0000000000000000000000000000010000000402d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27de6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c2900ca9a3b0000000000000000000000000000010000000803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c2980d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d081aaae41c33435cfd5315ddf37475aa219eb2d3df7a7f4d5040bc3617c78a3381d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d00010000000803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c299464000000000000000000000000000000000000000000000000000000000000001063746f7204891b6a90b333f1cb9e3ab4a24bdfd8a45d2675316b967c14dd562f8daacba77a00010000000800d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27de6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c290000010000000808d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27de6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c2980c4d26c1700000000000000000000000000010000000808d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27de6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c29005000521700000000000000000000000000010000000407d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27de7be2769d100000000000000000000000000010000000600d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27df2ff7b07010000000000000000000000000000000000000000000000000000000000010000000000075e437b07011a950100000000020803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c2980306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20081aaae41c33435cfd5315ddf37475aa219eb2d3df7a7f4d5040bc3617c78a3381306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20020803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c290101306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc2000000000000000000000000000000000000000000000000000000000000000000c08ceb68b319d706c795a103e30c6b6439677520a0c201572f22d3f443801e4cd306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc200000000000000000000000000000000000000000000000000000000000000000020803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c298101306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc200000000000000000000000000000000000000000000000000000000000000000c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a47010d75ea6bad8b46dbcffdcdb9d0f97d3ba4193d2c5ba98a1974a3b4f6867e1ae2f306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc200000000000000000000000000000000000000000000000000000000000000000c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470020803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c298400010000000000000000000000000000000000000000000000000000000000000008d7db0944143c62b029005bec67037412c83d3532e02746e22116182e0c0b7f3a0000000000000000000000000000000000000000000000000000000000000000020803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c298400000000000000000000000000000000000000000000000000000000000000000004891b6a90b333f1cb9e3ab4a24bdfd8a45d2675316b967c14dd562f8daacba77a020803e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c2980306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20081aaae41c33435cfd5315ddf37475aa219eb2d3df7a7f4d5040bc3617c78a3381306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc2002080601306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20e6da18714f7d58dd1a72e7342c83a286b4fb6c9be99ac7de54c9601f141e0c2900"
+      }
+    },
+    {
+      "kind": "EVENT_MISMATCH",
+      "step": 0,
+      "detail": "emitted events differ",
+      "evm": [
+        {
+          "name": "One",
+          "args": [
+            {
+              "name": "who",
+              "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+            }
+          ]
+        },
+        {
+          "name": "Two",
+          "args": [
+            {
+              "name": "who",
+              "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+            },
+            {
+              "name": "val",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "name": "Three",
+          "args": [
+            {
+              "name": "who",
+              "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+            },
+            {
+              "name": "a",
+              "value": 0
+            },
+            {
+              "name": "b",
+              "value": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+            }
+          ]
+        },
+        {
+          "name": "Dyn",
+          "args": [
+            {
+              "name": "tag",
+              "value": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+            },
+            {
+              "name": "val",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "name": "Plain",
+          "args": [
+            {
+              "name": "x",
+              "value": 0
+            },
+            {
+              "name": "message",
+              "value": ""
+            }
+          ]
+        },
+        {
+          "name": "One",
+          "args": [
+            {
+              "name": "who",
+              "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+            }
+          ]
+        }
+      ],
+      "polkadot": [
+        {
+          "name": "One",
+          "args": [
+            {
+              "name": "who",
+              "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+            }
+          ]
+        },
+        {
+          "name": "Two",
+          "args": [
+            {
+              "name": "who",
+              "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+            },
+            {
+              "name": "val",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "name": "Three",
+          "args": [
+            {
+              "name": "who",
+              "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+            },
+            {
+              "name": "a",
+              "value": 0
+            },
+            {
+              "name": "b",
+              "value": "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+            }
+          ]
+        },
+        {
+          "name": "Dyn",
+          "args": [
+            {
+              "name": "tag",
+              "value": ""
+            },
+            {
+              "name": "val",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "name": "Plain",
+          "args": [
+            {
+              "name": "x",
+              "value": 0
+            },
+            {
+              "name": "message",
+              "value": ""
+            }
+          ]
+        },
+        {
+          "name": "One",
+          "args": [
+            {
+              "name": "who",
+              "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "verdict": "DIVERGENCE"
+}

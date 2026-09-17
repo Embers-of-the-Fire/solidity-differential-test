@@ -1,0 +1,34 @@
+{
+  "seed_id": "storage-layout",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "Storage count-mode comparison is structurally incompatible across toolchains for contracts with multiple packed small fields: solc co-locates them in one 32-byte slot (1 nonzero entry) while solang/pallet-contracts emits one SCALE-encoded trie entry per variable (N entries). This divergence is an oracle artifact, not a codegen bug \u2014 decoded values agree (e.g. evm 0xfffffffe1dc001c807 decomposes into polkadot entries 0x07, 0xc8, 0x01, 0xc01dfeff, 0xffff).",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "packed-small-fields-delete-probe",
+          "verdict": "DIVERGENCE",
+          "note": "All three storage mismatches show evm=1 packed slot vs polkadot=3-5 per-variable entries; triage classified as oracle_artifact and byte-level decoding confirms value agreement including delete-b zeroing (0xc8 disappears from polkadot, 0xc800 clears in evm slot)."
+        }
+      ],
+      "next_probe": "Rerun an equivalent packed-fields spec with a single storage variable (e.g. only uint8 a) under count mode; if both sides report 1 entry with equal decoded value, the artifact is confirmed as a per-variable-entry representation difference."
+    },
+    {
+      "id": "h2",
+      "statement": "Delete semantics for packed fields agree across toolchains: 'delete b' zeroed exactly the b field on both sides (evm slot byte cleared, polkadot entry removed/zero) with all other fields untouched, and partial slot rewrite order in updateReverse produced identical final values.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "packed-small-fields-delete-probe",
+          "verdict": "DIVERGENCE",
+          "note": "Despite count-mode artifact, step-6 snapshots decode to identical logical state after clearB: a=1, b=0, flag=false, d=-12345, e=65535 on both chains."
+        }
+      ],
+      "next_probe": "Probe delete on a packed bool and a packed signed int (e.g. delete flag; delete d) and query all neighbors afterward, verifying no cross-field corruption in either toolchain."
+    }
+  ],
+  "updated_ts": 1789651306.0512426
+}

@@ -1,0 +1,53 @@
+{
+  "seed_id": "env-vars",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "solang rejects the blockhash() builtin at compile time ('unknown function or type') while solc accepts it, so any contract using blockhash diverges via COMPILE_ASYMMETRY regardless of runtime arguments.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "blockhash-sender-origin-env-probe",
+          "verdict": "DIVERGENCE",
+          "note": "solang emitted two 'unknown function or type blockhash' errors at lines 10 and 16; solc compiled cleanly."
+        }
+      ],
+      "next_probe": "Minimal contract with a single function `function h(uint n) public view returns (bytes32) { return blockhash(n); }` \u2014 confirm solang compile fails and solc compile succeeds, isolating blockhash from other env vars."
+    },
+    {
+      "id": "h2",
+      "statement": "solang rejects tx.origin at compile time ('builtin tx.origin does not exist') while solc accepts it; pallet-contracts has no origin/caller distinction exposed to Solidity.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "blockhash-sender-origin-env-probe",
+          "verdict": "DIVERGENCE",
+          "note": "solang error 'builtin tx.origin does not exist' at line 20 in senderIsOrigin(); no runtime steps could execute due to compile failure."
+        },
+        {
+          "probe": "tx-origin-isolated-compile-probe",
+          "verdict": "DIVERGENCE",
+          "note": "Isolated contract using only tx.origin: solang failed with 'builtin tx.origin does not exist' at both use sites (line 7 view getter, line 11 mutating record) while solc compiled cleanly. Rejection is attributable to tx.origin alone and occurs in both read and write contexts."
+        }
+      ],
+      "next_probe": "Contract with only `function o() public view returns (address) { return tx.origin; }` \u2014 verify solang compile failure is attributable to tx.origin alone."
+    },
+    {
+      "id": "h3",
+      "statement": "solang accepts msg.sender, block.number, and gasleft() on pallet-contracts (they produced no compile errors in the same file where blockhash and tx.origin failed), though runtime values may still differ from EVM semantics.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "blockhash-sender-origin-env-probe",
+          "verdict": "DIVERGENCE",
+          "note": "solang's error list mentioned only blockhash and tx.origin; msg.sender (lines 20, 25), block.number (lines 10, 16), and gasleft() (line 11) parsed without complaint, but no runtime comparison was possible."
+        }
+      ],
+      "next_probe": "Contract using only msg.sender, block.number, gasleft(), block.timestamp, and msg.value in view/mutating functions; compile with both toolchains and compare returned values against anvil to test whether agreement is syntactic only or also semantic."
+    }
+  ],
+  "updated_ts": 1789651666.6701846
+}
