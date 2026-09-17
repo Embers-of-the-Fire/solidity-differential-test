@@ -1,0 +1,161 @@
+"""Hunt loop orchestration: generate -> run -> triage -> minimize -> dedup."""
+
+from __future__ import annotations
+
+import random
+from collections.abc import Callable
+from typing import Any
+
+from .config import AgentConfig
+from .executor import Executor, OracleRunner, divergence_kinds
+from .generator import generate_spec
+from .hypotheses import load_notebook, summary_counts
+from .llm import ChatClient, LLMClient, LLMError
+from .minimize import minimize
+from .reflect import reflect_notebook
+from .seeds import load_seeds, pick_seed
+from .store import FindingStore
+from .triage import triage_report
+
+
+class HuntLoop:
+    def __init__(
+        self,
+        cfg: AgentConfig,
+        *,
+        client: ChatClient | None = None,
+        executor: OracleRunner | None = None,
+        store: FindingStore | None = None,
+        rng_seed: int | None = None,
+        log: Callable[[str], None] = print,
+    ):
+        self.cfg = cfg
+        self.client = client or LLMClient(cfg)
+        self.executor = executor or Executor(cfg.parallel)
+        self.store = store or FindingStore(cfg.findings_dir)
+        self.rng = random.Random(rng_seed)
+        self.log = log
+
+    def _over_budget(self) -> str | None:
+        if self.client.budget_left() <= 0:
+            return "LLM call budget exhausted"
+        if self.executor.runs >= self.cfg.oracle_runs_budget:
+            return "oracle run budget exhausted"
+        return None
+
+    def _is_resolved(self, seed_id: str) -> bool:
+        """A seed is resolved when it has hypotheses and none are open."""
+        nb = load_notebook(self.store.root, seed_id)
+        return bool(nb["hypotheses"]) and all(
+            h["status"] != "open" for h in nb["hypotheses"]
+        )
+
+    def round(self, only_seeds: list[str] | None = None) -> dict[str, Any]:
+        """One generate-run-triage-reflect cycle. Returns a probe summary."""
+        seeds = load_seeds()
+        resolved = {s.id for s in seeds if self._is_resolved(s.id)}
+        seed = pick_seed(
+            seeds, self.store.seed_stats(), self.rng, only=only_seeds, resolved=resolved
+        )
+        self.log(f"[seed] {seed.id}: {seed.title}")
+
+        notebook = load_notebook(self.store.root, seed.id)
+        try:
+            spec = generate_spec(
+                self.client, seed, self.store.recent_probes(), notebook
+            )
+        except LLMError as e:
+            self.log(f"[generate] failed: {e}")
+            return {"seed": seed.id, "category": "generation_failed", "error": str(e)}
+
+        self.log(f"[run] {spec.get('name')} ({len(spec.get('steps', []))} steps)")
+        report = self.executor.run(spec)
+        verdict = report.get("verdict")
+        kinds = divergence_kinds(report)
+        self.log(f"[run] verdict={verdict} kinds={sorted(kinds) or '-'}")
+
+        triage = triage_report(self.client, spec, report)
+        category = triage["category"]
+        self.log(
+            f"[triage] {category}: {triage.get('summary', triage.get('rationale'))}"
+        )
+
+        self.store.record_probe(
+            spec=spec, report=report, seed_id=seed.id, category=category
+        )
+        self.store.note_seed_result(seed.id, kinds)
+
+        if category != "error":
+            notebook = reflect_notebook(
+                self.client, self.store.root, seed, spec, report, triage, log=self.log
+            )
+
+        summary: dict[str, Any] = {
+            "seed": seed.id,
+            "name": spec.get("name"),
+            "verdict": verdict,
+            "category": category,
+            "kinds": sorted(kinds),
+            "hypotheses_open": sum(
+                1 for h in notebook["hypotheses"] if h["status"] == "open"
+            ),
+        }
+
+        if category == "bug_candidate":
+            self.log("[minimize] shrinking reproducer ...")
+            small_spec = minimize(spec, report, self.executor.run, self.client)
+            small_report = self.executor.run(small_spec)
+            if divergence_kinds(small_report) >= kinds:
+                finding_id = self.store.add_finding(
+                    spec=small_spec, report=small_report, triage=triage, seed_id=seed.id
+                )
+                if finding_id:
+                    self.log(f"[finding] NEW {finding_id}: {triage.get('summary')}")
+                    summary["finding_id"] = finding_id
+                else:
+                    self.log("[finding] duplicate of an existing finding")
+                    summary["finding_id"] = None
+            else:
+                self.log(
+                    "[minimize] divergence lost during minimization; kept original"
+                )
+                finding_id = self.store.add_finding(
+                    spec=spec, report=report, triage=triage, seed_id=seed.id
+                )
+                summary["finding_id"] = finding_id
+        return summary
+
+    def hunt(
+        self, max_rounds: int | None = None, only_seeds: list[str] | None = None
+    ) -> dict[str, Any]:
+        """Run rounds until budgets are spent. Returns a hunt summary."""
+        rounds = 0
+        findings_before = len(self.store.findings())
+        while True:
+            if max_rounds is not None and rounds >= max_rounds:
+                stop = f"round limit reached ({max_rounds})"
+                break
+            if (reason := self._over_budget()) is not None:
+                stop = reason
+                break
+            summary = self.round(only_seeds=only_seeds)
+            rounds += 1
+            self.log(
+                f"[budget] llm_calls={self.client.calls}/{self.cfg.llm_calls_budget} "
+                f"oracle_runs={self.executor.runs}/{self.cfg.oracle_runs_budget}"
+            )
+            if (
+                summary["category"] == "generation_failed"
+                and self.client.budget_left() <= 0
+            ):
+                stop = "LLM call budget exhausted"
+                break
+        notebooks = [load_notebook(self.store.root, s.id) for s in load_seeds()]
+        return {
+            "rounds": rounds,
+            "stop_reason": stop,
+            "new_findings": len(self.store.findings()) - findings_before,
+            "llm_calls": self.client.calls,
+            "oracle_runs": self.executor.runs,
+            "hypotheses": summary_counts(notebooks),
+        }

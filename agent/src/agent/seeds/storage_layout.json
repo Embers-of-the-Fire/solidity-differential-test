@@ -1,0 +1,12 @@
+{
+  "id": "storage-layout",
+  "title": "Storage packing and layout",
+  "why": "EVM packs multiple small variables into 32-byte slots; pallet-contracts stores SCALE-encoded values in a child trie. The oracle compares storage in count mode, but packing bugs in either compiler can surface as mismatched entry counts or values.",
+  "hints": [
+    "Several adjacent uint8/bool/int32 fields written in different orders.",
+    "Struct with mixed-width fields (note: structs cannot cross the spec arg boundary — use internal helpers).",
+    "Mapping with uint8 keys vs address keys.",
+    "Delete a storage variable after setting it (zero-stripping edge cases).",
+    "bytes/string shorter and longer than 32 bytes."
+  ]
+}

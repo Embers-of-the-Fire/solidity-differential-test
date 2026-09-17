@@ -1,0 +1,144 @@
+"""Command-line interface for the AI-in-the-loop bug hunter."""
+
+from __future__ import annotations
+
+import argparse
+import sys
+
+from .config import AgentConfigError, load_config
+from .executor import Executor, divergence_kinds
+from .hypotheses import load_notebook
+from .loop import HuntLoop
+from .seeds import load_seeds
+from .store import FindingStore
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="solidity-diff-agent",
+        description="AI-in-the-loop differential bug hunter: solc (EVM) vs solang (Polkadot WASM)",
+    )
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    hunt = sub.add_parser("hunt", help="run the generate-run-triage-minimize loop")
+    hunt.add_argument("--rounds", type=int, metavar="N", help="max hunt rounds")
+    hunt.add_argument("--llm-calls", type=int, metavar="N", help="LLM call budget")
+    hunt.add_argument("--oracle-runs", type=int, metavar="N", help="oracle run budget")
+    hunt.add_argument("--parallel", type=int, metavar="K", help="parallel oracle runs")
+    hunt.add_argument(
+        "--findings-dir", metavar="DIR", default=None, help="findings DB directory"
+    )
+    hunt.add_argument(
+        "--seeds", metavar="IDS", help="comma-separated seed ids to restrict to"
+    )
+    hunt.add_argument("--rng-seed", type=int, metavar="INT", help="sampling seed")
+    hunt.add_argument("--quiet", action="store_true")
+
+    report = sub.add_parser("report", help="print deduplicated findings")
+    report.add_argument("--findings-dir", metavar="DIR", default=None)
+
+    hypo = sub.add_parser("hypotheses", help="print per-seed hypothesis notebooks")
+    hypo.add_argument("--findings-dir", metavar="DIR", default=None)
+
+    replay = sub.add_parser("replay", help="re-run a finding's reproducer")
+    replay.add_argument("finding_id", help="finding id from `report`")
+    replay.add_argument("--findings-dir", metavar="DIR", default=None)
+    return parser
+
+
+def _cmd_hunt(args: argparse.Namespace) -> int:
+    cfg = load_config(
+        findings_dir=args.findings_dir,
+        llm_calls=args.llm_calls,
+        oracle_runs=args.oracle_runs,
+        parallel=args.parallel,
+    )
+    only = args.seeds.split(",") if args.seeds else None
+    loop = HuntLoop(
+        cfg,
+        rng_seed=args.rng_seed,
+        log=(lambda *_: None) if args.quiet else print,
+    )
+    try:
+        summary = loop.hunt(max_rounds=args.rounds, only_seeds=only)
+    finally:
+        loop.executor.close()
+    print(
+        f"\nhunt done: {summary['rounds']} rounds, {summary['new_findings']} new finding(s) "
+        f"({summary['stop_reason']})"
+    )
+    hyp = summary["hypotheses"]
+    print(
+        f"hypotheses: {hyp['open']} open, {hyp['confirmed']} confirmed, {hyp['refuted']} refuted"
+    )
+    return 0
+
+
+def _cmd_report(args: argparse.Namespace) -> int:
+    store = FindingStore(args.findings_dir or "findings")
+    findings = store.findings()
+    if not findings:
+        print("no findings yet")
+        return 0
+    print(f"{len(findings)} finding(s):\n")
+    for f in findings:
+        triage = f.get("triage", {})
+        print(f"  {f['id']}  [{f.get('seed')}] {','.join(f.get('kinds', []))}")
+        print(f"    {triage.get('summary', '(no summary)')}")
+        print(f"    confidence={triage.get('confidence')} blame={triage.get('blame')}")
+        print(
+            f"    spec: {f.get('spec', {}).get('name')}  report: reports/{f['id']}.json"
+        )
+    return 0
+
+
+def _cmd_hypotheses(args: argparse.Namespace) -> int:
+    root = args.findings_dir or "findings"
+    any_found = False
+    for seed in load_seeds():
+        nb = load_notebook(root, seed.id)
+        if not nb["hypotheses"]:
+            continue
+        any_found = True
+        print(f"{seed.id}: {seed.title}")
+        for h in nb["hypotheses"]:
+            print(f"  [{h['status']}] {h['id']}: {h['statement']}")
+            if h["status"] == "open":
+                print(f"    next probe: {h['next_probe']}")
+        print()
+    if not any_found:
+        print("no hypotheses recorded yet")
+    return 0
+
+
+def _cmd_replay(args: argparse.Namespace) -> int:
+    store = FindingStore(args.findings_dir or "findings")
+    finding = store.get_finding(args.finding_id)
+    if finding is None:
+        print(f"finding {args.finding_id!r} not found", file=sys.stderr)
+        return 2
+    report = Executor(parallel=1).run(finding["spec"])
+    kinds = divergence_kinds(report)
+    print(f"replay verdict: {report.get('verdict')} kinds={sorted(kinds) or '-'}")
+    return 0 if report.get("verdict") == "PASS" else 1
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    try:
+        if args.command == "hunt":
+            return _cmd_hunt(args)
+        if args.command == "report":
+            return _cmd_report(args)
+        if args.command == "hypotheses":
+            return _cmd_hypotheses(args)
+        if args.command == "replay":
+            return _cmd_replay(args)
+    except AgentConfigError as e:
+        print(f"configuration error: {e}", file=sys.stderr)
+        return 2
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,12 @@
+{
+  "id": "revert-reasons",
+  "title": "Revert reason encoding (Error(string) / Panic(uint))",
+  "why": "Checked arithmetic, require/assert and custom errors produce ABI-encoded revert payloads; solang re-encodes them through SCALE and the decoded reason strings may differ (e.g. panic codes vs messages).",
+  "hints": [
+    "Trigger uint overflow/underflow with checked arithmetic (default in Solidity 0.8).",
+    "Division by zero, modulo by zero.",
+    "require(cond, \"custom message\") vs assert(cond) vs revert CustomError().",
+    "Array out-of-bounds access.",
+    "Explicit type cast overflow: int8(-1) to uint8."
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "id": "value-transfers",
+  "title": "msg.value, payable and balance semantics",
+  "why": "Native-token transfers differ fundamentally: 18-decimal wei on anvil vs planck with existential deposits on pallet-contracts; solang maps msg.value/payable onto a different balance model. Balances are recorded but never compared — so look for status/revert divergence instead.",
+  "hints": [
+    "Call a payable function with value from alice, then forward funds via address(this).balance checks (returned, not compared).",
+    "Non-payable function called with value > 0 — does it revert on both chains?",
+    "receive()/fallback() triggered by a call to a missing function name (compile may reject — that is a finding too).",
+    "transfer/send (may be unsupported by solang — COMPILE_ASYMMETRY).",
+    "Constructor with value."
+  ]
+}

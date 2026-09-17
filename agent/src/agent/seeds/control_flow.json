@@ -1,0 +1,11 @@
+{
+  "id": "control-flow",
+  "title": "Control flow, loops and gas limits",
+  "why": "Unbounded loops behave differently under EVM gas metering vs Substrate weight metering: an out-of-gas on EVM may succeed (or fail differently) on pallet-contracts. Status asymmetries here reveal metering-model mismatches.",
+  "hints": [
+    "Loops bounded by a caller-supplied count (small values! the oracle has tx timeouts).",
+    "Early returns from deep nesting, break/continue in nested loops.",
+    "Recursion (small depth).",
+    "try/catch around an internal revert (external calls need a second contract — avoid; use internal errors instead)."
+  ]
+}

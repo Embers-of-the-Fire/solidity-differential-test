@@ -14,7 +14,7 @@ full spec/report schema — read it before touching comparison logic.
   wrapped in `flake.nix` (not in nixpkgs) — do not try to install them
   another way.
 - Python deps: UV workspace rooted at the repo **root** (single `uv.lock` +
-  `.venv`); `oracle/` is the only workspace member. Run `uv sync` once.
+  `.venv`); `oracle/` and `agent/` are the workspace members. Run `uv sync` once.
 - Do **not** use pip, npm, or system package managers.
 
 ## Commands
@@ -28,9 +28,16 @@ uv run --package solidity-diff-oracle solidity-diff-oracle \
 uv run --package solidity-diff-oracle pytest oracle/tests/
 # single test: ... pytest oracle/tests/test_smoke.py -k counter
 
+# AI-in-the-loop bug hunter (needs AGENT_LLM_BASE_URL/AGENT_LLM_MODEL env vars
+# pointing at a local OpenAI-compatible server; placeholder by default -> fails fast)
+uv run --package solidity-diff-agent solidity-diff-agent \
+    hunt --rounds 20 --findings-dir findings/
+uv run --package solidity-diff-agent pytest agent/tests/ -m "not slow"  # unit (mocked LLM/oracle)
+uv run --package solidity-diff-agent pytest agent/tests/                # incl. e2e
+
 # lint/format (ruff is NOT in the devshell; config lives in oracle/pyproject.toml)
-uvx ruff check oracle/src oracle/tests
-uvx ruff format oracle/src oracle/tests
+uvx ruff check oracle/src oracle/tests agent/src agent/tests
+uvx ruff format oracle/src oracle/tests agent/src agent/tests
 ```
 
 CLI exit code: `0` = chains agree (`PASS`), `1` = divergence found. A nonzero
@@ -60,3 +67,18 @@ exit is a *finding*, not a crash.
 `chains/{base,evm,polkadot}.py` (adapters + node process management),
 `compare.py` (divergence classes), `spec.py` (JSON test-env schema).
 `oracle/examples/` holds ready-to-run specs.
+
+`agent/` — AI-in-the-loop bug hunter (entrypoint `solidity-diff-agent`;
+see `agent/README.md`). `agent/src/agent/`: `llm.py` (OpenAI-compatible
+client + validate-and-repair loop; `ChatClient` protocol for fakes),
+`generator.py` (spec prompt + validation), `executor.py` (parallel
+`oracle.runner.run_spec`; `OracleRunner` protocol), `triage.py`
+(deterministic known-difference rules + LLM classification),
+`minimize.py` (step delta-debugging + LLM source shrinking),
+`hypotheses.py` (per-seed hypothesis notebooks; op validation),
+`reflect.py` (post-probe notebook update, runs on every probe),
+`store.py` (JSONL findings DB + fingerprint dedup), `loop.py`
+(orchestration), `prompts/*.md` (string.Template — escape literal `$` as
+`$$`), `seeds/*.json` (feature cards), `data/known_differences.json`
+(triage rules). The agent imports the oracle read-only; oracle comparison
+logic is never modified by agent work.

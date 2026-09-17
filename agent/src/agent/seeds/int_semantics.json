@@ -1,0 +1,12 @@
+{
+  "id": "int-semantics",
+  "title": "Integer semantics and casts",
+  "why": "Narrowing/widening casts, sign extension, shifts (arithmetic vs logical) and division rounding are classic differential-testing targets; solang implements its own IR lowering for these.",
+  "hints": [
+    "Shift negative ints: int8(-8) >> 1 (arithmetic) vs uint8(248) >> 1 (logical).",
+    "Signed division/modulo rounding toward zero vs floor: -7 / 2, -7 % 2.",
+    "Cast chains: int16 -> uint8 -> int64 with values that flip sign.",
+    "Byte-level access on bytesN and explicit bytesN<->uint casts.",
+    "unchecked { } blocks vs default checked arithmetic edge values (type(uintN).max)."
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "id": "crypto-builtins",
+  "title": "Crypto builtins and precompiles",
+  "why": "keccak256/sha256/ripemd160/ecrecover are EVM precompiles; solang emulates or re-implements them on pallet-contracts, and ecrecover in particular has different account/curve semantics on Substrate.",
+  "hints": [
+    "keccak256(abi.encodePacked(...)) vs abi.encode(...) — packed encoding edge cases.",
+    "sha256 and ripemd160 availability (solang may reject some).",
+    "ecrecover with a fixed known signature.",
+    "abi.encodePacked with mixed types (uint8, string, bytes) — a notorious source of ambiguity."
+  ]
+}

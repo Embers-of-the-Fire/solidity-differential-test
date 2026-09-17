@@ -1,0 +1,11 @@
+{
+  "id": "env-vars",
+  "title": "Block/tx environment variables",
+  "why": "solang on pallet-contracts has no real concept of several EVM env vars (block.number semantics, blockhash, gasleft, block.coinbase, tx.gasprice); some are stubbed, some rejected, some return different values.",
+  "hints": [
+    "Read block.number / block.timestamp and return them from a query.",
+    "Use blockhash(block.number - 1) — solang may reject it entirely (COMPILE_ASYMMETRY).",
+    "gasleft() inside an arithmetic expression.",
+    "msg.sender vs tx.origin across a call from alice."
+  ]
+}
