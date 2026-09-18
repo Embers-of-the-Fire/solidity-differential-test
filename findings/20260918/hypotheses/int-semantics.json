@@ -1,0 +1,58 @@
+{
+  "seed_id": "int-semantics",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "For non-overflowing signed integer operations, solc and solang agree: arithmetic right shift including shift >= width, truncation-toward-zero division, sign-of-dividend modulo, and mixed-sign narrowing/widening casts match on getter-return oracles. The broad agreement claim must exclude signed division overflow MIN/-1, which diverges and is tracked separately.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "int-cast-shift-divmod-rounding",
+          "verdict": "DIVERGENCE",
+          "note": "All 4 mismatches triaged oracle_artifact; decoded values identical (last=-4,-1,-3001,-2 and count=1..4 on both), so semantic agreement on shift/div/mod/casts."
+        },
+        {
+          "probe": "int-edge-shift-divmod-cast-getter-oracle",
+          "verdict": "DIVERGENCE",
+          "note": "No mismatches on arithShift(-128,7), storeShift(-8,9)/storedShift, divRound(-7,2), modRound(-7,2), castChain(-1), castChain(255); only step 5 storeDiv(-32768,-1) diverged, so non-overflow semantics still agree."
+        }
+      ],
+      "next_probe": "Probe edge boundaries with a getter-return oracle instead of exact storage: arithShift(-128,7) expect -1; divMod(int16 min, -1) expect overflow-revert on both; castChain(255) expect -1; compare function return values only."
+    },
+    {
+      "id": "h2",
+      "statement": "Storage oracles are non-portable across anvil and pallet-contracts, but exact/count storage diffs are encoding/layout artifacts only when transaction statuses and decoded getter values agree. A storage-count mismatch that co-occurs with STATUS/TX_STATUS mismatch can reflect real committed-state divergence rather than an oracle artifact.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "int-cast-shift-divmod-rounding",
+          "verdict": "DIVERGENCE",
+          "note": "Polkadot slots are hashed keys with LE minimal-width values (0xfcffff... for -4, count as 0x01...LE) vs solc slot0/slot1 BE; every value decodes to the same number."
+        },
+        {
+          "probe": "int-edge-shift-divmod-cast-getter-oracle",
+          "verdict": "DIVERGENCE",
+          "note": "The mode=count STORAGE_MISMATCH at step 5 is explained by EVM reverting storeDiv (only prior storedShift remains) versus Polkadot succeeding and adding another nonzero value; it is a symptom of the status divergence, not a hashed-layout false positive."
+        }
+      ],
+      "next_probe": "Re-run the identical int-cast-shift-divmod-rounding spec with oracle.storage set to 'decoded' (or query-only via public getters) and verify the verdict flips to PASS, confirming the mismatch is purely an encoding/layout artifact."
+    },
+    {
+      "id": "h3",
+      "statement": "Solidity 0.8 checked signed division overflow for MIN/-1 is not enforced the same way: solc reverts for int16(-32768)/-1 in both dry-run and committed transaction, while solang/pallet-contracts succeeds and appears to commit the wrapped two's-complement int16 value (extra storage value 0x80 alongside storedShift 0xff).",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "int-edge-shift-divmod-cast-getter-oracle",
+          "verdict": "DIVERGENCE",
+          "note": "Step 5 storeDiv(-32768,-1): EVM status revert and committed tx revert; Polkadot dry-run and tx success. Storage count shows EVM only storedShift=0xff, Polkadot has 0x80 plus 0xff, consistent with a wrapped storedDiv commit."
+        }
+      ],
+      "next_probe": "Run a query-only overflow matrix with oracle.storage='none' and revert_reasons=true: divRound(MIN,-1) for int8/int16/int32, with modRound(MIN,-1) as control; compare only revert status and, on success, the returned ABI-decoded value."
+    }
+  ],
+  "updated_ts": 1789738198.8940172
+}

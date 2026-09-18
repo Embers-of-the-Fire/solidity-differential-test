@@ -1,0 +1,53 @@
+{
+  "seed_id": "env-vars",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "solang rejects contracts using tx.origin at compile time with 'builtin tx.origin does not exist', while solc accepts them; pallet-contracts has no transaction-origin concept distinct from the caller.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-vars-number-timestamp-gasleft-blockhash",
+          "verdict": "DIVERGENCE",
+          "note": "solang compile failed: \"builtin 'tx.origin' does not exist\"; solc accepted the same source"
+        }
+      ],
+      "next_probe": "Compile a minimal contract whose only function returns tx.origin (address) and check solang_ok=false with the tx.origin error while solc_ok=true."
+    },
+    {
+      "id": "h2",
+      "statement": "solang rejects the blockhash(n) builtin at compile time ('unknown function or type blockhash'), whereas solc compiles it; pallet-contracts provides no EVM-style historical block hash.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-vars-number-timestamp-gasleft-blockhash",
+          "verdict": "DIVERGENCE",
+          "note": "solang compile failed: \"unknown function or type 'blockhash'\"; solc accepted"
+        },
+        {
+          "probe": "blockhash-builtin-compile-asymmetry",
+          "verdict": "DIVERGENCE",
+          "note": "Minimal blockhash-only contract reproduced the prediction exactly: solang_ok=false with 'unknown function or type 'blockhash'' at the call site, solc_ok=true on identical source. Compile-time asymmetry, not a runtime value difference."
+        }
+      ],
+      "next_probe": "Compile a minimal contract with a single function returning blockhash(block.number - 1) and verify solang rejects with the unknown-function error while solc accepts."
+    },
+    {
+      "id": "h3",
+      "statement": "block.number, block.timestamp, gasleft(), and msg.sender are all compilable under solang for pallet-contracts (they were not among the compile errors), but their runtime values may differ from solc/anvil semantics.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-vars-number-timestamp-gasleft-blockhash",
+          "verdict": "DIVERGENCE",
+          "note": "compile errors listed only tx.origin and blockhash; no error for block.number, block.timestamp, gasleft(), or msg.sender, implying those parse/resolve under solang"
+        }
+      ],
+      "next_probe": "Compile and run a stripped contract touching only block.number, block.timestamp, gasleft(), and msg.sender on both toolchains, storing the values and comparing them (excluding gas from the oracle); check whether both execute and whether block.number/timestamp values agree."
+    }
+  ],
+  "updated_ts": 1789738571.5260284
+}

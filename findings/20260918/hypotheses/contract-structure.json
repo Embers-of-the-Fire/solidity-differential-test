@@ -1,0 +1,39 @@
+{
+  "seed_id": "contract-structure",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "solang and solc agree on overload resolution for INTERNAL functions disambiguated by argument count AND by argument type (uint256 vs int256 vs uint128), including an inherited internal virtual overload coexisting with derived same-name overloads, and a compile-time literal (uint128(7)) that selects the narrowest matching overload.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "overload-argcount-dispatch-inherited-virtual",
+          "verdict": "PASS",
+          "note": "bump(5), bump(3,4), bump() all dispatched to the correct overload; count progressed 5 -> 17 -> 18 and events matched on both backends."
+        },
+        {
+          "probe": "overload-argtype-dispatch-inherited-internal",
+          "verdict": "PASS",
+          "note": "callWide(100), callInt(200), callNarrow(7), callLiteral() each routed to the correct typed overload: last progressed 1->2->3->3 and count reached 314 (100+200+7+7) identically on both backends, including the inherited virtual pick(uint256)."
+        }
+      ],
+      "next_probe": "Test overloads disambiguated by argument TYPE rather than count, e.g. bump(uint256) vs bump(int256) vs bump(uint128) with values that are ambiguous under solang's mangling/ABI encoding; also mixed-count+type overloads where a literal fits multiple signatures."
+    },
+    {
+      "id": "h2",
+      "statement": "solang and solc agree on virtual/override dispatch of an INTERNAL function: the derived override of tag() is invoked through the inherited public virtual bump(uint256), and the override is also used by overloads defined only in the derived contract.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "overload-argcount-dispatch-inherited-virtual",
+          "verdict": "PASS",
+          "note": "All Hit events carried tag='derived' on both backends, including from the inherited Base.bump(uint256); readTag() returned 'derived'."
+        }
+      ],
+      "next_probe": "Test cross-contract virtual dispatch: hold a derived instance behind a Base-typed reference (Base(addr).bump(x)) and call via an interface, plus external virtual functions (public/external rather than internal) to exercise solang's external dispatcher rather than inlined internal calls."
+    }
+  ],
+  "updated_ts": 1789738368.6352947
+}

@@ -1,0 +1,39 @@
+{
+  "seed_id": "revert-reasons",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "For standard Solidity 0.8 checked-arithmetic failures and require(string)/assert, solang reproduces solc's ABI-encoded revert payloads: require(false, \"msg\") decodes to the same reason string, and assert/division-by-zero/underflow/array-OOB/negative-int-cast all decode to the same Panic(uint256) codes (0x01, 0x12, 0x11, 0x32, 0x21) on both toolchains after SCALE decoding.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "revert-reasons-panic-codes-matrix",
+          "verdict": "PASS",
+          "note": "All 5 revert variants (require string, assert, div/0, uint underflow, array OOB, int8->uint8 negative cast) produced matching decoded revert reasons across both toolchains; okStore + count query + events also matched."
+        },
+        {
+          "probe": "revert-reasons-empty-utf8-custom-error-boundary",
+          "verdict": "PASS",
+          "note": "Boundary cases of Error(string) encoding matched exactly: empty-string revert/require, short ASCII, and a 78-byte UTF-8 string all decoded identically; custom errors with args (MyErr(42, sender)) and no args (EmptyErr()) produced matching selectors and ABI-decoded arguments on both toolchains. h1's predicted agreement holds across the full revert-payload surface tested."
+        }
+      ],
+      "next_probe": "Test boundary cases of Error(string) encoding: revert with an empty string, a string longer than 32/64 bytes with non-ASCII (UTF-8) bytes, and custom errors with parameters (e.g. error MyErr(uint256 code, address who)), comparing decoded selector, args, and string bytes between solc/anvil and solang/pallet-contracts."
+    },
+    {
+      "id": "h2",
+      "statement": "Revert payload agreement extends beyond top-level calls: reverts thrown inside constructors (deploy-time failures) and reverts caught via try/catch on external calls are surfaced with identical ABI-encoded payloads on solc/anvil and solang/pallet-contracts, including the receiver side of low-level calls returning returndata.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "revert-reasons-empty-utf8-custom-error-boundary",
+          "verdict": "PASS",
+          "note": "All top-level revert encodings (empty/UTF-8 strings, custom errors with/without args) matched; untested surfaces are constructor reverts and try/catch payload decoding."
+        }
+      ],
+      "next_probe": "Probe a contract whose constructor reverts with require(cond, \"ctor fail\") and a custom error, plus a caller contract using try/catch over an external call that reverts with Error(string) and Panic(0x11); compare deployment failure reasons and the decoded catch-block payloads (including catch (bytes memory data)) between both toolchains."
+    }
+  ],
+  "updated_ts": 1789737709.6731536
+}

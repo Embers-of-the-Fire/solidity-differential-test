@@ -1,0 +1,58 @@
+{
+  "seed_id": "storage-layout",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "Storage oracle count mode agrees when no packing occurs: a single int32 field gives 1 vs 1 nonzero entries, confirming counts are only skewed by EVM slot packing. However, raw value comparison structurally diverges even for one field because pallet-contracts stores SCALE little-endian while EVM slots are big-endian: -12345 appears as 0xffffcfc7 on EVM and 0xc7cfffff (byte-reversed) on polkadot. Both are expected platform representation differences, not compiler bugs.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "small-field-packing-write-order-delete",
+          "verdict": "DIVERGENCE",
+          "note": "EVM packed a..f into one slot (0x01ffffffffcfc701c807) plus g; polkadot stored 7 individual entries with matching per-field values (07, c8, 01, c7cfffff, ffff, 01, 2a). Logical state identical; only representation count differs."
+        },
+        {
+          "probe": "int32-negative-conditional-accumulate-isolation",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0: nonzero_entries 1 vs 1 (count agreement as predicted), but values 0xffffcfc7 (EVM, big-endian) vs 0xc7cfffff (polkadot, little-endian SCALE) \u2014 exact byte reversal of the same logical value."
+        }
+      ],
+      "next_probe": "Store a palindromic-bytes value (e.g., uint32 0x12343412) in a single-field contract with oracle storage=count. Prediction: PASS, because byte-reversal is invisible for symmetric values; this would confirm the value mismatch is purely endianness and that count mode is reliable for single-field contracts."
+    },
+    {
+      "id": "h2",
+      "statement": "solang emits a no-op for unary minus on a negative int32 loaded from storage: `-d` returns d unchanged (negOnly: polkadot -12345 vs EVM 12345). The sign test (d<0), branching, literal accumulation, int32->uint32 cast, and storage reads are all correct: signTest, branchLiteral, and the d getter PASSed, and the sumCond (4294954951 = uint32 bit-pattern of -12345) and castOnly mismatches are fully explained by the missing negation. Root cause is isolated to unary negation codegen, not the branch or cast.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "small-field-packing-write-order-delete",
+          "verdict": "DIVERGENCE",
+          "note": "EVM sum values (81129, 79940) match hand-computed Solidity semantics including the d<0 branch; polkadot is short by exactly |d|=12345 both times, meaning d contributed 0. Getter queries for c and d showed no divergence."
+        },
+        {
+          "probe": "int32-negative-conditional-accumulate-isolation",
+          "verdict": "DIVERGENCE",
+          "note": "negOnly returned -12345 on polkadot vs 12345 on EVM, proving `-d` is a no-op. signTest and branchLiteral PASSed (branch logic fine); sumCond and castOnly returned 4294954951 = 0xFFFFCFC7 = uint32(d) unnegated, consistent with negation being dropped. Earlier 'contributes 0' observation was an artifact of the more complex original expression."
+        }
+      ],
+      "next_probe": "Width and context sweep: same contract shape with int8/int16/int64/int128/int256 storage variables, plus variants negating a function argument and a local variable derived from storage. Prediction: if the bug is specific to int32 storage loads, only that variant fails; if unary minus codegen is broken generically for signed ints, all variants return the operand unchanged."
+    },
+    {
+      "id": "h3",
+      "statement": "The harness misclassifies successful pallet-contracts dry-runs of state-changing calls as errors: step 0 polkadot 'error' payload is a long hex blob containing recognizable runtime data (sr25519 account keys, balances, storage-deposit records) consistent with a debug/event/trace buffer, yet the call's effects were actually applied (storage shows all 7 values written). STATUS_MISMATCH on polkadot dry-run is therefore untrustworthy without decoding the payload.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "small-field-packing-write-order-delete",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0: EVM status=success; polkadot status=error with ~1KB hex payload embedding account ids (d43593c7... = Alice) and deposit-like records, yet all seven storage writes took effect and later steps executed normally."
+        }
+      ],
+      "next_probe": "Single-call probe: contract with one uint256 and a plain setter, one call, oracle revert_reasons=true. Inspect whether polkadot again reports status=error with a large hex blob while storage updates. Prediction: same artifact appears, confirming harness misclassification."
+    }
+  ],
+  "updated_ts": 1789737367.8294373
+}

@@ -1,0 +1,77 @@
+{
+  "seed_id": "value-transfers",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "The storage oracle (mode=count) compares raw byte encodings, not decoded values: identical uint256 values appear as big-endian hex on anvil (0x03e8) but little-endian on pallet-contracts (0xe803), producing STORAGE_MISMATCH artifacts even when state agrees. Such mismatches are not behavioral divergences.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "payable-deposit-and-nonpayable-reject",
+          "verdict": "DIVERGENCE",
+          "note": "Every STORAGE_MISMATCH shows identical numeric value (1000) with reversed byte order: evm 0x03e8 vs polkadot 0xe803."
+        }
+      ],
+      "next_probe": "Re-run any value-writing probe (e.g. deposit with value 1000) with the storage oracle decoding u256 values numerically before comparison; prediction: storage now matches on both chains."
+    },
+    {
+      "id": "h2",
+      "statement": "The events oracle compares address arguments in native encoding (EVM hex vs SS58), so any event carrying msg.sender produces an EVENT_MISMATCH artifact even when the emitted semantics are identical. Name and non-address args (amount) match exactly.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "payable-deposit-and-nonpayable-reject",
+          "verdict": "DIVERGENCE",
+          "note": "Deposited events at steps 0 and 4 differ only in the 'from' address representation; amounts match exactly."
+        },
+        {
+          "probe": "value-reject-nonpayable-view-vs-mutating",
+          "verdict": "DIVERGENCE",
+          "note": "bump() emits Ping(uint256) with no address fields at steps 0 and 4; no EVENT_MISMATCH was reported, matching the prediction that events without address arguments compare cleanly across chains."
+        }
+      ],
+      "next_probe": "Emit an event with no address fields (e.g. event Ping(uint256 amount)) from a payable function on both chains; prediction: event comparison is clean."
+    },
+    {
+      "id": "h3",
+      "statement": "Sending value to a nonpayable mutating function is rejected on both toolchains with no state change on either (storage oracle shows count unchanged), but the failure is classified differently: EVM reports 'error' (pre-execution rejection) while pallet-contracts reports 'revert' (on-chain trap). Reproduced with revert_reasons=true and no REVERT_REASON_MISMATCH surfaced, suggesting the polkadot trap carries no comparable reason string and this is a genuine status-taxonomy divergence rather than a reason-labeling artifact.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "payable-deposit-and-nonpayable-reject",
+          "verdict": "DIVERGENCE",
+          "note": "Step 2: strictMut (nonpayable) called with value=500 -> evm status 'error', polkadot status 'revert'; both left storage unchanged."
+        },
+        {
+          "probe": "value-reject-nonpayable-view-vs-mutating",
+          "verdict": "DIVERGENCE",
+          "note": "Step 4: bump() (nonpayable, mutating) with value=1000 -> evm 'error', polkadot 'revert', reproducing the earlier finding. No storage divergence at step 5 (count=1 on both) and no revert-reason divergence despite revert_reasons=true."
+        }
+      ],
+      "next_probe": "Minimal contract with one nonpayable mutating function f(); single step calling f with value>0, oracle revert_reasons=true, storage=none, events=false. Check whether polkadot 'revert' carries a reason string and whether evm 'error' occurs before any state change, to distinguish labeling artifact from real taxonomy difference."
+    },
+    {
+      "id": "h4",
+      "statement": "Sending value to a nonpayable *view* function produces the same tx status on both chains (no TX_STATUS_MISMATCH at step 6), unlike the mutating nonpayable case. Value-rejection semantics may differ between view and nonpayable-mutating paths on one or both targets.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "payable-deposit-and-nonpayable-reject",
+          "verdict": "DIVERGENCE",
+          "note": "Step 6 (strictView with value=1) produced no TX_STATUS_MISMATCH while step 2 (strictMut with value) did."
+        },
+        {
+          "probe": "value-reject-nonpayable-view-vs-mutating",
+          "verdict": "DIVERGENCE",
+          "note": "Step 2 called nonpayable view readCount() with value=1000 and produced no TX_STATUS_MISMATCH, while step 4 (nonpayable mutating bump() with value=1000) reproduced the evm 'error' vs polkadot 'revert' split. The view/mutating asymmetry in value-rejection status is real and repeatable."
+        }
+      ],
+      "next_probe": "Probe only a nonpayable view function called with value>0 on both chains with revert_reasons oracle; record exact status on each. If both revert identically, contrast with h3's mutating case."
+    }
+  ],
+  "updated_ts": 1789737248.3783314
+}

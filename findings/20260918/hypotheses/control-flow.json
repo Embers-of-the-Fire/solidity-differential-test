@@ -1,0 +1,58 @@
+{
+  "seed_id": "control-flow",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "The storage-count oracle is not comparable across backends: solang/pallet-contracts stores contract state under a different key layout (or lazily), so the same logical state (acc=0x14, outerIters=0x05) yields fewer nonzero entries on Polkadot than on EVM. This is an oracle artifact, not a semantic divergence in loop/control-flow execution.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "nested-loop-break-continue-early-return",
+          "verdict": "DIVERGENCE",
+          "note": "Step 4 storage count: EVM shows 2 nonzero entries (0x05, 0x14=expected acc and outerIters values), Polkadot shows only 1 (0x05); EVM values match hand-computed semantics, suggesting Polkadot-side state is stored differently rather than computed differently."
+        },
+        {
+          "probe": "nested-loop-break-continue-value-oracle-getters",
+          "verdict": "PASS",
+          "note": "Value-based oracle (explicit getters) shows identical state on both backends after nestedBreakContinue(7): acc=0x14, outerIters=0x05, plus matching innerBreaks and continues, and matching acc after earlyReturn(6). Confirms the earlier storage-count mismatch was a key-layout/oracle artifact, not a semantic divergence."
+        }
+      ],
+      "next_probe": "Re-run the same nestedBreakContinue/earlyReturn sequence but with oracle.storage='values' (or explicit getter queries for acc and outerIters) instead of 'count'; if both backends report acc=0x14 and outerIters=0x05 at each step, the count mismatch is confirmed as an artifact."
+    },
+    {
+      "id": "h2",
+      "statement": "A one-off dry-run 'error' with an opaque SCALE payload was observed once for nestedBreakContinue(7) on pallet-contracts, but the identical call sequence passes cleanly (status, return value, events, and getter state all match EVM) when executed with the value-oracle harness. The artifact appears non-deterministic or harness-mode-specific rather than a real execution failure; priority lowered.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "nested-loop-break-continue-early-return",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0: EVM status=success, Polkadot dry-run status=error with an undecoded SCALE blob (not a revert reason string); triage classified as oracle_artifact."
+        },
+        {
+          "probe": "nested-loop-break-continue-value-oracle-getters",
+          "verdict": "PASS",
+          "note": "Step 0 nestedBreakContinue(7) succeeded on Polkadot with matching status, Done event payload, and return value versus EVM; the previously observed dry-run error did not reproduce."
+        }
+      ],
+      "next_probe": "Execute nestedBreakContinue(7) as a real (non-dry-run) extrinsic on pallet-contracts and compare events/return value with EVM; if the extrinsic succeeds and emits Done with the same payload, the dry-run status mismatch is confirmed as an artifact of the dry-run path."
+    },
+    {
+      "id": "h3",
+      "statement": "Solang/pallet-contracts implements nested-loop break/continue and deep early-return control flow with observable semantics identical to solc/EVM (state, events, return values) for small bounded loops; no metering-model divergence is observable at this scale. Divergences, if any, should only appear when loop bounds push execution near gas/weight limits.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "nested-loop-break-continue-value-oracle-getters",
+          "verdict": "PASS",
+          "note": "Full pass across all 7 steps: nestedBreakContinue(7) and earlyReturn(6) produced identical getter values, Done event payloads, and statuses on both backends."
+        }
+      ],
+      "next_probe": "Run a single loop with a large/adversarial bound (e.g., while(true) with counter, or for-loop of ~1e6 iterations with cheap body) as both a bounded-success case and an out-of-resources case on both backends; compare status (revert vs. trap vs. success), partial state persistence, and whether EVM out-of-gas maps to pallet-contracts weight-exhausted with the same observable effects."
+    }
+  ],
+  "updated_ts": 1789738528.9421194
+}

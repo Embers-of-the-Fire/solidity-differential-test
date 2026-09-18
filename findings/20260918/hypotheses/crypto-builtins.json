@@ -1,0 +1,53 @@
+{
+  "seed_id": "crypto-builtins",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "solang's keccak256 divergence is input-dependent, not a universal call-vs-query code-path split: the minimal case keccak256(abi.encodePacked(\"a\")) matches the known constant 0x3ac2...f1cb on both chains, in both call (storage write) and query context, with matches()==true on both. The divergence observed in crypto-hash-builtins-packed-vs-encoded must therefore be triggered by something in that probe's inputs \u2014 candidate triggers: abi.encode (vs abi.encodePacked), multi-argument encoding, dynamic-length bytes/string, or inputs larger than a single padded word.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "crypto-hash-builtins-packed-vs-encoded",
+          "verdict": "DIVERGENCE",
+          "note": "keccak256 results diverge on every step; polkadot's own stored value (step 0) disagrees with its own dry-run query (steps 1-2) for the identical expression, an intra-toolchain inconsistency."
+        },
+        {
+          "probe": "keccak-call-vs-query-context",
+          "verdict": "PASS",
+          "note": "All 5 steps matched across chains: setA storage write, stored/pureA/expected queries, and matches() all agree and equal the canonical keccak256(\"a\") constant, on both EVM and polkadot."
+        }
+      ],
+      "next_probe": "Minimal contract with one function storing keccak256(\"a\") and one pure function returning keccak256(\"a\"). Compare both against the known constant 0x3ac225168df54212a25c1c01fd35bebfea408fdac2e31ddd6f80a4bbf9a5f1cb on both chains, and check whether the polkadot call-context and query-context values match each other."
+    },
+    {
+      "id": "h2",
+      "statement": "ripemd160 shows a context-dependent divergence: the value written to storage by setRipemd differs between chains (EVM 0x2268... = canonical ripemd160(0xdeadbeef), polkadot 0x5a4b...), yet the pure query getRipemd(0xdeadbeef) produced no divergence, implying solang's ripemd160 is wrong (or routes to a different implementation) only in state-changing call context.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "crypto-hash-builtins-packed-vs-encoded",
+          "verdict": "DIVERGENCE",
+          "note": "Step 5 storage shows mismatched ripemd160 digests, but step 6 (pure query of same input) is absent from the divergence list, i.e. it matched."
+        }
+      ],
+      "next_probe": "Contract with setR(bytes) storing ripemd160(d) and getR(bytes) returning ripemd160(d). Call setR(0xdeadbeef) then query both storedR and getR(0xdeadbeef) on polkadot; if storedR != getR on the same chain, the context-dependent hypothesis is confirmed."
+    },
+    {
+      "id": "h3",
+      "statement": "solang's sha256 agrees with solc: sha256(0xdeadbeef) returned identical bytes32 on both chains, so the crypto-builtin divergence is confined to keccak256 and ripemd160 rather than affecting all hash builtins uniformly.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "crypto-hash-builtins-packed-vs-encoded",
+          "verdict": "PASS",
+          "note": "Step 4 getSha(0xdeadbeef) produced no divergence entry, indicating sha256 outputs matched across chains."
+        }
+      ],
+      "next_probe": "Query sha256 over several edge-case inputs (empty bytes, 32 bytes, 55/56/64-byte boundaries crossing SHA-256 block padding) on both chains to confirm agreement holds beyond a single 4-byte input."
+    }
+  ],
+  "updated_ts": 1789738429.6536274
+}

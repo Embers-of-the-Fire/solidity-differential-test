@@ -1,0 +1,53 @@
+{
+  "seed_id": "strings-bytes",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "Exact-mode storage comparison is unusable cross-platform for any state: EVM/solc uses sequential 32-byte slots (big-endian, length-tagged short/long string packing, keccak-derived long-data slots) while solang/pallet-contracts uses hash-based storage keys with little-endian SCALE values, so every write produces STORAGE_MISMATCH entries that are pure oracle artifacts, not behavioral bugs.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "string-bytes-dynamic-length-roundtrip",
+          "verdict": "DIVERGENCE",
+          "note": "Steps 0/2/4 STORAGE_MISMATCH: EVM count at slot 2 big-endian, string long-form packing at keccak slot; polkadot count at hash-key 0x9d72... little-endian 0x01.., same string bytes stored contiguously at 0xff0f... key. Data content equivalent, layout fundamentally different."
+        }
+      ],
+      "next_probe": "Re-run a minimal write-then-read probe (setString(\"x\"), getString()) with oracle.storage set to functional/getter-based comparison instead of exact; expect PASS, confirming the mismatch vanishes when storage layout is abstracted away."
+    },
+    {
+      "id": "h2",
+      "statement": "The polkadot dry-run decoder serializes returned `bytes` as a raw string when the content is valid UTF-8 (including the empty case, where it emits \"\" vs EVM's \"0x\") but falls back to 0x-hex for non-UTF-8 content (e.g. 0xff matched on both sides). String returns are unaffected. This is a pure representation artifact, not a content divergence.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "string-bytes-dynamic-length-roundtrip",
+          "verdict": "DIVERGENCE",
+          "note": "Step 5 RETURN_MISMATCH: evm \"0x000102...1f20\" vs polkadot \"\\u0000\\u0001...\" \u2014 byte-for-byte identical content, different serialization. Meanwhile getString (steps 1/3), concatRound with non-ASCII (h\u00e9llo w\u00f6rld \u2192 \u03c0), and bytesConcat all matched, so only bytes-typed returns diverge in representation."
+        }
+      ],
+      "next_probe": "Query getBytes after setBytes(\"0xdeadbeef\") and compare decoded byte arrays rather than surface representations (normalize hex-decode EVM side, charCode the polkadot side); also include a getString query with non-ASCII text in the same probe as a control, expecting string PASS and bytes representation-only mismatch."
+    },
+    {
+      "id": "h3",
+      "statement": "String semantics agree across toolchains: empty string, 32-byte (long-form, >31 byte) strings, and non-ASCII multi-byte UTF-8 concatenation all round-trip identically, including empty-bytes concatenation with 32-byte input \u2014 no divergence found in encoding/decoding behavior itself.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "string-bytes-dynamic-length-roundtrip",
+          "verdict": "DIVERGENCE",
+          "note": "All query-level results agreed: empty setString/getString, 32-char string round-trip, concatRound('h\u00e9llo w\u00f6rld ', '\u2192 \u03c0 0123...X') with multi-byte UTF-8, bytesConcat('0x', 32 bytes) \u2014 only storage-layout and bytes-return-serialization artifacts diverged."
+        },
+        {
+          "probe": "string-31-32-threshold-bytes-empty-vs-one",
+          "verdict": "DIVERGENCE",
+          "note": "Steps 0-3 clean: 31-byte ('abcdefghijklmnopqrstuvwxyzabcde') and 32-byte ('...abcdef') strings both round-tripped identically across solc and solang with functional storage oracle \u2014 crossing solc's short/long storage threshold produced no behavioral divergence. The only mismatch was the known bytes-return serialization artifact at step 5."
+        }
+      ],
+      "next_probe": "Push the boundary with strings of exactly 31 vs 32 bytes (solc short/long storage threshold), and bytes length 0 vs 1, querying getters only with functional storage oracle; a PASS here would confirm even the threshold-crossing semantics agree."
+    }
+  ],
+  "updated_ts": 1789737638.05427
+}

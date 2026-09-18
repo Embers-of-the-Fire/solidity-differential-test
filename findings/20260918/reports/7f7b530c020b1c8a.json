@@ -1,0 +1,665 @@
+{
+  "name": "events-indexed-args-multi-emit-constructor",
+  "contract": "EventProbe",
+  "tool_versions": {
+    "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+    "solang": "solang version v0.3.5",
+    "anvil": "anvil Version: 1.7.1-dev",
+    "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+  },
+  "oracle_config": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "workdir": "/tmp/oracle-run-k545i5iu",
+  "timing": {
+    "started_at": "2026-09-18T13:27:45.511+00:00",
+    "started_epoch": 1789738065.5118616,
+    "total_ms": 2199.0146320003987,
+    "nodes": {
+      "evm": {
+        "start_ms": 502.65566500092973,
+        "stop_ms": 3.1628139986423776
+      },
+      "polkadot": {
+        "start_ms": 861.0842540001613,
+        "stop_ms": 31.326742999226553
+      }
+    }
+  },
+  "compile": {
+    "solc": {
+      "compiler": "solc",
+      "ok": true,
+      "version": "Version: 0.8.33+commit.64118f21.Linux.g++",
+      "errors": null,
+      "warnings": [
+        "Warning: SPDX license identifier not provided in source file. Before publishing, consider adding a comment containing \"SPDX-License-Identifier: <SPDX-License>\" to each source file. Use \"SPDX-License-Identifier: UNLICENSED\" for non-open-source code. Please see https://spdx.org for more information.\n--> input.sol\n\n"
+      ],
+      "artifacts": {
+        "abi": true,
+        "bytecode_bytes": 1783,
+        "wasm_bytes": 0,
+        "metadata": false
+      },
+      "elapsed_ms": 7.065904999763006
+    },
+    "solang": {
+      "compiler": "solang",
+      "ok": true,
+      "version": "solang version v0.3.5",
+      "errors": null,
+      "warnings": null,
+      "artifacts": {
+        "abi": false,
+        "bytecode_bytes": 0,
+        "wasm_bytes": 50654,
+        "metadata": true
+      },
+      "elapsed_ms": 322.44388700019044
+    }
+  },
+  "deploy": {
+    "evm": {
+      "status": "success",
+      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "tx_hash": "64f4b8bb1737f02fef45b547b55a8047532a7c9a9665506457b3b5a6bcf2105e",
+      "error": null,
+      "elapsed_ms": 8.346358999915537
+    },
+    "polkadot": {
+      "status": "success",
+      "address": "5GVGKBp9nNY9JbhafLLAJweGdCpPshpCF5W9EGois66XKkQB",
+      "tx_hash": null,
+      "error": null,
+      "elapsed_ms": 398.4431979988585
+    }
+  },
+  "steps": [
+    {
+      "index": 0,
+      "action": "call",
+      "function": "emitAll",
+      "args": [
+        0
+      ],
+      "sender": "charlie",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 3.6884509991068626,
+          "tx_ms": 7.809331000316888,
+          "snapshot_ms": 2.0674100014730357
+        },
+        "evm_total_ms": 13.568321999628097,
+        "polkadot": {
+          "dry_run_ms": 2.31439799972577,
+          "tx_ms": 47.044464999999036,
+          "snapshot_ms": 1.3985530003992608
+        },
+        "polkadot_total_ms": 50.76118599936308
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "b477a08a5dc6e282fa02d2aea46f15412fee290f383be2aebe329335db94b9f9",
+          "block_hash": "74095d550e120c85c8d1f9645e9cd508cca39b774cb4c763df1b35ce99a9ad2a",
+          "gas_used": 36875,
+          "events": [
+            {
+              "name": "One",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+                }
+              ]
+            },
+            {
+              "name": "Two",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+                },
+                {
+                  "name": "amount",
+                  "value": 0
+                },
+                {
+                  "name": "tag",
+                  "value": "0x0000000000000000000000000000000000000000000000000000000000000001"
+                }
+              ]
+            },
+            {
+              "name": "Three",
+              "args": [
+                {
+                  "name": "a",
+                  "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+                },
+                {
+                  "name": "b",
+                  "value": 0
+                },
+                {
+                  "name": "c",
+                  "value": true
+                },
+                {
+                  "name": "note",
+                  "value": "hello"
+                }
+              ]
+            },
+            {
+              "name": "DynIndexed",
+              "args": [
+                {
+                  "name": "name",
+                  "value": "0xec57f2076b78da28b47e2e1b5ff4e74564e6743ee143a3a9b89d3ea18bf00ed2"
+                },
+                {
+                  "name": "value",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "name": "DynIndexed",
+              "args": [
+                {
+                  "name": "name",
+                  "value": "0xec57f2076b78da28b47e2e1b5ff4e74564e6743ee143a3a9b89d3ea18bf00ed2"
+                },
+                {
+                  "name": "value",
+                  "value": 0
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "evm",
+          "block": {
+            "number": 2,
+            "hash": "0x74095d550e120c85c8d1f9645e9cd508cca39b774cb4c763df1b35ce99a9ad2a",
+            "timestamp": 1789738067
+          },
+          "contract": {
+            "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+            "balance": "0",
+            "nonce": 1
+          },
+          "storage": {
+            "0x0000000000000000000000000000000000000000000000000000000000000000": "0x000000000000000000000000000000000000000000000000000000000000000c"
+          }
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "error",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": null,
+          "debug_message": null,
+          "error": "0x0000000000000000000000000000000000000000000000014c00000000000000c2945c3f551702000000010000000408d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d49a4cb78d200000000000000000000000000010000000802baeac9db72235f971b54bbbc3d94fa14cf0cd498578a148a7447f29da0756feb40d6c59b690000000000000000000000d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d0000010000000003c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab60000010000000400c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab600ca9a3b0000000000000000000000000000010000000402d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27dc3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab600ca9a3b0000000000000000000000000000010000000803c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab680070000000000000000000000000000000000000000000000000000000000000008c6a59e0ef8559d0706efb3bbe1c8b6c60b39d01429e0a66ec627143d55c79aff070000000000000000000000000000000000000000000000000000000000000000010000000800d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27dc3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab60000010000000808d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27dc3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab680c4d26c1700000000000000000000000000010000000808d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27dc3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab6005000521700000000000000000000000000010000000407d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d797ca271d100000000000000000000000000010000000600d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27dd0272907010000000000000000000000000000000000000000000000000000000000010000000000073061280701f65e0100000000020803c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab680306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20081aaae41c33435cfd5315ddf37475aa219eb2d3df7a7f4d5040bc3617c78a3381306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20020803c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab68101306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010c72ec50549abde02f28212085b8bb62996e2970e5834697b942f0bcfdad40e205306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc200000000000000000000000000000000000000000000000000000000000000000020803c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab61d01306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc200000000000000000000000000000000000000000000000000000000000000000011468656c6c6f10c78dbb4b0765c6808e539aaad3f536855995dd11fee249f1afbdb490d117a94c306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc2000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020803c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab6b02c73616d652d737472696e670000000000000000000000000000000000000000000000000000000000000000083d08b908274c7682b2d65ee41e9c86aa435a95748db64566f16a27d38dc9b3962c73616d652d737472696e670000000000000000000000000000000000000000020803c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab6b02c73616d652d737472696e670000000000000000000000000000000000000000000000000000000000000000083d08b908274c7682b2d65ee41e9c86aa435a95748db64566f16a27d38dc9b3962c73616d652d737472696e67000000000000000000000000000000000000000002080601306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab600"
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "0x6c300ce18e4450163301f7dadb91831011ab75ded36a9adbd104234ba618705d",
+          "block_hash": "0x26aff9ad12bdd63dbb497cc28473f5f5f3d4eb21bd2eb37bd64fa247bb8c46b2",
+          "gas_used": 2689435944,
+          "events": [
+            {
+              "name": "One",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+                }
+              ]
+            },
+            {
+              "name": "Two",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+                },
+                {
+                  "name": "amount",
+                  "value": 0
+                },
+                {
+                  "name": "tag",
+                  "value": "0x0000000000000000000000000000000000000000000000000000000000000001"
+                }
+              ]
+            },
+            {
+              "name": "Three",
+              "args": [
+                {
+                  "name": "a",
+                  "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+                },
+                {
+                  "name": "b",
+                  "value": 0
+                },
+                {
+                  "name": "c",
+                  "value": true
+                },
+                {
+                  "name": "note",
+                  "value": "hello"
+                }
+              ]
+            },
+            {
+              "name": "DynIndexed",
+              "args": [
+                {
+                  "name": "name",
+                  "value": "same-string"
+                },
+                {
+                  "name": "value",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "name": "DynIndexed",
+              "args": [
+                {
+                  "name": "name",
+                  "value": "same-string"
+                },
+                {
+                  "name": "value",
+                  "value": 0
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "polkadot",
+          "block": {
+            "number": 2,
+            "hash": "0x26aff9ad12bdd63dbb497cc28473f5f5f3d4eb21bd2eb37bd64fa247bb8c46b2",
+            "timestamp": 1789738067629
+          },
+          "contract": {
+            "address": "5GVGKBp9nNY9JbhafLLAJweGdCpPshpCF5W9EGois66XKkQB",
+            "balance": "1000000000",
+            "nonce": 0
+          },
+          "storage": {
+            "0xff0f22492f44bac4c4b30ae58d0e8daa0000000000000000000000000000000000000000000000000000000000000000": "0x0c00000000000000000000000000000000000000000000000000000000000000"
+          }
+        }
+      },
+      "divergences": [
+        {
+          "kind": "STATUS_MISMATCH",
+          "step": 0,
+          "detail": "dry-run status differs",
+          "evm": {
+            "status": "success",
+            "error": null
+          },
+          "polkadot": {
+            "status": "error",
+            "error": "0x0000000000000000000000000000000000000000000000014c00000000000000c2945c3f551702000000010000000408d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d49a4cb78d200000000000000000000000000010000000802baeac9db72235f971b54bbbc3d94fa14cf0cd498578a148a7447f29da0756feb40d6c59b690000000000000000000000d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d0000010000000003c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab60000010000000400c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab600ca9a3b0000000000000000000000000000010000000402d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27dc3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab600ca9a3b0000000000000000000000000000010000000803c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab680070000000000000000000000000000000000000000000000000000000000000008c6a59e0ef8559d0706efb3bbe1c8b6c60b39d01429e0a66ec627143d55c79aff070000000000000000000000000000000000000000000000000000000000000000010000000800d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27dc3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab60000010000000808d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27dc3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab680c4d26c1700000000000000000000000000010000000808d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27dc3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab6005000521700000000000000000000000000010000000407d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d797ca271d100000000000000000000000000010000000600d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27dd0272907010000000000000000000000000000000000000000000000000000000000010000000000073061280701f65e0100000000020803c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab680306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20081aaae41c33435cfd5315ddf37475aa219eb2d3df7a7f4d5040bc3617c78a3381306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20020803c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab68101306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010c72ec50549abde02f28212085b8bb62996e2970e5834697b942f0bcfdad40e205306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc200000000000000000000000000000000000000000000000000000000000000000020803c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab61d01306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc200000000000000000000000000000000000000000000000000000000000000000011468656c6c6f10c78dbb4b0765c6808e539aaad3f536855995dd11fee249f1afbdb490d117a94c306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc2000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020803c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab6b02c73616d652d737472696e670000000000000000000000000000000000000000000000000000000000000000083d08b908274c7682b2d65ee41e9c86aa435a95748db64566f16a27d38dc9b3962c73616d652d737472696e670000000000000000000000000000000000000000020803c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab6b02c73616d652d737472696e670000000000000000000000000000000000000000000000000000000000000000083d08b908274c7682b2d65ee41e9c86aa435a95748db64566f16a27d38dc9b3962c73616d652d737472696e67000000000000000000000000000000000000000002080601306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab600"
+          }
+        },
+        {
+          "kind": "EVENT_MISMATCH",
+          "step": 0,
+          "detail": "emitted events differ",
+          "evm": [
+            {
+              "name": "One",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+                }
+              ]
+            },
+            {
+              "name": "Two",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+                },
+                {
+                  "name": "amount",
+                  "value": 0
+                },
+                {
+                  "name": "tag",
+                  "value": "0x0000000000000000000000000000000000000000000000000000000000000001"
+                }
+              ]
+            },
+            {
+              "name": "Three",
+              "args": [
+                {
+                  "name": "a",
+                  "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+                },
+                {
+                  "name": "b",
+                  "value": 0
+                },
+                {
+                  "name": "c",
+                  "value": true
+                },
+                {
+                  "name": "note",
+                  "value": "hello"
+                }
+              ]
+            },
+            {
+              "name": "DynIndexed",
+              "args": [
+                {
+                  "name": "name",
+                  "value": "0xec57f2076b78da28b47e2e1b5ff4e74564e6743ee143a3a9b89d3ea18bf00ed2"
+                },
+                {
+                  "name": "value",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "name": "DynIndexed",
+              "args": [
+                {
+                  "name": "name",
+                  "value": "0xec57f2076b78da28b47e2e1b5ff4e74564e6743ee143a3a9b89d3ea18bf00ed2"
+                },
+                {
+                  "name": "value",
+                  "value": 0
+                }
+              ]
+            }
+          ],
+          "polkadot": [
+            {
+              "name": "One",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+                }
+              ]
+            },
+            {
+              "name": "Two",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+                },
+                {
+                  "name": "amount",
+                  "value": 0
+                },
+                {
+                  "name": "tag",
+                  "value": "0x0000000000000000000000000000000000000000000000000000000000000001"
+                }
+              ]
+            },
+            {
+              "name": "Three",
+              "args": [
+                {
+                  "name": "a",
+                  "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+                },
+                {
+                  "name": "b",
+                  "value": 0
+                },
+                {
+                  "name": "c",
+                  "value": true
+                },
+                {
+                  "name": "note",
+                  "value": "hello"
+                }
+              ]
+            },
+            {
+              "name": "DynIndexed",
+              "args": [
+                {
+                  "name": "name",
+                  "value": "same-string"
+                },
+                {
+                  "name": "value",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "name": "DynIndexed",
+              "args": [
+                {
+                  "name": "name",
+                  "value": "same-string"
+                },
+                {
+                  "name": "value",
+                  "value": 0
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "divergences": [
+    {
+      "kind": "STATUS_MISMATCH",
+      "step": 0,
+      "detail": "dry-run status differs",
+      "evm": {
+        "status": "success",
+        "error": null
+      },
+      "polkadot": {
+        "status": "error",
+        "error": "0x0000000000000000000000000000000000000000000000014c00000000000000c2945c3f551702000000010000000408d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d49a4cb78d200000000000000000000000000010000000802baeac9db72235f971b54bbbc3d94fa14cf0cd498578a148a7447f29da0756feb40d6c59b690000000000000000000000d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d0000010000000003c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab60000010000000400c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab600ca9a3b0000000000000000000000000000010000000402d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27dc3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab600ca9a3b0000000000000000000000000000010000000803c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab680070000000000000000000000000000000000000000000000000000000000000008c6a59e0ef8559d0706efb3bbe1c8b6c60b39d01429e0a66ec627143d55c79aff070000000000000000000000000000000000000000000000000000000000000000010000000800d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27dc3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab60000010000000808d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27dc3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab680c4d26c1700000000000000000000000000010000000808d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27dc3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab6005000521700000000000000000000000000010000000407d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d797ca271d100000000000000000000000000010000000600d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27dd0272907010000000000000000000000000000000000000000000000000000000000010000000000073061280701f65e0100000000020803c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab680306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20081aaae41c33435cfd5315ddf37475aa219eb2d3df7a7f4d5040bc3617c78a3381306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20020803c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab68101306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010c72ec50549abde02f28212085b8bb62996e2970e5834697b942f0bcfdad40e205306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc200000000000000000000000000000000000000000000000000000000000000000020803c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab61d01306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc200000000000000000000000000000000000000000000000000000000000000000011468656c6c6f10c78dbb4b0765c6808e539aaad3f536855995dd11fee249f1afbdb490d117a94c306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc2000000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020803c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab6b02c73616d652d737472696e670000000000000000000000000000000000000000000000000000000000000000083d08b908274c7682b2d65ee41e9c86aa435a95748db64566f16a27d38dc9b3962c73616d652d737472696e670000000000000000000000000000000000000000020803c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab6b02c73616d652d737472696e670000000000000000000000000000000000000000000000000000000000000000083d08b908274c7682b2d65ee41e9c86aa435a95748db64566f16a27d38dc9b3962c73616d652d737472696e67000000000000000000000000000000000000000002080601306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20c3ac1590f9064dfc30eac77c003421acf017fc8a02dad1610ca7ee5f8edd1ab600"
+      }
+    },
+    {
+      "kind": "EVENT_MISMATCH",
+      "step": 0,
+      "detail": "emitted events differ",
+      "evm": [
+        {
+          "name": "One",
+          "args": [
+            {
+              "name": "who",
+              "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+            }
+          ]
+        },
+        {
+          "name": "Two",
+          "args": [
+            {
+              "name": "who",
+              "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+            },
+            {
+              "name": "amount",
+              "value": 0
+            },
+            {
+              "name": "tag",
+              "value": "0x0000000000000000000000000000000000000000000000000000000000000001"
+            }
+          ]
+        },
+        {
+          "name": "Three",
+          "args": [
+            {
+              "name": "a",
+              "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+            },
+            {
+              "name": "b",
+              "value": 0
+            },
+            {
+              "name": "c",
+              "value": true
+            },
+            {
+              "name": "note",
+              "value": "hello"
+            }
+          ]
+        },
+        {
+          "name": "DynIndexed",
+          "args": [
+            {
+              "name": "name",
+              "value": "0xec57f2076b78da28b47e2e1b5ff4e74564e6743ee143a3a9b89d3ea18bf00ed2"
+            },
+            {
+              "name": "value",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "name": "DynIndexed",
+          "args": [
+            {
+              "name": "name",
+              "value": "0xec57f2076b78da28b47e2e1b5ff4e74564e6743ee143a3a9b89d3ea18bf00ed2"
+            },
+            {
+              "name": "value",
+              "value": 0
+            }
+          ]
+        }
+      ],
+      "polkadot": [
+        {
+          "name": "One",
+          "args": [
+            {
+              "name": "who",
+              "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+            }
+          ]
+        },
+        {
+          "name": "Two",
+          "args": [
+            {
+              "name": "who",
+              "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+            },
+            {
+              "name": "amount",
+              "value": 0
+            },
+            {
+              "name": "tag",
+              "value": "0x0000000000000000000000000000000000000000000000000000000000000001"
+            }
+          ]
+        },
+        {
+          "name": "Three",
+          "args": [
+            {
+              "name": "a",
+              "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+            },
+            {
+              "name": "b",
+              "value": 0
+            },
+            {
+              "name": "c",
+              "value": true
+            },
+            {
+              "name": "note",
+              "value": "hello"
+            }
+          ]
+        },
+        {
+          "name": "DynIndexed",
+          "args": [
+            {
+              "name": "name",
+              "value": "same-string"
+            },
+            {
+              "name": "value",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "name": "DynIndexed",
+          "args": [
+            {
+              "name": "name",
+              "value": "same-string"
+            },
+            {
+              "name": "value",
+              "value": 0
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "verdict": "DIVERGENCE"
+}

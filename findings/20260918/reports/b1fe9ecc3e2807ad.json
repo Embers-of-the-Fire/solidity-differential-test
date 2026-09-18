@@ -1,0 +1,73 @@
+{
+  "name": "blockhash-builtin-compile-asymmetry",
+  "contract": "BlockHashProbe",
+  "tool_versions": {
+    "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+    "solang": "solang version v0.3.5",
+    "anvil": "anvil Version: 1.7.1-dev",
+    "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+  },
+  "oracle_config": {
+    "storage": "exact",
+    "events": false,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "workdir": "/tmp/oracle-run-nkie0q6p",
+  "timing": {
+    "started_at": "2026-09-18T13:36:28.222+00:00",
+    "started_epoch": 1789738588.2225237,
+    "total_ms": 14.53208699967945,
+    "nodes": {}
+  },
+  "compile": {
+    "solc": {
+      "compiler": "solc",
+      "ok": true,
+      "version": "Version: 0.8.33+commit.64118f21.Linux.g++",
+      "errors": null,
+      "warnings": [
+        "Warning: SPDX license identifier not provided in source file. Before publishing, consider adding a comment containing \"SPDX-License-Identifier: <SPDX-License>\" to each source file. Use \"SPDX-License-Identifier: UNLICENSED\" for non-open-source code. Please see https://spdx.org for more information.\n--> input.sol\n\n",
+        "Warning: Function state mutability can be restricted to view\n --> input.sol:4:5:\n  |\n4 |     function fetch() public returns (bytes32) {\n  |     ^ (Relevant source part starts here and spans across multiple lines).\n\n"
+      ],
+      "artifacts": {
+        "abi": true,
+        "bytecode_bytes": 201,
+        "wasm_bytes": 0,
+        "metadata": false
+      },
+      "elapsed_ms": 4.79166900004202
+    },
+    "solang": {
+      "compiler": "solang",
+      "ok": false,
+      "version": "solang version v0.3.5",
+      "errors": [
+        "\u001b[0m\u001b[1m\u001b[38;5;9merror\u001b[0m\u001b[1m: unknown function or type 'blockhash'\u001b[0m\n  \u001b[0m\u001b[34m\u250c\u2500\u001b[0m /tmp/solang-chj3ixa7/input.sol:5:16\n  \u001b[0m\u001b[34m\u2502\u001b[0m\n\u001b[0m\u001b[34m5\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m         return \u001b[0m\u001b[31mblockhash\u001b[0m(block.number);\n  \u001b[0m\u001b[34m\u2502\u001b[0m                \u001b[0m\u001b[31m^^^^^^^^^\u001b[0m"
+      ],
+      "warnings": null,
+      "artifacts": null,
+      "elapsed_ms": 9.720578000269597
+    }
+  },
+  "deploy": {},
+  "steps": [],
+  "divergences": [
+    {
+      "kind": "COMPILE_ASYMMETRY",
+      "step": null,
+      "detail": "one compiler rejected the source while the other accepted it",
+      "evm": {
+        "solc_ok": true,
+        "errors": null
+      },
+      "polkadot": {
+        "solang_ok": false,
+        "errors": [
+          "\u001b[0m\u001b[1m\u001b[38;5;9merror\u001b[0m\u001b[1m: unknown function or type 'blockhash'\u001b[0m\n  \u001b[0m\u001b[34m\u250c\u2500\u001b[0m /tmp/solang-chj3ixa7/input.sol:5:16\n  \u001b[0m\u001b[34m\u2502\u001b[0m\n\u001b[0m\u001b[34m5\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m         return \u001b[0m\u001b[31mblockhash\u001b[0m(block.number);\n  \u001b[0m\u001b[34m\u2502\u001b[0m                \u001b[0m\u001b[31m^^^^^^^^^\u001b[0m"
+        ]
+      }
+    }
+  ],
+  "verdict": "DIVERGENCE"
+}
