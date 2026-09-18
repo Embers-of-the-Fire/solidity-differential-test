@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -52,6 +53,9 @@ class HuntLoop:
 
     def round(self, only_seeds: list[str] | None = None) -> dict[str, Any]:
         """One generate-run-triage-reflect cycle. Returns a probe summary."""
+        t_round = time.perf_counter()
+        phase_ms: dict[str, float] = {}
+        usage_mark = self.client.usage_marker()
         seeds = load_seeds()
         resolved = {s.id for s in seeds if self._is_resolved(s.id)}
         seed = pick_seed(
@@ -60,35 +64,57 @@ class HuntLoop:
         self.log(f"[seed] {seed.id}: {seed.title}")
 
         notebook = load_notebook(self.store.root, seed.id)
+        t0 = time.perf_counter()
         try:
             spec = generate_spec(
                 self.client, seed, self.store.recent_probes(), notebook
             )
         except LLMError as e:
+            phase_ms["generate_ms"] = (time.perf_counter() - t0) * 1000.0
             self.log(f"[generate] failed: {e}")
-            return {"seed": seed.id, "category": "generation_failed", "error": str(e)}
+            return {
+                "seed": seed.id,
+                "category": "generation_failed",
+                "error": str(e),
+                "timing": phase_ms,
+                "usage": self.client.usage_since(usage_mark)["totals"],
+            }
+        phase_ms["generate_ms"] = (time.perf_counter() - t0) * 1000.0
 
         self.log(f"[run] {spec.get('name')} ({len(spec.get('steps', []))} steps)")
+        t0 = time.perf_counter()
         report = self.executor.run(spec)
+        phase_ms["oracle_ms"] = (time.perf_counter() - t0) * 1000.0
         verdict = report.get("verdict")
         kinds = divergence_kinds(report)
         self.log(f"[run] verdict={verdict} kinds={sorted(kinds) or '-'}")
 
+        t0 = time.perf_counter()
         triage = triage_report(self.client, spec, report)
+        phase_ms["triage_ms"] = (time.perf_counter() - t0) * 1000.0
         category = triage["category"]
         self.log(
             f"[triage] {category}: {triage.get('summary', triage.get('rationale'))}"
         )
 
+        phase_ms["round_ms"] = (time.perf_counter() - t_round) * 1000.0
+        usage = self.client.usage_since(usage_mark)["totals"]
         self.store.record_probe(
-            spec=spec, report=report, seed_id=seed.id, category=category
+            spec=spec,
+            report=report,
+            seed_id=seed.id,
+            category=category,
+            timing=phase_ms,
+            usage=usage,
         )
         self.store.note_seed_result(seed.id, kinds)
 
         if category != "error":
+            t0 = time.perf_counter()
             notebook = reflect_notebook(
                 self.client, self.store.root, seed, spec, report, triage, log=self.log
             )
+            phase_ms["reflect_ms"] = (time.perf_counter() - t0) * 1000.0
 
         summary: dict[str, Any] = {
             "seed": seed.id,
@@ -99,15 +125,26 @@ class HuntLoop:
             "hypotheses_open": sum(
                 1 for h in notebook["hypotheses"] if h["status"] == "open"
             ),
+            "timing": phase_ms,
+            "usage": usage,
         }
 
         if category == "bug_candidate":
             self.log("[minimize] shrinking reproducer ...")
+            t0 = time.perf_counter()
             small_spec = minimize(spec, report, self.executor.run, self.client)
             small_report = self.executor.run(small_spec)
+            phase_ms["minimize_ms"] = (time.perf_counter() - t0) * 1000.0
+            summary["usage"] = self.client.usage_since(usage_mark)["totals"]
+            summary["timing"] = phase_ms
             if divergence_kinds(small_report) >= kinds:
                 finding_id = self.store.add_finding(
-                    spec=small_spec, report=small_report, triage=triage, seed_id=seed.id
+                    spec=small_spec,
+                    report=small_report,
+                    triage=triage,
+                    seed_id=seed.id,
+                    timing=phase_ms,
+                    usage=summary["usage"],
                 )
                 if finding_id:
                     self.log(f"[finding] NEW {finding_id}: {triage.get('summary')}")
@@ -120,15 +157,22 @@ class HuntLoop:
                     "[minimize] divergence lost during minimization; kept original"
                 )
                 finding_id = self.store.add_finding(
-                    spec=spec, report=report, triage=triage, seed_id=seed.id
+                    spec=spec,
+                    report=report,
+                    triage=triage,
+                    seed_id=seed.id,
+                    timing=phase_ms,
+                    usage=summary["usage"],
                 )
                 summary["finding_id"] = finding_id
+        phase_ms["round_ms"] = (time.perf_counter() - t_round) * 1000.0
         return summary
 
     def hunt(
         self, max_rounds: int | None = None, only_seeds: list[str] | None = None
     ) -> dict[str, Any]:
         """Run rounds until budgets are spent. Returns a hunt summary."""
+        t_hunt = time.perf_counter()
         rounds = 0
         findings_before = len(self.store.findings())
         while True:
@@ -140,9 +184,11 @@ class HuntLoop:
                 break
             summary = self.round(only_seeds=only_seeds)
             rounds += 1
+            totals = self.client.usage_totals()["totals"]
             self.log(
                 f"[budget] llm_calls={self.client.calls}/{self.cfg.llm_calls_budget} "
-                f"oracle_runs={self.executor.runs}/{self.cfg.oracle_runs_budget}"
+                f"oracle_runs={self.executor.runs}/{self.cfg.oracle_runs_budget} "
+                f"tokens={totals['total_tokens']} cost=${totals['cost_usd']:.6f}"
             )
             if (
                 summary["category"] == "generation_failed"
@@ -157,5 +203,7 @@ class HuntLoop:
             "new_findings": len(self.store.findings()) - findings_before,
             "llm_calls": self.client.calls,
             "oracle_runs": self.executor.runs,
+            "elapsed_ms": (time.perf_counter() - t_hunt) * 1000.0,
+            "usage": self.client.usage_totals(),
             "hypotheses": summary_counts(notebooks),
         }

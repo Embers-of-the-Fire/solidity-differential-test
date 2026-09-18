@@ -10,6 +10,7 @@ from agent.config import AgentConfig
 from agent.llm import LLMError
 from agent.loop import HuntLoop
 from agent.store import FindingStore
+from agent.usage import NoUsage
 
 CANNED_SOURCE = """// SPDX-License-Identifier: MIT
 pragma solidity >=0.8.0;
@@ -51,7 +52,7 @@ DIVERGENT_REPORT = {
 PASS_REPORT = {"name": "canned-add", "verdict": "PASS", "divergences": []}
 
 
-class FakeLLM:
+class FakeLLM(NoUsage):
     def __init__(self, budget=100):
         self.calls = 0
         self.budget = budget
@@ -60,7 +61,9 @@ class FakeLLM:
     def budget_left(self):
         return self.budget - self.calls
 
-    def chat_json(self, system, user, *, validate=None, max_attempts=3):
+    def chat_json(
+        self, system, user, *, validate=None, max_attempts=3, stage="unknown"
+    ):
         if self.budget_left() <= 0:
             raise LLMError("LLM call budget exhausted")
         self.calls += 1

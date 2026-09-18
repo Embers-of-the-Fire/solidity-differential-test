@@ -172,6 +172,20 @@ address returned on both chains compares equal regardless of the 20-byte
   chains, plus the flat divergence list and the verdict.
 - Markdown (`--md report.md`): summary tables for humans.
 
+### Timing trace
+
+Every report carries an elapsed-time trace (wall-clock milliseconds, plus a
+UTC `started_at` timestamp):
+
+- `timing.total_ms`, `timing.started_at`, `timing.started_epoch`,
+  `timing.nodes.<chain>.{start_ms, stop_ms}`
+- `compile.<solc|solang>.elapsed_ms`, `deploy.<chain>.elapsed_ms`
+- per step: `steps[i].timing.<chain>.{dry_run_ms, tx_ms, snapshot_ms}` and
+  `steps[i].timing.<chain>_total_ms`
+
+Timing is recorded for traceability and cost analysis only; it is **never**
+part of the oracle comparison (same rule as block metadata and balances).
+
 ## Known limitations / intentional quirks
 
 - solang v0.3.5 emits `soroban_*` function exports even for the Polkadot

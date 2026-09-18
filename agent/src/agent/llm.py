@@ -10,12 +10,14 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from collections.abc import Callable
 from typing import Any, Protocol
 
 from openai import OpenAI, OpenAIError
 
 from .config import AgentConfig
+from .usage import UsageTracker
 
 _FENCE_RE = re.compile(r"```(?:json)?\s*\n(.*?)```", re.DOTALL)
 
@@ -31,6 +33,12 @@ class ChatClient(Protocol):
 
     def budget_left(self) -> int: ...
 
+    def usage_totals(self) -> dict[str, Any]: ...
+
+    def usage_since(self, marker: int) -> dict[str, Any]: ...
+
+    def usage_marker(self) -> int: ...
+
     def chat_json(
         self,
         system: str,
@@ -38,6 +46,7 @@ class ChatClient(Protocol):
         *,
         validate: Callable[[dict[str, Any]], list[str]] | None = None,
         max_attempts: int = 3,
+        stage: str = "unknown",
     ) -> dict[str, Any]: ...
 
 
@@ -69,9 +78,23 @@ class LLMClient:
         self._client = OpenAI(
             base_url=cfg.base_url, api_key=cfg.api_key, timeout=cfg.llm_timeout_s
         )
+        self.usage = UsageTracker(
+            cfg.findings_dir / "llm_usage.jsonl", pricing=cfg.pricing()
+        )
 
     def budget_left(self) -> int:
         return self.cfg.llm_calls_budget - self.calls
+
+    def usage_totals(self) -> dict[str, Any]:
+        return self.usage.totals()
+
+    def usage_marker(self) -> int:
+        return self.usage.marker()
+
+    def usage_since(self, marker: int) -> dict[str, Any]:
+        from .usage import summarize
+
+        return summarize(self.usage.records_since(marker))
 
     def chat(self, system: str, user: str, *, max_retries: int = 3) -> str:
         """One chat completion with retries on transient API errors."""
@@ -79,6 +102,7 @@ class LLMClient:
             raise LLMError("LLM call budget exhausted")
         last_err: Exception | None = None
         for _ in range(max_retries):
+            t0 = time.perf_counter()
             try:
                 self.calls += 1
                 resp = self._client.chat.completions.create(
@@ -90,12 +114,25 @@ class LLMClient:
                         {"role": "user", "content": user},
                     ],
                 )
+                latency_ms = (time.perf_counter() - t0) * 1000.0
+                self.usage.record(
+                    model=self.cfg.model,
+                    temperature=self.cfg.temperature,
+                    latency_ms=latency_ms,
+                    usage_raw=getattr(resp, "usage", None),
+                )
                 content = resp.choices[0].message.content
                 if not content:
                     raise LLMError("model returned empty content")
                 return content
             except OpenAIError as e:
                 last_err = e
+                self.usage.record(
+                    model=self.cfg.model,
+                    temperature=self.cfg.temperature,
+                    latency_ms=(time.perf_counter() - t0) * 1000.0,
+                    error=f"{type(e).__name__}: {e}",
+                )
         raise LLMError(f"LLM API failed after {max_retries} attempts: {last_err}")
 
     def chat_json(
@@ -105,6 +142,7 @@ class LLMClient:
         *,
         validate: Callable[[dict[str, Any]], list[str]] | None = None,
         max_attempts: int = 3,
+        stage: str = "unknown",
     ) -> dict[str, Any]:
         """Chat until the model returns JSON passing `validate` (or budget ends).
 
@@ -113,7 +151,8 @@ class LLMClient:
         """
         feedback = ""
         last_err = ""
-        for _ in range(max_attempts):
+        for attempt in range(max_attempts):
+            self.usage.set_context(stage, attempt)
             text = self.chat(system, user + feedback)
             try:
                 obj = extract_json(text)

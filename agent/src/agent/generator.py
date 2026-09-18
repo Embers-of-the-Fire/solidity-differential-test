@@ -142,7 +142,7 @@ def generate_spec(
 ) -> dict[str, Any]:
     """Ask the model for one validated spec dict."""
     system, user = build_generation_prompt(seed, recent, notebook)
-    spec = client.chat_json(system, user, validate=validate_spec_dict)
+    spec = client.chat_json(system, user, validate=validate_spec_dict, stage="generate")
     spec.setdefault("oracle", {})
     spec["oracle"].setdefault("storage", "count")
     spec["oracle"]["gas"] = False  # hard rule: gas models are incomparable

@@ -83,7 +83,9 @@ def minimize_source(
             source=best["solidity"],
         )
         try:
-            shrunk = client.chat_json(system, user, validate=_validate_shrunk)
+            shrunk = client.chat_json(
+                system, user, validate=_validate_shrunk, stage="minimize"
+            )
         except LLMError:
             break
         if len(shrunk["solidity"]) >= len(best["solidity"]):

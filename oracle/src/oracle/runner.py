@@ -12,6 +12,7 @@ from .compare import compare_compile, compare_deploy, compare_step
 from .compilers import CompileOutcome, compile_solang, compile_solc, tool_versions
 from .schema import Divergence, StepChainResult, dumps
 from .spec import TestSpec
+from .timing import Timer, now_epoch, now_iso
 
 
 class DifferentialRunner:
@@ -45,6 +46,12 @@ class DifferentialRunner:
                 "gas": spec.oracle.gas,
             },
             "workdir": str(self.workdir),
+            "timing": {
+                "started_at": now_iso(),
+                "started_epoch": now_epoch(),
+                "total_ms": None,  # filled in on exit
+                "nodes": {},
+            },
             "compile": {},
             "deploy": {},
             "steps": [],
@@ -52,17 +59,27 @@ class DifferentialRunner:
             "verdict": "ERROR",
         }
         divergences: list[Divergence] = []
+        total = Timer()
+        total.__enter__()
 
         # --- compile stage ---------------------------------------------------
         self.log("compiling with solc ...")
-        solc_out = compile_solc(spec.source, spec.contract, spec.solc_settings)
+        with Timer() as t_solc:
+            solc_out = compile_solc(spec.source, spec.contract, spec.solc_settings)
         self.log("compiling with solang ...")
-        solang_out = compile_solang(spec.source, spec.contract, spec.solang_settings)
+        with Timer() as t_solang:
+            solang_out = compile_solang(
+                spec.source, spec.contract, spec.solang_settings
+            )
         report["compile"] = {"solc": solc_out.to_dict(), "solang": solang_out.to_dict()}
+        report["compile"]["solc"]["elapsed_ms"] = t_solc.elapsed_ms
+        report["compile"]["solang"]["elapsed_ms"] = t_solang.elapsed_ms
         divergences.extend(compare_compile(solc_out, solang_out))
         if not solc_out.ok or not solang_out.ok:
             report["divergences"] = [d.to_dict() for d in divergences]
             report["verdict"] = "DIVERGENCE" if divergences else "PASS"
+            total.__exit__()
+            report["timing"]["total_ms"] = total.elapsed_ms
             return report
 
         # --- on-chain stage --------------------------------------------------
@@ -71,10 +88,14 @@ class DifferentialRunner:
         try:
             for name, chain in chains.items():
                 self.log(f"starting {name} node ...")
-                chain.start()
+                with Timer() as t_start:
+                    chain.start()
                 self.log(f"deploying on {name} ...")
-                outcome = chain.deploy(artifacts[name], spec.constructor)
+                with Timer() as t_deploy:
+                    outcome = chain.deploy(artifacts[name], spec.constructor)
                 report["deploy"][name] = outcome.to_dict()
+                report["deploy"][name]["elapsed_ms"] = t_deploy.elapsed_ms
+                report["timing"]["nodes"][name] = {"start_ms": t_start.elapsed_ms}
                 if outcome.status != "success":
                     self.log(f"deploy on {name} failed: {outcome.error}")
             divergences.extend(
@@ -94,16 +115,35 @@ class DifferentialRunner:
                         "args": step.args,
                         "sender": step.sender,
                         "value": step.value,
+                        "timing": {},
                     }
                     results: dict[str, StepChainResult] = {}
                     for name, chain in chains.items():
-                        dry = chain.dry_run(step)
-                        tx = chain.transact(step) if step.action == "call" else None
-                        state = chain.snapshot() if step.action == "call" else None
+                        tx_ms: float | None = None
+                        snap_ms: float | None = None
+                        with Timer() as t_step:
+                            with Timer() as t_dry:
+                                dry = chain.dry_run(step)
+                            if step.action == "call":
+                                with Timer() as t_tx:
+                                    tx = chain.transact(step)
+                                with Timer() as t_snap:
+                                    state = chain.snapshot()
+                                tx_ms = t_tx.elapsed_ms
+                                snap_ms = t_snap.elapsed_ms
+                            else:
+                                tx = None
+                                state = None
                         results[name] = StepChainResult(
                             chain=name, dry_run=dry, tx=tx, state=state
                         )
                         step_report[name] = results[name].to_dict()
+                        step_report["timing"][name] = {
+                            "dry_run_ms": t_dry.elapsed_ms,
+                            "tx_ms": tx_ms,
+                            "snapshot_ms": snap_ms,
+                        }
+                        step_report["timing"][f"{name}_total_ms"] = t_step.elapsed_ms
                     step_divs = compare_step(
                         i, results["evm"], results["polkadot"], spec.oracle
                     )
@@ -115,11 +155,17 @@ class DifferentialRunner:
             else:
                 report["steps_skipped"] = "deployment failed on at least one chain"
         finally:
-            for chain in chains.values():
-                chain.stop()
+            for name, chain in chains.items():
+                with Timer() as t_stop:
+                    chain.stop()
+                report["timing"]["nodes"].setdefault(name, {})["stop_ms"] = (
+                    t_stop.elapsed_ms
+                )
 
         report["divergences"] = [d.to_dict() for d in divergences]
         report["verdict"] = "DIVERGENCE" if divergences else "PASS"
+        total.__exit__()
+        report["timing"]["total_ms"] = total.elapsed_ms
         return report
 
 

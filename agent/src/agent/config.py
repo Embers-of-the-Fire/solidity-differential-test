@@ -7,6 +7,12 @@ server. Configure via environment variables:
     AGENT_LLM_BASE_URL   e.g. http://127.0.0.1:8080/v1   (llama.cpp / vLLM / Ollama)
     AGENT_LLM_MODEL      model name the server expects
     AGENT_LLM_API_KEY    optional; most local servers ignore it (default: "local")
+
+Usage cost is computed from optional prices (USD per 1M tokens, default 0.0):
+
+    AGENT_LLM_PRICE_INPUT_PER_1M         uncached input (prompt) tokens
+    AGENT_LLM_PRICE_CACHED_INPUT_PER_1M  cached input tokens (default: same as input)
+    AGENT_LLM_PRICE_OUTPUT_PER_1M        output (completion) tokens
 """
 
 from __future__ import annotations
@@ -14,6 +20,8 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from .usage import Pricing
 
 PLACEHOLDER_BASE_URL = "http://REPLACE-ME.invalid/v1"
 PLACEHOLDER_MODEL = "REPLACE-ME"
@@ -35,6 +43,16 @@ class AgentConfig:
     oracle_runs_budget: int = 100
     parallel: int = 4
     findings_dir: Path = field(default_factory=lambda: Path("findings"))
+    price_input_per_1m: float = 0.0
+    price_cached_input_per_1m: float | None = None  # None -> same as input
+    price_output_per_1m: float = 0.0
+
+    def pricing(self) -> Pricing:
+        return Pricing(
+            input_per_1m=self.price_input_per_1m,
+            output_per_1m=self.price_output_per_1m,
+            cached_input_per_1m=self.price_cached_input_per_1m,
+        )
 
     def check_llm(self) -> None:
         """Fail fast if the endpoint is still the placeholder."""
@@ -75,4 +93,10 @@ def load_config(
         cfg.oracle_runs_budget = oracle_runs
     if parallel is not None:
         cfg.parallel = parallel
+    cfg.price_input_per_1m = float(os.environ.get("AGENT_LLM_PRICE_INPUT_PER_1M", 0.0))
+    cached = os.environ.get("AGENT_LLM_PRICE_CACHED_INPUT_PER_1M")
+    cfg.price_cached_input_per_1m = float(cached) if cached else None
+    cfg.price_output_per_1m = float(
+        os.environ.get("AGENT_LLM_PRICE_OUTPUT_PER_1M", 0.0)
+    )
     return cfg

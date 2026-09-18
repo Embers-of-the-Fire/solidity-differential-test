@@ -15,6 +15,7 @@ from agent.executor import Executor
 from agent.loop import HuntLoop
 from agent.store import FindingStore
 from agent.triage import triage_report
+from agent.usage import NoUsage
 
 GASLEFT_SPEC = {
     "name": "e2e-gasleft",
@@ -30,7 +31,7 @@ GASLEFT_SPEC = {
 }
 
 
-class NoLLM:
+class NoLLM(NoUsage):
     """Asserts the pipeline never needs the LLM for this canned probe."""
 
     calls = 0
@@ -61,13 +62,15 @@ def test_e2e_known_divergence_triaged_without_llm(tmp_path):
 def test_e2e_hunt_loop_one_round(tmp_path):
     """One full loop round: canned generation, real oracle, rule triage."""
 
-    class CannedLLM:
+    class CannedLLM(NoUsage):
         calls = 0
 
         def budget_left(self):
             return 1
 
-        def chat_json(self, system, user, *, validate=None, max_attempts=3):
+        def chat_json(
+            self, system, user, *, validate=None, max_attempts=3, stage="unknown"
+        ):
             self.calls += 1
             if "hypothesis notebook" in system:
                 return {"ops": [], "reasoning": "documented difference, nothing new"}

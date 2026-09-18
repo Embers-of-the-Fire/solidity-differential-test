@@ -1,14 +1,20 @@
 from agent.triage import classify_by_rules, triage_report
+from agent.usage import NoUsage
 
 
-class FakeLLM:
+class FakeLLM(NoUsage):
     """Stands in for LLMClient; records prompts, returns canned JSON."""
 
     def __init__(self, reply):
         self.reply = reply
         self.calls = 0
 
-    def chat_json(self, system, user, *, validate=None, max_attempts=3):
+    def budget_left(self):
+        return 100 - self.calls
+
+    def chat_json(
+        self, system, user, *, validate=None, max_attempts=3, stage="unknown"
+    ):
         self.calls += 1
         if validate:
             problems = validate(self.reply)

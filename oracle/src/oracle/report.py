@@ -37,22 +37,24 @@ def render_markdown(report: dict[str, Any]) -> str:
     # compile stage
     lines.append("## Compile stage")
     lines.append("")
-    lines.append("| Compiler | OK | Errors |")
-    lines.append("|----------|----|--------|")
+    lines.append("| Compiler | OK | Time (ms) | Errors |")
+    lines.append("|----------|----|-----------|--------|")
     for name, c in report.get("compile", {}).items():
         errs = "; ".join((c.get("errors") or [])[:1])
-        lines.append(f"| {name} | {c.get('ok')} | {errs[:200]} |")
+        lines.append(
+            f"| {name} | {c.get('ok')} | {_ms(c.get('elapsed_ms'))} | {errs[:200]} |"
+        )
     lines.append("")
 
     # deploy stage
     if report.get("deploy"):
         lines.append("## Deploy stage")
         lines.append("")
-        lines.append("| Chain | Status | Address | Error |")
-        lines.append("|-------|--------|---------|-------|")
+        lines.append("| Chain | Status | Address | Time (ms) | Error |")
+        lines.append("|-------|--------|---------|-----------|-------|")
         for name, d in report["deploy"].items():
             lines.append(
-                f"| {name} | {d.get('status')} | `{d.get('address')}` | {(d.get('error') or '')[:120]} |"
+                f"| {name} | {d.get('status')} | `{d.get('address')}` | {_ms(d.get('elapsed_ms'))} | {(d.get('error') or '')[:120]} |"
             )
         lines.append("")
 
@@ -61,10 +63,10 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.append("## Steps")
         lines.append("")
         lines.append(
-            "| # | Action | Function | EVM status | DOT status | EVM return | DOT return | Divergences |"
+            "| # | Action | Function | EVM status | DOT status | EVM return | DOT return | EVM ms | DOT ms | Divergences |"
         )
         lines.append(
-            "|---|--------|----------|------------|------------|------------|------------|-------------|"
+            "|---|--------|----------|------------|------------|------------|------------|--------|--------|-------------|"
         )
         for s in report["steps"]:
             evm = s.get("evm", {})
@@ -73,11 +75,32 @@ def render_markdown(report: dict[str, Any]) -> str:
             dot_status = (dot.get("tx") or dot.get("dry_run", {})).get("status")
             evm_ret = _short(evm.get("dry_run", {}).get("return_value"))
             dot_ret = _short(dot.get("dry_run", {}).get("return_value"))
+            timing = s.get("timing", {})
             kinds = ", ".join(d["kind"] for d in s.get("divergences", [])) or "-"
             lines.append(
                 f"| {s['index']} | {s['action']} | `{s['function']}` | {evm_status} | {dot_status} "
-                f"| {evm_ret} | {dot_ret} | {kinds} |"
+                f"| {evm_ret} | {dot_ret} | {_ms(timing.get('evm_total_ms'))} | {_ms(timing.get('polkadot_total_ms'))} | {kinds} |"
             )
+        lines.append("")
+
+    # timing
+    timing = report.get("timing", {})
+    if timing:
+        lines.append("## Timing")
+        lines.append("")
+        lines.append(f"- Total wall time: {_ms(timing.get('total_ms'))}")
+        nodes = timing.get("nodes", {})
+        if nodes:
+            lines.append(
+                "- Node startup: "
+                + ", ".join(
+                    f"{name} {_ms(t.get('start_ms'))}" for name, t in nodes.items()
+                )
+            )
+        lines.append("")
+        lines.append(
+            "Recorded for traceability only; timing is never part of the comparison."
+        )
         lines.append("")
 
     # divergences
@@ -93,6 +116,10 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.append("None.")
     lines.append("")
     return "\n".join(lines)
+
+
+def _ms(v: Any) -> str:
+    return f"{v:.0f}" if isinstance(v, (int, float)) else "-"
 
 
 def _short(v: Any) -> str:

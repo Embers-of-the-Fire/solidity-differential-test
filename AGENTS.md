@@ -65,6 +65,7 @@ exit is a *finding*, not a crash.
 
 `oracle/src/oracle/` — `cli.py` (entrypoint `solidity-diff-oracle`),
 `runner.py` (orchestration), `compilers.py` (solc/solang drivers),
+`timing.py` (elapsed-time tracing; recorded in the report, never compared),
 `chains/{base,evm,polkadot}.py` (adapters + node process management),
 `compare.py` (divergence classes), `spec.py` (JSON test-env schema).
 `oracle/examples/` holds ready-to-run specs.
@@ -72,8 +73,10 @@ exit is a *finding*, not a crash.
 `agent/` — AI-in-the-loop bug hunter (entrypoint `solidity-diff-agent`;
 see `agent/README.md`). `agent/src/agent/`: `llm.py` (OpenAI-compatible
 client + validate-and-repair loop; `ChatClient` protocol for fakes),
-`generator.py` (spec prompt + validation), `executor.py` (parallel
-`oracle.runner.run_spec`; `OracleRunner` protocol), `triage.py`
+`usage.py` (per-call token/cost/latency tracing -> `llm_usage.jsonl`;
+pricing via `AGENT_LLM_PRICE_{INPUT,CACHED_INPUT,OUTPUT}_PER_1M`, default
+0.0; `NoUsage` mixin for fakes), `generator.py` (spec prompt + validation),
+`executor.py` (parallel `oracle.runner.run_spec`; `OracleRunner` protocol), `triage.py`
 (deterministic known-difference rules + LLM classification),
 `minimize.py` (step delta-debugging + LLM source shrinking),
 `hypotheses.py` (per-seed hypothesis notebooks; op validation),

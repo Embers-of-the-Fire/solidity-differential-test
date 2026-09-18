@@ -99,7 +99,7 @@ def triage_report(
         + heuristic_note
     )
     try:
-        return client.chat_json(system, user, validate=_validate_triage)
+        return client.chat_json(system, user, validate=_validate_triage, stage="triage")
     except LLMError as e:
         return {
             "category": "bug_candidate",

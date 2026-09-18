@@ -58,6 +58,45 @@ export AGENT_LLM_MODEL=<your-model-name>
 export AGENT_LLM_API_KEY=local                        # usually ignored locally
 ```
 
+Optional token prices (USD per 1M tokens, all default `0.0` for local
+inference) used for the cost trace:
+
+```bash
+export AGENT_LLM_PRICE_INPUT_PER_1M=0.0          # uncached prompt tokens
+export AGENT_LLM_PRICE_CACHED_INPUT_PER_1M=0.0   # cached prompt tokens (default: input price)
+export AGENT_LLM_PRICE_OUTPUT_PER_1M=0.0         # completion tokens
+```
+
+## Cost & time tracing
+
+Every chat-completion call (including retried/failed attempts and repair-loop
+iterations) is appended to `findings/llm_usage.jsonl` — one JSON object per
+line with:
+
+- `ts`, `stage` (`generate` / `triage` / `reflect` / `minimize`), `attempt`
+  (repair-loop index), `model`, `temperature`
+- `latency_ms`
+- `prompt_tokens`, `cached_prompt_tokens`, `completion_tokens`,
+  `total_tokens`, `cost_usd`
+- `usage_raw`: the server's `usage` object verbatim, so provider-specific
+  fields are preserved. Cached-token splits are only visible when the server
+  reports them (`usage.prompt_tokens_details.cached_tokens` — OpenAI and vLLM
+  do; llama.cpp typically does not, in which case `cached_prompt_tokens` is
+  null and all input tokens are billed at the full input rate).
+- `error`: set for failed attempts (tokens unknown → `cost_usd` is null)
+
+Per-probe phase timing (`generate_ms`, `oracle_ms`, `triage_ms`,
+`reflect_ms`, `minimize_ms`, `round_ms`) and per-round token/cost deltas are
+stored in `probes.jsonl`; accepted findings carry the same (cost-to-discover).
+The oracle report itself carries its own elapsed-time trace
+(`timing.*` in the report JSON — see the oracle README).
+
+Aggregates:
+
+```bash
+solidity-diff-agent cost --findings-dir findings/   # totals, per-stage, per-seed
+```
+
 ## Usage (from the repo root, inside the devshell)
 
 ```bash

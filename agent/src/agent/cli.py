@@ -40,6 +40,11 @@ def build_parser() -> argparse.ArgumentParser:
     hypo = sub.add_parser("hypotheses", help="print per-seed hypothesis notebooks")
     hypo.add_argument("--findings-dir", metavar="DIR", default=None)
 
+    cost = sub.add_parser(
+        "cost", help="print aggregated token/cost/time usage statistics"
+    )
+    cost.add_argument("--findings-dir", metavar="DIR", default=None)
+
     replay = sub.add_parser("replay", help="re-run a finding's reproducer")
     replay.add_argument("finding_id", help="finding id from `report`")
     replay.add_argument("--findings-dir", metavar="DIR", default=None)
@@ -70,6 +75,12 @@ def _cmd_hunt(args: argparse.Namespace) -> int:
     hyp = summary["hypotheses"]
     print(
         f"hypotheses: {hyp['open']} open, {hyp['confirmed']} confirmed, {hyp['refuted']} refuted"
+    )
+    totals = summary["usage"]["totals"]
+    print(
+        f"llm: {totals['calls']} calls, {totals['total_tokens']} tokens "
+        f"({totals['cached_prompt_tokens']} cached), ${totals['cost_usd']:.6f}, "
+        f"{totals['latency_ms'] / 1000:.1f}s in LLM; wall {summary['elapsed_ms'] / 1000:.1f}s"
     )
     return 0
 
@@ -111,6 +122,58 @@ def _cmd_hypotheses(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_cost(args: argparse.Namespace) -> int:
+    store = FindingStore(args.findings_dir or "findings")
+    summary = store.usage_summary()
+    totals = summary["totals"]
+    if totals["calls"] == 0:
+        print("no LLM usage recorded yet")
+        return 0
+    print("LLM usage totals:")
+    print(f"  calls:    {totals['calls']} ({totals['errors']} errors)")
+    print(
+        f"  tokens:   {totals['total_tokens']} total "
+        f"({totals['prompt_tokens']} prompt, {totals['cached_prompt_tokens']} cached, "
+        f"{totals['completion_tokens']} completion)"
+    )
+    print(f"  cost:     ${totals['cost_usd']:.6f}")
+    print(
+        f"  latency:  {totals['latency_ms'] / 1000:.1f}s total, "
+        f"{totals['avg_latency_ms']:.0f}ms avg/call"
+    )
+    if summary["per_stage"]:
+        print("\nper stage:")
+        print(f"  {'stage':<10} {'calls':>6} {'tokens':>10} {'cost':>12} {'avg ms':>8}")
+        for stage, s in summary["per_stage"].items():
+            print(
+                f"  {stage:<10} {s['calls']:>6} {s['total_tokens']:>10} "
+                f"${s['cost_usd']:>11.6f} {s['avg_latency_ms']:>8.0f}"
+            )
+    per_seed: dict[str, dict[str, float]] = {}
+    for probe in store.probes():
+        seed = probe.get("seed") or "?"
+        acc = per_seed.setdefault(
+            seed, {"probes": 0, "tokens": 0, "cost_usd": 0.0, "round_ms": 0.0}
+        )
+        acc["probes"] += 1
+        usage = probe.get("usage") or {}
+        timing = probe.get("timing") or {}
+        acc["tokens"] += usage.get("total_tokens") or 0
+        acc["cost_usd"] += usage.get("cost_usd") or 0.0
+        acc["round_ms"] += timing.get("round_ms") or 0.0
+    if per_seed:
+        print("\nper seed (probe-level):")
+        print(
+            f"  {'seed':<28} {'probes':>6} {'tokens':>10} {'cost':>12} {'round s':>9}"
+        )
+        for seed, s in sorted(per_seed.items()):
+            print(
+                f"  {seed:<28} {int(s['probes']):>6} {int(s['tokens']):>10} "
+                f"${s['cost_usd']:>11.6f} {s['round_ms'] / 1000:>9.1f}"
+            )
+    return 0
+
+
 def _cmd_replay(args: argparse.Namespace) -> int:
     store = FindingStore(args.findings_dir or "findings")
     finding = store.get_finding(args.finding_id)
@@ -132,6 +195,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_report(args)
         if args.command == "hypotheses":
             return _cmd_hypotheses(args)
+        if args.command == "cost":
+            return _cmd_cost(args)
         if args.command == "replay":
             return _cmd_replay(args)
     except AgentConfigError as e:

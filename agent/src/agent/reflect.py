@@ -61,7 +61,9 @@ def reflect_notebook(
         max_open=MAX_OPEN_HYPOTHESES,
     )
     try:
-        out = client.chat_json(system, user, validate=_validate_reflect)
+        out = client.chat_json(
+            system, user, validate=_validate_reflect, stage="reflect"
+        )
     except LLMError as e:
         log(f"[reflect] skipped: {e}")
         return notebook

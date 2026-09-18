@@ -2,6 +2,7 @@ from agent.hypotheses import load_notebook
 from agent.llm import LLMError
 from agent.reflect import reflect_notebook
 from agent.seeds import Seed
+from agent.usage import NoUsage
 
 SEED = Seed(id="int-semantics", title="Ints", why="casts", hints=[])
 SPEC = {"name": "p1", "solidity": "contract c {}", "contract": "c", "steps": []}
@@ -12,7 +13,7 @@ REPORT = {
 TRIAGE = {"category": "bug_candidate"}
 
 
-class FakeLLM:
+class FakeLLM(NoUsage):
     calls: int
 
     def __init__(self, reply=None, error=None):
@@ -24,7 +25,9 @@ class FakeLLM:
     def budget_left(self) -> int:
         return 100 - self.calls
 
-    def chat_json(self, system, user, *, validate=None, max_attempts=3) -> dict:
+    def chat_json(
+        self, system, user, *, validate=None, max_attempts=3, stage="unknown"
+    ) -> dict:
         self.calls += 1
         self.last_user = user
         if self.error:
