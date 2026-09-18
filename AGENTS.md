@@ -9,7 +9,8 @@ full spec/report schema — read it before touching comparison logic.
 ## Environment (NixOS, strict)
 
 - All binaries come from the root flake devshell (`nix develop`, or direnv via
-  `.envrc`): `solc`, `solang`, `anvil`, `substrate-contracts-node`, `uv`.
+  `.envrc`): `solc`, `solang`, `anvil`, `substrate-contracts-node`, `uv`,
+  `typst` (compiles gitignored progress reports in `reports/*.typ`).
   `solang` and `substrate-contracts-node` are prebuilt upstream binaries
   wrapped in `flake.nix` (not in nixpkgs) — do not try to install them
   another way.
