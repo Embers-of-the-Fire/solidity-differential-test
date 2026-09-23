@@ -44,6 +44,9 @@ class AgentConfig:
     saturation_window: int = 10
     parallel: int = 4
     p_mutate: float = 0.7  # 0.0 reproduces the generation-only baseline loop
+    prog_mutants_per_round: int = 4  # free programmatic mutants per mutation round
+    llm_mutants_per_round: int = 4  # mutants requested in the single batch LLM call
+    prog_ops_per_mutant: int = 2  # operator applications per programmatic mutant
     findings_dir: Path = field(default_factory=lambda: Path("findings"))
     price_input_per_1m: float = 0.0
     price_cached_input_per_1m: float | None = None  # None -> same as input
@@ -83,6 +86,9 @@ def load_config(
     saturation_window: int | None = None,
     parallel: int | None = None,
     p_mutate: float | None = None,
+    prog_mutants_per_round: int | None = None,
+    llm_mutants_per_round: int | None = None,
+    prog_ops_per_mutant: int | None = None,
 ) -> AgentConfig:
     cfg = AgentConfig(
         base_url=os.environ.get("AGENT_LLM_BASE_URL", PLACEHOLDER_BASE_URL),
@@ -101,6 +107,12 @@ def load_config(
         cfg.parallel = parallel
     if p_mutate is not None:
         cfg.p_mutate = p_mutate
+    if prog_mutants_per_round is not None:
+        cfg.prog_mutants_per_round = prog_mutants_per_round
+    if llm_mutants_per_round is not None:
+        cfg.llm_mutants_per_round = llm_mutants_per_round
+    if prog_ops_per_mutant is not None:
+        cfg.prog_ops_per_mutant = prog_ops_per_mutant
     cfg.price_input_per_1m = float(os.environ.get("AGENT_LLM_PRICE_INPUT_PER_1M", 0.0))
     cached = os.environ.get("AGENT_LLM_PRICE_CACHED_INPUT_PER_1M")
     cfg.price_cached_input_per_1m = float(cached) if cached else None

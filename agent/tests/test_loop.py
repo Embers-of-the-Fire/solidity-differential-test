@@ -52,6 +52,22 @@ DIVERGENT_REPORT = {
 
 PASS_REPORT = {"name": "canned-add", "verdict": "PASS", "divergences": []}
 
+# Valid LLM mutant: still calls `add` (so the scripted oracle diverges).
+MUTANT_SPEC = {
+    "name": "canned-add-mut",
+    "solidity": CANNED_SOURCE,
+    "contract": "broken",
+    "steps": [{"action": "query", "function": "add", "args": [1, 2]}],
+}
+
+# Invalid LLM mutant: contract name not declared in the source.
+INVALID_MUTANT = {
+    "name": "canned-add-broken",
+    "solidity": CANNED_SOURCE,
+    "contract": "nope",
+    "steps": [{"action": "query", "function": "add", "args": [1, 2]}],
+}
+
 
 class FakeLLM(NoUsage):
     def __init__(self, budget=100):
@@ -69,6 +85,13 @@ class FakeLLM(NoUsage):
             raise LLMError("LLM call budget exhausted")
         self.calls += 1
         self.prompts.append((system, user))
+        if "mutate existing" in system:
+            return {
+                "mutants": [
+                    dict(MUTANT_SPEC),
+                    dict(INVALID_MUTANT),
+                ]
+            }
         if "differential-testing probes" in system:
             return dict(CANNED_SPEC)
         if "triage" in system:
@@ -106,17 +129,27 @@ class FakeExecutor:
     def __init__(self):
         self.runs = 0
 
+    def _one(self, spec_dict):
+        if any(s.get("function") == "add" for s in spec_dict.get("steps", [])):
+            report = json.loads(json.dumps(DIVERGENT_REPORT))
+            # spec-dependent detail: each spec gets its own finding fingerprint
+            report["divergences"][0]["detail"] += f" [{spec_dict.get('name')}]"
+            return report
+        return dict(PASS_REPORT)
+
     def run(self, spec_dict):
         self.runs += 1
-        if any(s.get("function") == "add" for s in spec_dict.get("steps", [])):
-            return json.loads(json.dumps(DIVERGENT_REPORT))
-        return dict(PASS_REPORT)
+        return self._one(spec_dict)
+
+    def run_many(self, spec_dicts):
+        self.runs += len(spec_dicts)
+        return [self._one(s) for s in spec_dicts]
 
     def close(self):
         pass
 
 
-def make_loop(tmp_path, *, budget=100, p_mutate=0.7):
+def make_loop(tmp_path, *, budget=100, p_mutate=0.0):
     cfg = AgentConfig(
         findings_dir=tmp_path,
         llm_calls_budget=budget,
@@ -213,3 +246,64 @@ def test_corpus_file_persists_across_stores(tmp_path):
     loop.hunt(StopPolicy(max_rounds=1), only_seeds=["int-semantics"])
     reloaded = FindingStore(tmp_path)
     assert len(reloaded.corpus.entries()) == 1
+
+
+def make_mutation_loop(tmp_path, *, budget=200):
+    loop, llm = make_loop(tmp_path, budget=budget, p_mutate=1.0)
+    # round 1: corpus is empty, so a parent cannot be selected -> generation
+    loop.round(only_seeds=["int-semantics"])
+    return loop, llm
+
+
+def test_mutation_round_runs_a_batch(tmp_path):
+    loop, llm = make_mutation_loop(tmp_path)
+    summary = loop.round(only_seeds=["int-semantics"])
+    parent = loop.store.corpus.entries()[0]
+    assert summary["parent_id"] == parent["id"]
+    assert summary["origin"] == "mutated"
+    # batch = programmatic mutants + 1 valid LLM mutant, all executed
+    assert summary["mutants"]
+    assert {m["origin"] for m in summary["mutants"]} <= {
+        "mutated_prog",
+        "mutated_llm",
+    }
+    assert any(m["origin"] == "mutated_llm" for m in summary["mutants"])
+    # the batch-mutation prompt was issued exactly once
+    mut_prompts = [u for s, u in llm.prompts if "mutate existing" in s]
+    assert len(mut_prompts) == 1
+
+
+def test_mutation_round_records_invalid_mutant_probes(tmp_path):
+    loop, _ = make_mutation_loop(tmp_path)
+    summary = loop.round(only_seeds=["int-semantics"])
+    assert summary["mutants_invalid"] == 1
+    invalid = [p for p in loop.store.probes() if p["category"] == "invalid_probe"]
+    assert len(invalid) == 1
+    assert invalid[0]["verdict"] == "INVALID"  # recorded, not executed
+    assert invalid[0]["origin"] == "mutated_llm"
+
+
+def test_mutation_round_lineage_and_offspring_feedback(tmp_path):
+    loop, _ = make_mutation_loop(tmp_path)
+    loop.round(only_seeds=["int-semantics"])
+    parent = loop.store.corpus.entries()[0]
+    mutated = [
+        p for p in loop.store.probes() if p["origin"] in ("mutated_prog", "mutated_llm")
+    ]
+    assert mutated
+    assert all(p["parent_id"] == parent["id"] for p in mutated)
+    # every mutant (executed or invalid) fed back into the parent's energy
+    assert parent["offspring"]["runs"] == len(mutated)
+    assert parent["offspring"]["invalid"] >= 1  # the discarded LLM mutant
+
+
+def test_mutation_round_minimizes_new_bug_candidates(tmp_path):
+    loop, _ = make_mutation_loop(tmp_path)
+    summary = loop.round(only_seeds=["int-semantics"])
+    # all mutants still call `add` -> all diverge; each has a distinct
+    # fingerprint (spec-dependent detail), so each is minimized and recorded
+    bug_candidates = [m for m in summary["mutants"] if m["category"] == "bug_candidate"]
+    assert bug_candidates
+    assert summary["finding_id"] is not None
+    assert len(summary["finding_ids"]) == len(bug_candidates)
+    assert len(loop.store.findings()) == 1 + len(bug_candidates)  # + round 1
