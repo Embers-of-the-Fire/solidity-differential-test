@@ -9,6 +9,7 @@ import json
 from agent.config import AgentConfig
 from agent.llm import LLMError
 from agent.loop import HuntLoop
+from agent.stop import StopPolicy
 from agent.store import FindingStore
 from agent.usage import NoUsage
 
@@ -133,7 +134,7 @@ def make_loop(tmp_path, *, budget=100):
 
 def test_loop_records_bug_candidate_finding(tmp_path):
     loop, _ = make_loop(tmp_path)
-    summary = loop.hunt(max_rounds=1, only_seeds=["int-semantics"])
+    summary = loop.hunt(StopPolicy(max_rounds=1), only_seeds=["int-semantics"])
     assert summary["rounds"] == 1
     assert summary["new_findings"] == 1
     findings = loop.store.findings()
@@ -150,7 +151,7 @@ def test_loop_records_bug_candidate_finding(tmp_path):
 def test_hypothesis_feeds_next_generation_prompt(tmp_path):
     """The regression test for non-myopia: round 2 must see round 1's hypothesis."""
     loop, llm = make_loop(tmp_path)
-    loop.hunt(max_rounds=2, only_seeds=["int-semantics"])
+    loop.hunt(StopPolicy(max_rounds=2), only_seeds=["int-semantics"])
     gen_prompts = [u for s, u in llm.prompts if "differential-testing probes" in s]
     assert len(gen_prompts) == 2
     assert "no hypotheses yet" in gen_prompts[0]
@@ -160,7 +161,7 @@ def test_hypothesis_feeds_next_generation_prompt(tmp_path):
 
 def test_loop_dedups_repeated_findings(tmp_path):
     loop, _ = make_loop(tmp_path)
-    summary = loop.hunt(max_rounds=3, only_seeds=["int-semantics"])
+    summary = loop.hunt(StopPolicy(max_rounds=3), only_seeds=["int-semantics"])
     assert summary["rounds"] == 3
     assert summary["new_findings"] == 1  # same canned probe each round -> dedup
     assert len(loop.store.findings()) == 1
@@ -168,6 +169,6 @@ def test_loop_dedups_repeated_findings(tmp_path):
 
 def test_loop_stops_on_llm_budget(tmp_path):
     loop, _ = make_loop(tmp_path, budget=1)
-    summary = loop.hunt(max_rounds=10, only_seeds=["int-semantics"])
+    summary = loop.hunt(loop.default_policy(10), only_seeds=["int-semantics"])
     assert summary["llm_calls"] <= 1
-    assert "budget" in summary["stop_reason"]
+    assert summary["stop_reason"] == "llm_budget"

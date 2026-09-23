@@ -56,6 +56,8 @@ class FindingStore:
         category: str,
         timing: dict[str, Any] | None = None,
         usage: dict[str, Any] | None = None,
+        oracle_runs_total: int | None = None,
+        llm_calls_total: int | None = None,
     ) -> None:
         self._append(
             self._probes,
@@ -68,6 +70,8 @@ class FindingStore:
                 "kinds": sorted(divergence_kinds(report)),
                 "timing": timing,
                 "usage": usage,
+                "oracle_runs_total": oracle_runs_total,
+                "llm_calls_total": llm_calls_total,
             },
         )
 

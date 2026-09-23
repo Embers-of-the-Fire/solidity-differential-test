@@ -41,6 +41,7 @@ class AgentConfig:
     llm_timeout_s: float = 180.0
     llm_calls_budget: int = 50
     oracle_runs_budget: int = 100
+    saturation_window: int = 10
     parallel: int = 4
     findings_dir: Path = field(default_factory=lambda: Path("findings"))
     price_input_per_1m: float = 0.0
@@ -78,6 +79,7 @@ def load_config(
     findings_dir: str | Path | None = None,
     llm_calls: int | None = None,
     oracle_runs: int | None = None,
+    saturation_window: int | None = None,
     parallel: int | None = None,
 ) -> AgentConfig:
     cfg = AgentConfig(
@@ -91,6 +93,8 @@ def load_config(
         cfg.llm_calls_budget = llm_calls
     if oracle_runs is not None:
         cfg.oracle_runs_budget = oracle_runs
+    if saturation_window is not None:
+        cfg.saturation_window = saturation_window
     if parallel is not None:
         cfg.parallel = parallel
     cfg.price_input_per_1m = float(os.environ.get("AGENT_LLM_PRICE_INPUT_PER_1M", 0.0))

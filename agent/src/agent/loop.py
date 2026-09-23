@@ -15,6 +15,7 @@ from .llm import ChatClient, LLMClient, LLMError
 from .minimize import minimize
 from .reflect import reflect_notebook
 from .seeds import load_seeds, pick_seed
+from .stop import LoopState, StopPolicy
 from .store import FindingStore
 from .triage import triage_report
 
@@ -36,13 +37,6 @@ class HuntLoop:
         self.store = store or FindingStore(cfg.findings_dir)
         self.rng = random.Random(rng_seed)
         self.log = log
-
-    def _over_budget(self) -> str | None:
-        if self.client.budget_left() <= 0:
-            return "LLM call budget exhausted"
-        if self.executor.runs >= self.cfg.oracle_runs_budget:
-            return "oracle run budget exhausted"
-        return None
 
     def _is_resolved(self, seed_id: str) -> bool:
         """A seed is resolved when it has hypotheses and none are open."""
@@ -106,6 +100,8 @@ class HuntLoop:
             category=category,
             timing=phase_ms,
             usage=usage,
+            oracle_runs_total=self.executor.runs,
+            llm_calls_total=self.client.calls,
         )
         self.store.note_seed_result(seed.id, kinds)
 
@@ -168,37 +164,56 @@ class HuntLoop:
         phase_ms["round_ms"] = (time.perf_counter() - t_round) * 1000.0
         return summary
 
+    def default_policy(self, max_rounds: int | None = None) -> StopPolicy:
+        """Policy from config defaults; callers may build their own instead."""
+        return StopPolicy(
+            max_rounds=max_rounds,
+            oracle_runs_budget=self.cfg.oracle_runs_budget,
+            llm_calls_budget=self.cfg.llm_calls_budget,
+            saturation_window=self.cfg.saturation_window,
+        )
+
     def hunt(
-        self, max_rounds: int | None = None, only_seeds: list[str] | None = None
+        self, policy: StopPolicy | None = None, only_seeds: list[str] | None = None
     ) -> dict[str, Any]:
-        """Run rounds until budgets are spent. Returns a hunt summary."""
+        """Run rounds until the stop policy fires. Returns a hunt summary."""
+        if policy is None:
+            policy = self.default_policy()
         t_hunt = time.perf_counter()
-        rounds = 0
+        state = LoopState()
         findings_before = len(self.store.findings())
+        seen_kinds: set[str] = set()
+        seeds = load_seeds()
+        prev_counts = summary_counts(
+            [load_notebook(self.store.root, s.id) for s in seeds]
+        )
+        stop = None
         while True:
-            if max_rounds is not None and rounds >= max_rounds:
-                stop = f"round limit reached ({max_rounds})"
-                break
-            if (reason := self._over_budget()) is not None:
+            state.oracle_runs = self.executor.runs
+            state.llm_calls = self.client.calls
+            if (reason := policy.check(state)) is not None:
                 stop = reason
                 break
             summary = self.round(only_seeds=only_seeds)
-            rounds += 1
+            state.rounds += 1
             totals = self.client.usage_totals()["totals"]
             self.log(
-                f"[budget] llm_calls={self.client.calls}/{self.cfg.llm_calls_budget} "
-                f"oracle_runs={self.executor.runs}/{self.cfg.oracle_runs_budget} "
+                f"[budget] llm_calls={self.client.calls}/{policy.llm_calls_budget} "
+                f"oracle_runs={self.executor.runs}/{policy.oracle_runs_budget} "
                 f"tokens={totals['total_tokens']} cost=${totals['cost_usd']:.6f}"
             )
-            if (
-                summary["category"] == "generation_failed"
-                and self.client.budget_left() <= 0
-            ):
-                stop = "LLM call budget exhausted"
-                break
-        notebooks = [load_notebook(self.store.root, s.id) for s in load_seeds()]
+            kinds = set(summary.get("kinds") or [])
+            notebooks = [load_notebook(self.store.root, s.id) for s in seeds]
+            counts = summary_counts(notebooks)
+            signal = bool(
+                summary.get("finding_id") or kinds - seen_kinds or counts != prev_counts
+            )
+            seen_kinds |= kinds
+            prev_counts = counts
+            state.signal_history.append(signal)
+        notebooks = [load_notebook(self.store.root, s.id) for s in seeds]
         return {
-            "rounds": rounds,
+            "rounds": state.rounds,
             "stop_reason": stop,
             "new_findings": len(self.store.findings()) - findings_before,
             "llm_calls": self.client.calls,

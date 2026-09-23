@@ -24,6 +24,12 @@ def build_parser() -> argparse.ArgumentParser:
     hunt.add_argument("--rounds", type=int, metavar="N", help="max hunt rounds")
     hunt.add_argument("--llm-calls", type=int, metavar="N", help="LLM call budget")
     hunt.add_argument("--oracle-runs", type=int, metavar="N", help="oracle run budget")
+    hunt.add_argument(
+        "--saturation-window",
+        type=int,
+        metavar="K",
+        help="stop after K rounds with no new findings, kinds or hypothesis changes",
+    )
     hunt.add_argument("--parallel", type=int, metavar="K", help="parallel oracle runs")
     hunt.add_argument(
         "--findings-dir", metavar="DIR", default=None, help="findings DB directory"
@@ -56,6 +62,7 @@ def _cmd_hunt(args: argparse.Namespace) -> int:
         findings_dir=args.findings_dir,
         llm_calls=args.llm_calls,
         oracle_runs=args.oracle_runs,
+        saturation_window=args.saturation_window,
         parallel=args.parallel,
     )
     only = args.seeds.split(",") if args.seeds else None
@@ -65,7 +72,7 @@ def _cmd_hunt(args: argparse.Namespace) -> int:
         log=(lambda *_: None) if args.quiet else print,
     )
     try:
-        summary = loop.hunt(max_rounds=args.rounds, only_seeds=only)
+        summary = loop.hunt(policy=loop.default_policy(args.rounds), only_seeds=only)
     finally:
         loop.executor.close()
     print(
