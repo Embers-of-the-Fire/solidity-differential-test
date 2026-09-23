@@ -12,6 +12,7 @@ import json
 import random
 from dataclasses import dataclass, field
 from importlib.resources import files
+from pathlib import Path
 from typing import Any
 
 
@@ -32,15 +33,31 @@ class Seed:
         )
 
 
-def load_seeds() -> list[Seed]:
-    seed_dir = files("agent") / "seeds"
+def load_seeds(seed_dir: str | Path | None = None) -> list[Seed]:
+    """Load seed cards from the packaged `seeds/` dir or an explicit path.
+
+    An explicit `seed_dir` (e.g. the frozen bug-derived corpus in
+    `agent/seeds_derived/`) lets hunts run against corpora that are not
+    shipped inside the wheel; the same Seed JSON schema applies.
+    """
+    if seed_dir is None:
+        root = files("agent") / "seeds"
+        seeds = [
+            Seed.from_dict(json.loads((root / name).read_text()))
+            for name in sorted(str(n) for n in root.iterdir())
+            if name.endswith(".json")
+        ]
+        if not seeds:
+            raise RuntimeError("no seed cards found in agent/seeds/")
+        return seeds
+    root = Path(seed_dir)
+    if not root.is_dir():
+        raise RuntimeError(f"seeds directory not found: {root}")
     seeds = [
-        Seed.from_dict(json.loads((seed_dir / name).read_text()))
-        for name in sorted(str(n) for n in seed_dir.iterdir())
-        if name.endswith(".json")
+        Seed.from_dict(json.loads(p.read_text())) for p in sorted(root.glob("*.json"))
     ]
     if not seeds:
-        raise RuntimeError("no seed cards found in agent/seeds/")
+        raise RuntimeError(f"no seed cards found in {root}")
     return seeds
 
 

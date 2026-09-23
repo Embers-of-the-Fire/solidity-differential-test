@@ -61,7 +61,7 @@ class HuntLoop:
         t_round = time.perf_counter()
         phase_ms: dict[str, float] = {}
         usage_mark = self.client.usage_marker()
-        seeds = load_seeds()
+        seeds = load_seeds(self.cfg.seeds_dir)
         resolved = {s.id for s in seeds if self._is_resolved(s.id)}
         seed = pick_seed(
             seeds, self.store.seed_stats(), self.rng, only=only_seeds, resolved=resolved
@@ -475,7 +475,7 @@ class HuntLoop:
         state = LoopState()
         findings_before = len(self.store.findings())
         seen_kinds: set[str] = set()
-        seeds = load_seeds()
+        seeds = load_seeds(self.cfg.seeds_dir)
         prev_counts = summary_counts(
             [load_notebook(self.store.root, s.id) for s in seeds]
         )

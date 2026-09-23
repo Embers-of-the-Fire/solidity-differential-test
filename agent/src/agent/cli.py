@@ -46,6 +46,12 @@ def build_parser() -> argparse.ArgumentParser:
     hunt.add_argument(
         "--seeds", metavar="IDS", help="comma-separated seed ids to restrict to"
     )
+    hunt.add_argument(
+        "--seeds-dir",
+        metavar="DIR",
+        default=None,
+        help="load seed cards from DIR instead of the packaged seeds/",
+    )
     hunt.add_argument("--rng-seed", type=int, metavar="INT", help="sampling seed")
     hunt.add_argument("--quiet", action="store_true")
 
@@ -54,6 +60,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     hypo = sub.add_parser("hypotheses", help="print per-seed hypothesis notebooks")
     hypo.add_argument("--findings-dir", metavar="DIR", default=None)
+    hypo.add_argument(
+        "--seeds-dir",
+        metavar="DIR",
+        default=None,
+        help="load seed cards from DIR instead of the packaged seeds/",
+    )
 
     cost = sub.add_parser(
         "cost", help="print aggregated token/cost/time usage statistics"
@@ -92,6 +104,7 @@ def _cmd_hunt(args: argparse.Namespace) -> int:
         saturation_window=args.saturation_window,
         parallel=args.parallel,
         p_mutate=args.p_mutate,
+        seeds_dir=args.seeds_dir,
     )
     only = args.seeds.split(",") if args.seeds else None
     loop = HuntLoop(
@@ -141,7 +154,7 @@ def _cmd_report(args: argparse.Namespace) -> int:
 def _cmd_hypotheses(args: argparse.Namespace) -> int:
     root = args.findings_dir or "findings"
     any_found = False
-    for seed in load_seeds():
+    for seed in load_seeds(args.seeds_dir):
         nb = load_notebook(root, seed.id)
         if not nb["hypotheses"]:
             continue

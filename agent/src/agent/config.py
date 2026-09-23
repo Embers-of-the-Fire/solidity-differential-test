@@ -52,6 +52,7 @@ class AgentConfig:
         "on"  # "on" | "off" (off = admit everything, random-restart control)
     )
     findings_dir: Path = field(default_factory=lambda: Path("findings"))
+    seeds_dir: Path | None = None  # None -> packaged agent/seeds/
     price_input_per_1m: float = 0.0
     price_cached_input_per_1m: float | None = None  # None -> same as input
     price_output_per_1m: float = 0.0
@@ -95,6 +96,7 @@ def load_config(
     prog_ops_per_mutant: int | None = None,
     reflect: str | None = None,
     admission: str | None = None,
+    seeds_dir: str | Path | None = None,
 ) -> AgentConfig:
     cfg = AgentConfig(
         base_url=os.environ.get("AGENT_LLM_BASE_URL", PLACEHOLDER_BASE_URL),
@@ -131,6 +133,8 @@ def load_config(
                 f"admission must be 'on' or 'off', got {admission!r}"
             )
         cfg.admission = admission
+    if seeds_dir is not None:
+        cfg.seeds_dir = Path(seeds_dir)
     cfg.price_input_per_1m = float(os.environ.get("AGENT_LLM_PRICE_INPUT_PER_1M", 0.0))
     cached = os.environ.get("AGENT_LLM_PRICE_CACHED_INPUT_PER_1M")
     cfg.price_cached_input_per_1m = float(cached) if cached else None
