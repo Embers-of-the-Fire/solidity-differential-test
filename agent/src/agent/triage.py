@@ -1,8 +1,8 @@
 """Triage: classify a diverging report as known_semantic / oracle_artifact /
 bug_candidate / invalid_probe.
 
-Cheap deterministic rules run first (documented platform differences, the
-storage-count heuristic); anything unresolved goes to one LLM triage call.
+Cheap deterministic rules run first (documented platform differences, known
+oracle artifacts); anything unresolved goes to one LLM triage call.
 """
 
 from __future__ import annotations
@@ -28,14 +28,18 @@ def _known_rules() -> list[dict[str, Any]]:
 
 
 def classify_by_rules(divergence: dict[str, Any], source: str) -> str | None:
-    """Deterministic pre-classification; None = needs the LLM."""
+    """Deterministic pre-classification; None = needs the LLM.
+
+    Returns the rule's "category" ("known_semantic" | "oracle_artifact");
+    rules without a "category" field default to "known_semantic".
+    """
     kind = divergence.get("kind")
     for rule in _known_rules():
         if kind not in rule["kinds"]:
             continue
         markers = rule["source_markers"]
         if not markers or any(m in source for m in markers):
-            return "known_semantic"
+            return rule.get("category", "known_semantic")
     return None
 
 
@@ -67,11 +71,17 @@ def triage_report(
     source = spec_dict.get("solidity", "")
     divs = report.get("divergences", [])
     ruled = [classify_by_rules(d, source) for d in divs]
-    if all(r == "known_semantic" for r in ruled):
+    if divs and all(r is not None for r in ruled):
+        category = "known_semantic" if "known_semantic" in ruled else "oracle_artifact"
+        rationale = (
+            "all divergences match documented platform differences"
+            if category == "known_semantic"
+            else "all divergences match known oracle artifacts"
+        )
         return {
-            "category": "known_semantic",
+            "category": category,
             "confidence": "high",
-            "rationale": "all divergences match documented platform differences",
+            "rationale": rationale,
             "blame": "neither",
             "summary": "; ".join(d.get("detail", "") for d in divs),
             "rule_based": True,

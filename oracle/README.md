@@ -137,10 +137,10 @@ For every step, both sides are reduced to a comparable form and checked:
 |--------|--------|----------|
 | compile success | solc / solang exit + diagnostics | always (`COMPILE_ASYMMETRY`) |
 | deploy status | deploy tx receipt / instantiate extrinsic | always (`DEPLOY_MISMATCH`) |
-| dry-run status | `eth_call` / `ContractsApi.call` | always (`STATUS_MISMATCH`) |
-| return value | ABI-decoded outputs / SCALE-decoded per metadata | on success (`RETURN_MISMATCH`) |
+| dry-run status | `eth_call` / `ContractsApi.call` | always (`STATUS_MISMATCH`); pallet dry-run module errors suppressed when the committed tx agrees with EVM |
+| return value | ABI-decoded outputs / SCALE-decoded per metadata | on success (`RETURN_MISMATCH`); identical byte content in different serializations (hex vs `Vec<u8>` int list) is not a divergence |
 | revert reason | `Error(string)`/`Panic(uint256)` / solang `0x08c379a0`+SCALE | on revert (`REASON_MISMATCH`, opt-out) |
-| tx status | receipt.status / extrinsic success | always (`TX_STATUS_MISMATCH`) |
+| tx status | receipt.status / extrinsic success | always (`TX_STATUS_MISMATCH`); error-vs-revert (both rejected) is not a divergence |
 | events | decoded logs / decoded `ContractEmitted` | opt-out (`EVENT_MISMATCH`) |
 | storage | snapshot maps | `count`/`exact`/`off` (`STORAGE_MISMATCH`) |
 | gas | receipt gasUsed / weight ref_time | opt-in only (`GAS_MISMATCH`) |
@@ -152,10 +152,16 @@ address returned on both chains compares equal regardless of the 20-byte
 
 ### Storage comparison modes
 
-- `count` (default): compare the number of non-zero storage entries plus the
-  sorted list of zero-stripped values. Robust to the different storage layouts
-  and endianness of the two targets; may raise false positives for contracts
-  relying on tight slot packing or multi-byte little-endian values.
+- `count` (default): compare the sorted multiset of non-zero storage values,
+  each canonicalized as a signed integer in the chain's native byte order
+  (EVM words are 32-byte big-endian; pallet-contracts cells are SCALE
+  little-endian). Entry counts are recorded in the divergence payload as
+  context but never compared, so slot-packing layout differences that only
+  change the count do not fire. Known limitations: a word holding several
+  tightly packed fields compares as a single integer (still a divergence if
+  the fields are separate cells on the other chain), and an unsigned value
+  ≥ 2^(8n-1) in a narrow Polkadot cell reads as negative while the same
+  value in a 32-byte EVM word reads positive.
 - `exact`: raw key->value map equality (only meaningful for same-target setups).
 - `off`: storage is recorded in the report but not compared.
 

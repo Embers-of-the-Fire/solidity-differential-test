@@ -1,3 +1,4 @@
+from agent import triage
 from agent.triage import classify_by_rules, triage_report
 from agent.usage import NoUsage
 
@@ -81,5 +82,75 @@ def test_triage_llm_classification():
     llm = FakeLLM(reply)
     report = {"verdict": "DIVERGENCE", "divergences": [div("RETURN_MISMATCH")]}
     out = triage_report(llm, {"solidity": "return 1 + 1;"}, report)
+    assert out["category"] == "bug_candidate"
+    assert llm.calls == 1
+
+
+ARTIFACT_RULES = [
+    {
+        "id": "dry-run-dispatch-error",
+        "kinds": ["STATUS_MISMATCH"],
+        "category": "oracle_artifact",
+        "source_markers": [],
+        "rationale": "pallet dry-run module error, committed tx agrees",
+    },
+    {
+        "id": "legacy-no-category",
+        "kinds": ["GAS_MISMATCH"],
+        "source_markers": [],
+        "rationale": "old schema without category field",
+    },
+]
+
+
+def test_rule_category_oracle_artifact(monkeypatch):
+    monkeypatch.setattr(triage, "_known_rules", lambda: ARTIFACT_RULES)
+    assert classify_by_rules(div("STATUS_MISMATCH"), "contract c {}") == (
+        "oracle_artifact"
+    )
+
+
+def test_rule_without_category_defaults_known_semantic(monkeypatch):
+    monkeypatch.setattr(triage, "_known_rules", lambda: ARTIFACT_RULES)
+    assert classify_by_rules(div("GAS_MISMATCH"), "contract c {}") == "known_semantic"
+
+
+def test_triage_artifact_rules_need_no_llm(monkeypatch):
+    monkeypatch.setattr(triage, "_known_rules", lambda: ARTIFACT_RULES)
+    llm = FakeLLM({})
+    report = {"verdict": "DIVERGENCE", "divergences": [div("STATUS_MISMATCH")]}
+    out = triage_report(llm, {"solidity": "contract c {}"}, report)
+    assert out["category"] == "oracle_artifact"
+    assert out["rule_based"]
+    assert llm.calls == 0
+
+
+def test_triage_mixed_categories_prefer_known_semantic(monkeypatch):
+    monkeypatch.setattr(triage, "_known_rules", lambda: ARTIFACT_RULES)
+    llm = FakeLLM({})
+    report = {
+        "verdict": "DIVERGENCE",
+        "divergences": [div("STATUS_MISMATCH"), div("GAS_MISMATCH")],
+    }
+    out = triage_report(llm, {"solidity": "contract c {}"}, report)
+    assert out["category"] == "known_semantic"
+    assert llm.calls == 0
+
+
+def test_triage_artifact_plus_unmatched_falls_to_llm(monkeypatch):
+    monkeypatch.setattr(triage, "_known_rules", lambda: ARTIFACT_RULES)
+    reply = {
+        "category": "bug_candidate",
+        "confidence": "medium",
+        "rationale": "unexplained return difference",
+        "blame": "solang",
+        "summary": "return differs",
+    }
+    llm = FakeLLM(reply)
+    report = {
+        "verdict": "DIVERGENCE",
+        "divergences": [div("STATUS_MISMATCH"), div("RETURN_MISMATCH")],
+    }
+    out = triage_report(llm, {"solidity": "contract c {}"}, report)
     assert out["category"] == "bug_candidate"
     assert llm.calls == 1

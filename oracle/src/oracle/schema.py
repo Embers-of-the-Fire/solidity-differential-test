@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Literal
 
 # ---------------------------------------------------------------------------
 # normalization helpers
@@ -42,17 +42,21 @@ def strip_hex(s: str) -> str:
     return s.removeprefix("0x")
 
 
-def normalize_storage_value(hex_value: str) -> str:
-    """Endianness-agnostic-ish normalization for storage comparison.
+def canonical_storage_value(hex_value: str, byteorder: Literal["big", "little"]) -> str:
+    """Canonicalize a raw storage value as a signed integer in the chain's
+    native byte order ("big" for EVM words, "little" for pallet-contracts
+    cells, which hold SCALE little-endian ints). Returns a decimal string.
 
-    EVM words are big-endian 32-byte, pallet-contracts values are raw bytes
-    (SCALE little-endian for ints). Stripping zero bytes from *both* ends makes
-    single-byte values comparable across chains; multi-byte comparisons remain
-    heuristic (documented in the README).
+    Signed two's-complement interpretation makes negative ints canonicalize
+    identically across widths (EVM sign-extends to 32 bytes; SCALE uses the
+    type's own width). Known limitation: an unsigned value >= 2^(8n-1) in a
+    narrow Polkadot cell reads as negative while the same value in a 32-byte
+    EVM word reads positive (documented in the README).
     """
     raw = bytes.fromhex(strip_hex(hex_value))
-    stripped = raw.strip(b"\x00")
-    return "0x" + stripped.hex() if stripped else "0x"
+    if not raw:
+        return "0"
+    return str(int.from_bytes(raw, byteorder, signed=True))
 
 
 def nonzero_storage(storage: dict[str, str] | None) -> dict[str, str]:
