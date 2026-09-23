@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 
 from .config import AgentConfigError, load_config
+from .evaluate import EvalConfigError, load_eval_config, run_matrix
 from .executor import Executor, divergence_kinds
 from .hypotheses import load_notebook
 from .loop import HuntLoop
@@ -61,6 +63,21 @@ def build_parser() -> argparse.ArgumentParser:
     replay = sub.add_parser("replay", help="re-run a finding's reproducer")
     replay.add_argument("finding_id", help="finding id from `report`")
     replay.add_argument("--findings-dir", metavar="DIR", default=None)
+
+    ev = sub.add_parser(
+        "eval", help="run an ablation matrix (configs x repeats x budgets)"
+    )
+    ev.add_argument(
+        "--config", required=True, metavar="JSON", help="ablation matrix file"
+    )
+    ev.add_argument(
+        "--out-root",
+        metavar="DIR",
+        default=None,
+        help="runs root (default: <findings-dir>/eval)",
+    )
+    ev.add_argument("--findings-dir", metavar="DIR", default=None)
+    ev.add_argument("--quiet", action="store_true")
     return parser
 
 
@@ -204,6 +221,31 @@ def _cmd_replay(args: argparse.Namespace) -> int:
     return 0 if report.get("verdict") == "PASS" else 1
 
 
+def _cmd_eval(args: argparse.Namespace) -> int:
+    try:
+        matrix = load_eval_config(args.config)
+    except EvalConfigError as e:
+        print(f"eval config error: {e}", file=sys.stderr)
+        return 2
+    cfg = load_config(findings_dir=args.findings_dir)
+    cfg.check_llm()  # fail fast before starting a long matrix
+    out_root = Path(args.out_root) if args.out_root else cfg.findings_dir / "eval"
+    log = (lambda *_: None) if args.quiet else print
+    summary = run_matrix(matrix, base_config=cfg, out_root=out_root, log=log)
+    print(
+        f"\neval done: {summary['n_runs']} run(s); summary: {out_root / 'summary.json'}"
+    )
+    for name, agg in summary["configs"].items():
+        f = agg["unique_findings"]
+        print(
+            f"  {name}: findings median {f['median']} "
+            f"(min {f['min']}, max {f['max']}); "
+            f"{agg['n_ok']} ok / {agg['n_failed']} failed; "
+            f"stop reasons: {agg['stop_reasons']}"
+        )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
@@ -217,6 +259,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_cost(args)
         if args.command == "replay":
             return _cmd_replay(args)
+        if args.command == "eval":
+            return _cmd_eval(args)
     except AgentConfigError as e:
         print(f"configuration error: {e}", file=sys.stderr)
         return 2

@@ -47,6 +47,10 @@ class AgentConfig:
     prog_mutants_per_round: int = 4  # free programmatic mutants per mutation round
     llm_mutants_per_round: int = 4  # mutants requested in the single batch LLM call
     prog_ops_per_mutant: int = 2  # operator applications per programmatic mutant
+    reflect: str = "always"  # "always" | "never" (feedback ablation axis)
+    admission: str = (
+        "on"  # "on" | "off" (off = admit everything, random-restart control)
+    )
     findings_dir: Path = field(default_factory=lambda: Path("findings"))
     price_input_per_1m: float = 0.0
     price_cached_input_per_1m: float | None = None  # None -> same as input
@@ -89,6 +93,8 @@ def load_config(
     prog_mutants_per_round: int | None = None,
     llm_mutants_per_round: int | None = None,
     prog_ops_per_mutant: int | None = None,
+    reflect: str | None = None,
+    admission: str | None = None,
 ) -> AgentConfig:
     cfg = AgentConfig(
         base_url=os.environ.get("AGENT_LLM_BASE_URL", PLACEHOLDER_BASE_URL),
@@ -113,6 +119,18 @@ def load_config(
         cfg.llm_mutants_per_round = llm_mutants_per_round
     if prog_ops_per_mutant is not None:
         cfg.prog_ops_per_mutant = prog_ops_per_mutant
+    if reflect is not None:
+        if reflect not in ("always", "never"):
+            raise AgentConfigError(
+                f"reflect must be 'always' or 'never', got {reflect!r}"
+            )
+        cfg.reflect = reflect
+    if admission is not None:
+        if admission not in ("on", "off"):
+            raise AgentConfigError(
+                f"admission must be 'on' or 'off', got {admission!r}"
+            )
+        cfg.admission = admission
     cfg.price_input_per_1m = float(os.environ.get("AGENT_LLM_PRICE_INPUT_PER_1M", 0.0))
     cached = os.environ.get("AGENT_LLM_PRICE_CACHED_INPUT_PER_1M")
     cfg.price_cached_input_per_1m = float(cached) if cached else None

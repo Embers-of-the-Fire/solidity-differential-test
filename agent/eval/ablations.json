@@ -1,0 +1,12 @@
+{
+  "budget": {"oracle_runs": 300, "llm_calls": 200, "saturation_window": 10},
+  "repeats": 5,
+  "configs": [
+    {"name": "baseline-generation", "overrides": {"p_mutate": 0.0}},
+    {"name": "mutation-prog-only", "overrides": {"p_mutate": 1.0, "llm_mutants_per_round": 0}},
+    {"name": "mutation-llm-only", "overrides": {"p_mutate": 1.0, "prog_mutants_per_round": 0}},
+    {"name": "hybrid", "overrides": {"p_mutate": 0.7}},
+    {"name": "hybrid-no-reflect", "overrides": {"p_mutate": 0.7, "reflect": "never"}},
+    {"name": "hybrid-no-admission", "overrides": {"p_mutate": 0.7, "admission": "off"}}
+  ]
+}

@@ -15,7 +15,7 @@ Entry schema:
     origin      generated | mutated_llm | mutated_prog | seed
     spec        the spec dict (without "meta")
     outcome     {verdict, kinds, category} of the run that admitted it
-    admitted_by divergence | novel_kinds | seed
+    admitted_by divergence | novel_kinds | seed | unfiltered
     energy      selection weight (see constants below)
     offspring   {runs, divergent, novel, invalid}
 """
@@ -89,18 +89,23 @@ class Corpus:
         origin: str,
         category: str,
         known_finding: bool,
+        admit_all: bool = False,
     ) -> dict[str, Any] | None:
         """Admit an executed spec per the v1 outcome-based rule.
 
         Returns the new entry, or None when the spec is not admitted
         (PASS runs, known findings, already-seen kind combos, duplicates).
+        With admit_all=True every unseen executed spec is admitted as
+        "unfiltered" (the evaluation harness's random-restart control).
         """
         entry_id = spec_id(spec)
         if self._by_id(entry_id) is not None:
             return None  # content-derived id: re-admission is a no-op
         kinds = sorted(divergence_kinds(report))
         admitted_by = None
-        if origin == "seed":
+        if admit_all:
+            admitted_by = "unfiltered"
+        elif origin == "seed":
             admitted_by = "seed"
         elif report.get("verdict") == "DIVERGENCE" and not known_finding:
             admitted_by = "divergence"

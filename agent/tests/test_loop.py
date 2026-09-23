@@ -149,12 +149,14 @@ class FakeExecutor:
         pass
 
 
-def make_loop(tmp_path, *, budget=100, p_mutate=0.0):
+def make_loop(tmp_path, *, budget=100, p_mutate=0.0, reflect="always", admission="on"):
     cfg = AgentConfig(
         findings_dir=tmp_path,
         llm_calls_budget=budget,
         oracle_runs_budget=50,
         p_mutate=p_mutate,
+        reflect=reflect,
+        admission=admission,
     )
     llm = FakeLLM(budget)
     loop = HuntLoop(
@@ -182,6 +184,26 @@ def test_loop_records_bug_candidate_finding(tmp_path):
     assert loop.store.seed_stats()["int-semantics"]["probes"] == 1
     # reflect ran and produced an open hypothesis
     assert summary["hypotheses"]["open"] == 1
+    # findings carry the budget counters for the evaluation harness
+    assert findings[0]["oracle_runs_total"] >= 1
+    assert findings[0]["llm_calls_total"] >= 1
+
+
+def test_reflect_never_skips_notebook_calls(tmp_path):
+    """Ablation knob: reflect='never' turns the feedback notebook off."""
+    loop, llm = make_loop(tmp_path, reflect="never")
+    summary = loop.hunt(StopPolicy(max_rounds=2), only_seeds=["int-semantics"])
+    assert not [s for s, _ in llm.prompts if "hypothesis notebook" in s]
+    assert summary["hypotheses"]["open"] == 0
+
+
+def test_admission_off_admits_everything(tmp_path):
+    """Ablation knob: admission='off' bypasses the interestingness rule."""
+    loop, _ = make_loop(tmp_path, admission="off")
+    loop.hunt(StopPolicy(max_rounds=2), only_seeds=["int-semantics"])
+    entries = loop.store.corpus.entries()
+    assert entries
+    assert all(e["admitted_by"] == "unfiltered" for e in entries)
 
 
 def test_hypothesis_feeds_next_generation_prompt(tmp_path):

@@ -64,6 +64,21 @@ def test_admission_rule_per_outcome_class(tmp_path):
     assert seeded is not None and seeded["admitted_by"] == "seed"
 
 
+def test_admit_all_bypasses_the_outcome_rule(tmp_path):
+    """Evaluation harness control: admit_all admits every unseen spec."""
+    corpus = Corpus(tmp_path / "corpus.jsonl")
+    # PASS is admitted under admit_all, tagged "unfiltered"
+    entry = admit(corpus, report=PASS_REPORT, category="pass", admit_all=True)
+    assert entry is not None and entry["admitted_by"] == "unfiltered"
+    # content dedup still applies
+    assert admit(corpus, report=PASS_REPORT, category="pass", admit_all=True) is None
+    # a second, distinct PASS spec is also admitted
+    other = admit(
+        corpus, spec=spec(name="y"), report=PASS_REPORT, category="pass", admit_all=True
+    )
+    assert other is not None and other["admitted_by"] == "unfiltered"
+
+
 def test_admission_dedup_is_content_derived(tmp_path):
     corpus = Corpus(tmp_path / "corpus.jsonl")
     assert admit(corpus) is not None

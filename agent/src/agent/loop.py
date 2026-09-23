@@ -143,13 +143,14 @@ class HuntLoop:
             origin=origin,
             category=category,
             known_finding=fp in self.store.known_fingerprints(),
+            admit_all=self.cfg.admission == "off",
         )
         if entry is not None:
             self.log(f"[corpus] admitted {entry['id']} ({entry['admitted_by']})")
         corpus.decay()
         corpus.save()
 
-        if category != "error":
+        if category != "error" and self.cfg.reflect != "never":
             t0 = time.perf_counter()
             notebook = reflect_notebook(
                 self.client, self.store.root, seed, spec, report, triage, log=self.log
@@ -187,6 +188,8 @@ class HuntLoop:
                     seed_id=seed.id,
                     timing=phase_ms,
                     usage=summary["usage"],
+                    oracle_runs_total=self.executor.runs,
+                    llm_calls_total=self.client.calls,
                 )
                 if finding_id:
                     self.log(f"[finding] NEW {finding_id}: {triage.get('summary')}")
@@ -205,6 +208,8 @@ class HuntLoop:
                     seed_id=seed.id,
                     timing=phase_ms,
                     usage=summary["usage"],
+                    oracle_runs_total=self.executor.runs,
+                    llm_calls_total=self.client.calls,
                 )
                 summary["finding_id"] = finding_id
         phase_ms["round_ms"] = (time.perf_counter() - t_round) * 1000.0
@@ -359,6 +364,7 @@ class HuntLoop:
                 origin=origin,
                 category=category,
                 known_finding=fp in known_fps,
+                admit_all=self.cfg.admission == "off",
             )
             if entry is not None:
                 self.log(f"[corpus] admitted {entry['id']} ({entry['admitted_by']})")
@@ -378,7 +384,7 @@ class HuntLoop:
         # minimize each bug_candidate (known fingerprints skipped first).
         t0 = time.perf_counter()
         for (spec, _), report, triage in zip(batch, reports, triages, strict=True):
-            if report.get("verdict") == "DIVERGENCE":
+            if report.get("verdict") == "DIVERGENCE" and self.cfg.reflect != "never":
                 notebook = reflect_notebook(
                     self.client,
                     self.store.root,
@@ -418,6 +424,8 @@ class HuntLoop:
                 seed_id=seed.id,
                 timing=phase_ms,
                 usage=self.client.usage_since(usage_mark)["totals"],
+                oracle_runs_total=self.executor.runs,
+                llm_calls_total=self.client.calls,
             )
             if finding_id:
                 self.log(f"[finding] NEW {finding_id}: {triage.get('summary')}")

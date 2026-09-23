@@ -24,3 +24,16 @@ def test_cli_overrides(tmp_path):
     assert cfg.llm_calls_budget == 7
     assert cfg.oracle_runs_budget == 9
     assert cfg.parallel == 2
+
+
+def test_knob_overrides(tmp_path):
+    cfg = load_config(findings_dir=tmp_path, reflect="never", admission="off")
+    assert cfg.reflect == "never"
+    assert cfg.admission == "off"
+
+
+def test_knob_overrides_validate(tmp_path):
+    with pytest.raises(AgentConfigError, match="reflect"):
+        load_config(findings_dir=tmp_path, reflect="sometimes")
+    with pytest.raises(AgentConfigError, match="admission"):
+        load_config(findings_dir=tmp_path, admission="maybe")

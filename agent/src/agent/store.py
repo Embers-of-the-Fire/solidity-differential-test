@@ -122,6 +122,8 @@ class FindingStore:
         seed_id: str,
         timing: dict[str, Any] | None = None,
         usage: dict[str, Any] | None = None,
+        oracle_runs_total: int | None = None,
+        llm_calls_total: int | None = None,
     ) -> str | None:
         """Persist a finding; returns its id, or None if it is a duplicate."""
         kinds = divergence_kinds(report)
@@ -141,6 +143,8 @@ class FindingStore:
             "tool_versions": report.get("tool_versions", {}),
             "timing": timing,
             "usage": usage,
+            "oracle_runs_total": oracle_runs_total,
+            "llm_calls_total": llm_calls_total,
         }
         self._append(self._findings, finding)
         report_path = self.root / "reports" / f"{fp}.json"
