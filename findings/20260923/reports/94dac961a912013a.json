@@ -1,0 +1,72 @@
+{
+  "name": "revert-reason-payloads",
+  "contract": "RevertProbe",
+  "tool_versions": {
+    "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+    "solang": "solang version v0.3.5",
+    "anvil": "anvil Version: 1.7.1-dev",
+    "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+  },
+  "oracle_config": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "workdir": "/tmp/oracle-run-8thw5ips",
+  "timing": {
+    "started_at": "2026-09-23T10:51:00.680+00:00",
+    "started_epoch": 1790160660.680964,
+    "total_ms": 17.93098299998519,
+    "nodes": {}
+  },
+  "compile": {
+    "solc": {
+      "compiler": "solc",
+      "ok": true,
+      "version": "Version: 0.8.33+commit.64118f21.Linux.g++",
+      "errors": null,
+      "warnings": [
+        "Warning: SPDX license identifier not provided in source file. Before publishing, consider adding a comment containing \"SPDX-License-Identifier: <SPDX-License>\" to each source file. Use \"SPDX-License-Identifier: UNLICENSED\" for non-open-source code. Please see https://spdx.org for more information.\n--> input.sol\n\n"
+      ],
+      "artifacts": {
+        "abi": true,
+        "bytecode_bytes": 357,
+        "wasm_bytes": 0,
+        "metadata": false
+      },
+      "elapsed_ms": 6.539550000013605
+    },
+    "solang": {
+      "compiler": "solang",
+      "ok": false,
+      "version": "solang version v0.3.5",
+      "errors": [
+        "\u001b[0m\u001b[1m\u001b[38;5;9merror\u001b[0m\u001b[1m: value 115792089237316195423570985008687907853269984665640564039457584007913129639936 does not fit into type uint256.\u001b[0m\n  \u001b[0m\u001b[34m\u250c\u2500\u001b[0m /tmp/solang-b8fbsur5/input.sol:6:16\n  \u001b[0m\u001b[34m\u2502\u001b[0m\n\u001b[0m\u001b[34m6\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m         return \u001b[0m\u001b[31mm + 1\u001b[0m;\n  \u001b[0m\u001b[34m\u2502\u001b[0m                \u001b[0m\u001b[31m^^^^^\u001b[0m"
+      ],
+      "warnings": null,
+      "artifacts": null,
+      "elapsed_ms": 11.370591999991575
+    }
+  },
+  "deploy": {},
+  "steps": [],
+  "divergences": [
+    {
+      "kind": "COMPILE_ASYMMETRY",
+      "step": null,
+      "detail": "one compiler rejected the source while the other accepted it",
+      "evm": {
+        "solc_ok": true,
+        "errors": null
+      },
+      "polkadot": {
+        "solang_ok": false,
+        "errors": [
+          "\u001b[0m\u001b[1m\u001b[38;5;9merror\u001b[0m\u001b[1m: value 115792089237316195423570985008687907853269984665640564039457584007913129639936 does not fit into type uint256.\u001b[0m\n  \u001b[0m\u001b[34m\u250c\u2500\u001b[0m /tmp/solang-b8fbsur5/input.sol:6:16\n  \u001b[0m\u001b[34m\u2502\u001b[0m\n\u001b[0m\u001b[34m6\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m         return \u001b[0m\u001b[31mm + 1\u001b[0m;\n  \u001b[0m\u001b[34m\u2502\u001b[0m                \u001b[0m\u001b[31m^^^^^\u001b[0m"
+        ]
+      }
+    }
+  ],
+  "verdict": "DIVERGENCE"
+}

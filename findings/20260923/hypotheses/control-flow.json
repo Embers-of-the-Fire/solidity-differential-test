@@ -1,0 +1,48 @@
+{
+  "seed_id": "control-flow",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "solc/EVM and solang/pallet-contracts agree on structured control-flow semantics: nested loops with continue/break, early returns that skip state writes and events, and multi-way if/else nesting produce identical storage, return values, and event sequences.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "loop-metering-early-return-nesting",
+          "verdict": "PASS",
+          "note": "nested(10) and nested(50) both returned acc and skipped/kept count++ consistently; deepNest(250)->999 and deepNest(150)->x+1 agreed on both chains; no divergence in storage, events, or revert reasons."
+        }
+      ],
+      "next_probe": "Same contract with pathological nesting: a loop where the early-return threshold is hit exactly at the final iteration boundary (off-by-one on loop exit vs return), plus a do-while and labeled-break equivalent to stress codegen differences."
+    },
+    {
+      "id": "h2",
+      "statement": "Internal (non-public) recursion compiles to equivalent stack behavior in both toolchains for shallow depths, but solang's WASM call stack and EVM's 1024 call-depth/JUMPDEST frame limits will diverge at high recursion depth \u2014 solang likely fails earlier or with a different error (trap vs revert).",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "loop-metering-early-return-nesting",
+          "verdict": "PASS",
+          "note": "recurse(10) agreed exactly (r=55, count+=55, Done(2,55) event), establishing the shallow-depth baseline."
+        }
+      ],
+      "next_probe": "Call recurse() with depth 500, 2000, 10000 across both chains; compare whether failure manifests as EVM revert/out-of-gas vs WASM trap/unreachable, and whether state changes before the failure are rolled back identically."
+    },
+    {
+      "id": "h3",
+      "statement": "Metered-cost divergence remains untested at moderate loop counts: burn(1000) succeeded identically on both chains, so the interesting divergence window is near the block gas limit (EVM) vs max ref-time/proof-size weight (pallet-contracts) where EVM out-of-gas and Substrate weight exhaustion may differ in revert semantics and partial-fee behavior.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "loop-metering-early-return-nesting",
+          "verdict": "PASS",
+          "note": "burn(1000) produced identical lastResult and Done(3,x) events on both chains; no metering divergence at this scale."
+        }
+      ],
+      "next_probe": "Call burn() with binary-searched n (e.g., 100k, 1M, 10M) until each chain fails; compare failure status, error encoding, and whether the transaction is included (weight-limited extrinsic) vs reverted (EVM)."
+    }
+  ],
+  "updated_ts": 1790161808.7905114
+}

@@ -1,0 +1,34 @@
+{
+  "seed_id": "int-semantics",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "STORAGE_MISMATCH with oracle mode=exact between anvil and pallet-contracts is an oracle artifact, not a semantic bug: pallet-contracts uses hashed storage keys (e.g. 0xff0f2249... instead of slot 0x0) and little-endian value encoding, while raw numeric values are identical after decoding (e.g. EVM 0xff...80 vs polkadot 0x80ff.. both = -128; 0xd4 vs 0xd4 00.. both = 212). Any exact-mode storage comparison across these backends will diverge spuriously.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "int-shift-cast-rounding",
+          "verdict": "DIVERGENCE",
+          "note": "All 5 STORAGE_MISMATCH entries differ only in key derivation (hashed key vs slot 0) and byte order (LE vs BE); decoded values are numerically identical at every step, including step 4 where both sides are 0xff..ff (-1) yet still flagged due to key mismatch."
+        }
+      ],
+      "next_probe": "Re-run the same int-shift-cast-rounding spec with oracle storage mode changed to decoded/normalized (or storage disabled and return values + readLast queries used instead); prediction: verdict becomes PASS."
+    },
+    {
+      "id": "h2",
+      "statement": "solang agrees with solc on core signed-int semantics: arithmetic right shift of negatives (-1024 >> 3 = -128), division truncated toward zero (-7 / 2 = -3), signed modulo sign of dividend (-7 % 2 = -1), narrowing cast chains (int16 -300 -> uint8 = 212), and logical shift on bytes4-cast uint32 (0x80000001 >> 1 = 0x40000000). Return values and decoded storage matched on every step.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "int-shift-cast-rounding",
+          "verdict": "DIVERGENCE",
+          "note": "No RETURN_MISMATCH or REVERT_MISMATCH reported; after decoding the LE storage values, both backends computed -128, -3, -1, 212, and 0x40000000 identically across all steps."
+        }
+      ],
+      "next_probe": "Probe edge cases not yet covered: INT64_MIN >> 1, INT64_MIN / -1 (overflow revert behavior), shift by >= bit width, and uint->int casts where the value exceeds the target's max (e.g. int8(uint8(255))); compare return data and revert reasons only."
+    }
+  ],
+  "updated_ts": 1790161458.3995464
+}

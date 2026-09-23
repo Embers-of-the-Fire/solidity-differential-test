@@ -1,0 +1,612 @@
+{
+  "name": "event-indexed-emission-matrix",
+  "contract": "EventProbe",
+  "tool_versions": {
+    "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+    "solang": "solang version v0.3.5",
+    "anvil": "anvil Version: 1.7.1-dev",
+    "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+  },
+  "oracle_config": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "workdir": "/tmp/oracle-run-ncm88bdu",
+  "timing": {
+    "started_at": "2026-09-23T10:56:56.025+00:00",
+    "started_epoch": 1790161016.0258253,
+    "total_ms": 1783.0366169999934,
+    "nodes": {
+      "evm": {
+        "start_ms": 503.2308049999301,
+        "stop_ms": 3.1479470000022047
+      },
+      "polkadot": {
+        "start_ms": 578.7837950000494,
+        "stop_ms": 15.256350000072416
+      }
+    }
+  },
+  "compile": {
+    "solc": {
+      "compiler": "solc",
+      "ok": true,
+      "version": "Version: 0.8.33+commit.64118f21.Linux.g++",
+      "errors": null,
+      "warnings": [
+        "Warning: SPDX license identifier not provided in source file. Before publishing, consider adding a comment containing \"SPDX-License-Identifier: <SPDX-License>\" to each source file. Use \"SPDX-License-Identifier: UNLICENSED\" for non-open-source code. Please see https://spdx.org for more information.\n--> input.sol\n\n"
+      ],
+      "artifacts": {
+        "abi": true,
+        "bytecode_bytes": 1418,
+        "wasm_bytes": 0,
+        "metadata": false
+      },
+      "elapsed_ms": 7.447345000059613
+    },
+    "solang": {
+      "compiler": "solang",
+      "ok": true,
+      "version": "solang version v0.3.5",
+      "errors": null,
+      "warnings": null,
+      "artifacts": {
+        "abi": false,
+        "bytecode_bytes": 0,
+        "wasm_bytes": 44854,
+        "metadata": true
+      },
+      "elapsed_ms": 320.0084829999241
+    }
+  },
+  "deploy": {
+    "evm": {
+      "status": "success",
+      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "tx_hash": "3639b71e0ccdeeefd25ed9f839569c59b1b8b7c8ba818a7f264d4cfa18d44bd8",
+      "error": null,
+      "elapsed_ms": 8.143115999928341
+    },
+    "polkadot": {
+      "status": "success",
+      "address": "5GBo4KYJmLbFszfFhwVN4bVWynNdVoxfqGPzmZJibANdvmrw",
+      "tx_hash": null,
+      "error": null,
+      "elapsed_ms": 285.1215640000646
+    }
+  },
+  "steps": [
+    {
+      "index": 0,
+      "action": "call",
+      "function": "emitMany",
+      "args": [
+        "a much longer tag string to exercise dynamic indexed hashing",
+        0
+      ],
+      "sender": "charlie",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 2.856336000036208,
+          "tx_ms": 6.941173999962302,
+          "snapshot_ms": 1.9555530000161525
+        },
+        "evm_total_ms": 11.75511299993559,
+        "polkadot": {
+          "dry_run_ms": 1.9126439999581635,
+          "tx_ms": 46.774873000003936,
+          "snapshot_ms": 1.309531999936553
+        },
+        "polkadot_total_ms": 49.99968900006024
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "6071c51fc4ab29c9cebb2a29f42cbae4396b3753858b80b2ae8d3bf3d66d51f4",
+          "block_hash": "cc57d6291d6c84f49276c516a28a2e028c3ed6fe33e98682bec6b4e00889e39d",
+          "gas_used": 34024,
+          "events": [
+            {
+              "name": "Simple",
+              "args": [
+                {
+                  "name": "x",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "name": "TwoIndexed",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+                },
+                {
+                  "name": "val",
+                  "value": 0
+                },
+                {
+                  "name": "note",
+                  "value": "a much longer tag string to exercise dynamic indexed hashing"
+                }
+              ]
+            },
+            {
+              "name": "IndexedString",
+              "args": [
+                {
+                  "name": "tag",
+                  "value": "0xbcd77eb6c49ae8a91460fd837aa93427d6ab6ad7fd6fec4fc8d90123320a34ab"
+                },
+                {
+                  "name": "v",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "name": "ThreeIndexed",
+              "args": [
+                {
+                  "name": "a",
+                  "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+                },
+                {
+                  "name": "b",
+                  "value": "0xbcd77eb6c49ae8a91460fd837aa93427d6ab6ad7fd6fec4fc8d90123320a34ab"
+                },
+                {
+                  "name": "c",
+                  "value": 0
+                },
+                {
+                  "name": "payload",
+                  "value": "a much longer tag string to exercise dynamic indexed hashing"
+                }
+              ]
+            },
+            {
+              "name": "Simple",
+              "args": [
+                {
+                  "name": "x",
+                  "value": 1
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "evm",
+          "block": {
+            "number": 2,
+            "hash": "0xcc57d6291d6c84f49276c516a28a2e028c3ed6fe33e98682bec6b4e00889e39d",
+            "timestamp": 1790161017
+          },
+          "contract": {
+            "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+            "balance": "0",
+            "nonce": 1
+          },
+          "storage": {}
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "error",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": null,
+          "debug_message": null,
+          "error": "0x0000000000000000000000000000000000000000000000014400000000000000c2945c3f551702000000010000000408d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d29592d66d2000000000000000000000000000100000008023d9c9d8eb14220f5c56cb98a88bd1294df2422f3c4f5499f525021c068c8cf6740f43cdb620000000000000000000000d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d0000010000000003b65928ceba6ffb4a6dc4b5935f74b3f5dcd3904d6aee9901e119cb3b1ecbbc810000010000000400b65928ceba6ffb4a6dc4b5935f74b3f5dcd3904d6aee9901e119cb3b1ecbbc8100ca9a3b0000000000000000000000000000010000000402d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27db65928ceba6ffb4a6dc4b5935f74b3f5dcd3904d6aee9901e119cb3b1ecbbc8100ca9a3b0000000000000000000000000000010000000800d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27db65928ceba6ffb4a6dc4b5935f74b3f5dcd3904d6aee9901e119cb3b1ecbbc810000010000000808d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27db65928ceba6ffb4a6dc4b5935f74b3f5dcd3904d6aee9901e119cb3b1ecbbc8180c4d26c1700000000000000000000000000010000000407d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d4bd6a68bd100000000000000000000000000010000000600d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27dde8286da0000000000000000000000000000000000000000000000000000000000000100000000000306d385dad961000000020803b65928ceba6ffb4a6dc4b5935f74b3f5dcd3904d6aee9901e119cb3b1ecbbc81800000000000000000000000000000000000000000000000000000000000000000049e38d3b5b104010fb289fe630aa3c4f0a6a2f72079647c9fcd22e495ab6372ca020803b65928ceba6ffb4a6dc4b5935f74b3f5dcd3904d6aee9901e119cb3b1ecbbc81f501306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc200000000000000000000000000000000000000000000000000000000000000000f061206d756368206c6f6e6765722074616720737472696e6720746f2065786572636973652064796e616d696320696e64657865642068617368696e670cba4f0c86e095700483c560a55a6ba4af7c253dd69fcfdef78a69992d6b954d00306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc200000000000000000000000000000000000000000000000000000000000000000020803b65928ceba6ffb4a6dc4b5935f74b3f5dcd3904d6aee9901e119cb3b1ecbbc817501f061206d756368206c6f6e6765722074616720737472696e6720746f2065786572636973652064796e616d696320696e64657865642068617368696e67000000000000000000000000000000000000000000000000000000000000000008e080777410f64505bd08aa240582d82e2510762df7f0b9805d1099ef507486e68350753fa30e6a108c4060e5acec941c63d4a460d3e0036408598411c0215f0f020803b65928ceba6ffb4a6dc4b5935f74b3f5dcd3904d6aee9901e119cb3b1ecbbc817502306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20bcd77eb6c49ae8a91460fd837aa93427d6ab6ad7fd6fec4fc8d90123320a34ab0000000000000000000000000000000000000000000000000000000000000000f061206d756368206c6f6e6765722074616720737472696e6720746f2065786572636973652064796e616d696320696e64657865642068617368696e67107daa46701593d81567f3132a3065932eb438f6a8c001044a73d6fe7a8c13fa16306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20bcd77eb6c49ae8a91460fd837aa93427d6ab6ad7fd6fec4fc8d90123320a34ab0000000000000000000000000000000000000000000000000000000000000000020803b65928ceba6ffb4a6dc4b5935f74b3f5dcd3904d6aee9901e119cb3b1ecbbc81800100000000000000000000000000000000000000000000000000000000000000049e38d3b5b104010fb289fe630aa3c4f0a6a2f72079647c9fcd22e495ab6372ca02080601306721211d5404bd9da88e0204360a1a9ab8b87c66c1bc2fcdd37f3c2222cc20b65928ceba6ffb4a6dc4b5935f74b3f5dcd3904d6aee9901e119cb3b1ecbbc8100"
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "0x4cabf993b519260d5997b9d78ece83b4830f49d105278ff239a678324502043a",
+          "block_hash": "0x216dac143fbd37f9bab4227ce83c23e9f285d9846cdabc56864548cd652bb2f7",
+          "gas_used": 2202785116,
+          "events": [
+            {
+              "name": "Simple",
+              "args": [
+                {
+                  "name": "x",
+                  "value": 1
+                }
+              ]
+            },
+            {
+              "name": "TwoIndexed",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+                },
+                {
+                  "name": "val",
+                  "value": 0
+                },
+                {
+                  "name": "note",
+                  "value": "a much longer tag string to exercise dynamic indexed hashing"
+                }
+              ]
+            },
+            {
+              "name": "IndexedString",
+              "args": [
+                {
+                  "name": "tag",
+                  "value": "a much longer tag string to exercise dynamic indexed hashing"
+                },
+                {
+                  "name": "v",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "name": "ThreeIndexed",
+              "args": [
+                {
+                  "name": "a",
+                  "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+                },
+                {
+                  "name": "b",
+                  "value": "0xbcd77eb6c49ae8a91460fd837aa93427d6ab6ad7fd6fec4fc8d90123320a34ab"
+                },
+                {
+                  "name": "c",
+                  "value": 0
+                },
+                {
+                  "name": "payload",
+                  "value": "a much longer tag string to exercise dynamic indexed hashing"
+                }
+              ]
+            },
+            {
+              "name": "Simple",
+              "args": [
+                {
+                  "name": "x",
+                  "value": 1
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "polkadot",
+          "block": {
+            "number": 2,
+            "hash": "0x216dac143fbd37f9bab4227ce83c23e9f285d9846cdabc56864548cd652bb2f7",
+            "timestamp": 1790161017744
+          },
+          "contract": {
+            "address": "5GBo4KYJmLbFszfFhwVN4bVWynNdVoxfqGPzmZJibANdvmrw",
+            "balance": "1000000000",
+            "nonce": 0
+          },
+          "storage": {}
+        }
+      },
+      "divergences": [
+        {
+          "kind": "EVENT_MISMATCH",
+          "step": 0,
+          "detail": "emitted events differ",
+          "evm": [
+            {
+              "name": "Simple",
+              "args": [
+                {
+                  "name": "x",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "name": "TwoIndexed",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+                },
+                {
+                  "name": "val",
+                  "value": 0
+                },
+                {
+                  "name": "note",
+                  "value": "a much longer tag string to exercise dynamic indexed hashing"
+                }
+              ]
+            },
+            {
+              "name": "IndexedString",
+              "args": [
+                {
+                  "name": "tag",
+                  "value": "0xbcd77eb6c49ae8a91460fd837aa93427d6ab6ad7fd6fec4fc8d90123320a34ab"
+                },
+                {
+                  "name": "v",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "name": "ThreeIndexed",
+              "args": [
+                {
+                  "name": "a",
+                  "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+                },
+                {
+                  "name": "b",
+                  "value": "0xbcd77eb6c49ae8a91460fd837aa93427d6ab6ad7fd6fec4fc8d90123320a34ab"
+                },
+                {
+                  "name": "c",
+                  "value": 0
+                },
+                {
+                  "name": "payload",
+                  "value": "a much longer tag string to exercise dynamic indexed hashing"
+                }
+              ]
+            },
+            {
+              "name": "Simple",
+              "args": [
+                {
+                  "name": "x",
+                  "value": 1
+                }
+              ]
+            }
+          ],
+          "polkadot": [
+            {
+              "name": "Simple",
+              "args": [
+                {
+                  "name": "x",
+                  "value": 1
+                }
+              ]
+            },
+            {
+              "name": "TwoIndexed",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+                },
+                {
+                  "name": "val",
+                  "value": 0
+                },
+                {
+                  "name": "note",
+                  "value": "a much longer tag string to exercise dynamic indexed hashing"
+                }
+              ]
+            },
+            {
+              "name": "IndexedString",
+              "args": [
+                {
+                  "name": "tag",
+                  "value": "a much longer tag string to exercise dynamic indexed hashing"
+                },
+                {
+                  "name": "v",
+                  "value": 0
+                }
+              ]
+            },
+            {
+              "name": "ThreeIndexed",
+              "args": [
+                {
+                  "name": "a",
+                  "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+                },
+                {
+                  "name": "b",
+                  "value": "0xbcd77eb6c49ae8a91460fd837aa93427d6ab6ad7fd6fec4fc8d90123320a34ab"
+                },
+                {
+                  "name": "c",
+                  "value": 0
+                },
+                {
+                  "name": "payload",
+                  "value": "a much longer tag string to exercise dynamic indexed hashing"
+                }
+              ]
+            },
+            {
+              "name": "Simple",
+              "args": [
+                {
+                  "name": "x",
+                  "value": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "divergences": [
+    {
+      "kind": "EVENT_MISMATCH",
+      "step": 0,
+      "detail": "emitted events differ",
+      "evm": [
+        {
+          "name": "Simple",
+          "args": [
+            {
+              "name": "x",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "name": "TwoIndexed",
+          "args": [
+            {
+              "name": "who",
+              "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+            },
+            {
+              "name": "val",
+              "value": 0
+            },
+            {
+              "name": "note",
+              "value": "a much longer tag string to exercise dynamic indexed hashing"
+            }
+          ]
+        },
+        {
+          "name": "IndexedString",
+          "args": [
+            {
+              "name": "tag",
+              "value": "0xbcd77eb6c49ae8a91460fd837aa93427d6ab6ad7fd6fec4fc8d90123320a34ab"
+            },
+            {
+              "name": "v",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "name": "ThreeIndexed",
+          "args": [
+            {
+              "name": "a",
+              "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+            },
+            {
+              "name": "b",
+              "value": "0xbcd77eb6c49ae8a91460fd837aa93427d6ab6ad7fd6fec4fc8d90123320a34ab"
+            },
+            {
+              "name": "c",
+              "value": 0
+            },
+            {
+              "name": "payload",
+              "value": "a much longer tag string to exercise dynamic indexed hashing"
+            }
+          ]
+        },
+        {
+          "name": "Simple",
+          "args": [
+            {
+              "name": "x",
+              "value": 1
+            }
+          ]
+        }
+      ],
+      "polkadot": [
+        {
+          "name": "Simple",
+          "args": [
+            {
+              "name": "x",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "name": "TwoIndexed",
+          "args": [
+            {
+              "name": "who",
+              "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+            },
+            {
+              "name": "val",
+              "value": 0
+            },
+            {
+              "name": "note",
+              "value": "a much longer tag string to exercise dynamic indexed hashing"
+            }
+          ]
+        },
+        {
+          "name": "IndexedString",
+          "args": [
+            {
+              "name": "tag",
+              "value": "a much longer tag string to exercise dynamic indexed hashing"
+            },
+            {
+              "name": "v",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "name": "ThreeIndexed",
+          "args": [
+            {
+              "name": "a",
+              "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+            },
+            {
+              "name": "b",
+              "value": "0xbcd77eb6c49ae8a91460fd837aa93427d6ab6ad7fd6fec4fc8d90123320a34ab"
+            },
+            {
+              "name": "c",
+              "value": 0
+            },
+            {
+              "name": "payload",
+              "value": "a much longer tag string to exercise dynamic indexed hashing"
+            }
+          ]
+        },
+        {
+          "name": "Simple",
+          "args": [
+            {
+              "name": "x",
+              "value": 1
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "verdict": "DIVERGENCE"
+}

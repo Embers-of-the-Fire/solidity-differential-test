@@ -1,0 +1,62 @@
+{
+  "seed_id": "events",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "When the same event signature is emitted multiple times in one transaction, solc/EVM preserves each log's argument values, while solang/pallet-contracts observed every instance of that event carrying the final emission's arguments; event count and name order still appear preserved.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "event-indexed-emission-matrix",
+          "verdict": "DIVERGENCE",
+          "note": "emitDupes EVM Simple.x=[0,0,1,1,2,2] vs Polkadot all 2; emitMany Simple(v),Simple(v+1) became two copies of v+1."
+        }
+      ],
+      "next_probe": "Minimal contract with event E(uint256 x); function f() external { emit E(1); emit E(2); emit E(3); } Compare decoded E.x sequences: expect EVM [1,2,3]; divergence if Polkadot reports [3,3,3]."
+    },
+    {
+      "id": "h2",
+      "statement": "Indexed dynamic values such as string are hashed into topics by solc/EVM, but solang/pallet-contracts surfaced the raw string for an indexed string argument; explicitly computed bytes32 hashes matched on both sides.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "event-indexed-emission-matrix",
+          "verdict": "DIVERGENCE",
+          "note": "IndexedString.tag was keccak('alpha') on EVM but raw 'alpha' on Polkadot; ThreeIndexed.b=keccak256(bytes(tag)) matched on both."
+        }
+      ],
+      "next_probe": "Emit events EStr(string indexed s), EBytes(bytes indexed b), and EFixed(bytes32 indexed x) for a short and a >32-byte value; compare indexed arg as raw versus keccak(value), using EFixed as control."
+    },
+    {
+      "id": "h3",
+      "statement": "Address-typed event arguments are exposed in different account representations: 20-byte hex on EVM versus SS58 AccountId32 on Polkadot, so raw string comparison can false-positive even when the logical sender corresponds.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "event-indexed-emission-matrix",
+          "verdict": "DIVERGENCE",
+          "note": "who/a differed as 0x7099.../0x90f... on EVM vs SS58 5FHne.../5DAAn... on Polkadot for the named senders."
+        }
+      ],
+      "next_probe": "From alice, bob, and charlie emit A(address indexed who, address plain); canonicalize EVM H160 and Polkadot AccountId32 through the harness sender map before comparing, and check whether address divergence disappears."
+    },
+    {
+      "id": "h4",
+      "statement": "For heterogeneous events emitted once per transaction, the sequence of event names and scalar/non-indexed string payloads can agree across toolchains; the observed mismatches cluster in repeated same-signature emissions, indexed dynamic hashing, and address encoding.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "event-indexed-emission-matrix",
+          "verdict": "DIVERGENCE",
+          "note": "In emitMany the event-name order Simple,TwoIndexed,IndexedString,ThreeIndexed,Simple matched and note/payload/val/c matched aside from the clustered mismatches."
+        }
+      ],
+      "next_probe": "Single transaction emits distinct events E1(uint), E2(string), E3(bytes32,uint) once each, no repeated signature, no indexed dynamic types, addresses normalized; expect PASS if ordering/payload agreement holds."
+    }
+  ],
+  "updated_ts": 1790160797.3352528
+}

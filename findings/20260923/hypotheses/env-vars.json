@@ -1,0 +1,34 @@
+{
+  "seed_id": "env-vars",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "solang rejects the global function 'blockhash()' at compile time (unknown function or type), while solc accepts it; this means any contract using blockhash cannot be differentially tested on pallet-contracts and must be excluded or rewritten.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "blockhash-prev-block-number",
+          "verdict": "DIVERGENCE",
+          "note": "COMPILE_ASYMMETRY: solc accepted source, solang failed with 'unknown function or type blockhash' at input.sol:9:13"
+        }
+      ],
+      "next_probe": "Minimal contract with a single function 'function f() external view returns (bytes32) { return blockhash(block.number - 1); }' compiled by both toolchains; expect solc_ok=true, solang_ok=false with the same error."
+    },
+    {
+      "id": "h2",
+      "statement": "Other block/tx env vars (block.number, block.timestamp, block.coinbase, tx.gasprice, gasleft) may still be supported by solang even though blockhash is not; support is per-builtin, not blanket rejection of env vars.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "blockhash-prev-block-number",
+          "verdict": "DIVERGENCE",
+          "note": "solang error singled out only 'blockhash', suggesting block.number etc. parse fine; needs confirmation"
+        }
+      ],
+      "next_probe": "Contract with separate view functions each returning one env var (block.number, block.timestamp, block.coinbase, tx.gasprice, gasleft) and no blockhash; check which compile under solang and compare returned values against solc/anvil."
+    }
+  ],
+  "updated_ts": 1790161730.8641167
+}

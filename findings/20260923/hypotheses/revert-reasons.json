@@ -1,0 +1,20 @@
+{
+  "seed_id": "revert-reasons",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "solang performs compile-time constant overflow detection and rejects expressions like type(uint256).max + 1 with a hard error, while solc accepts them and relies on the runtime Panic(0x11) checked-arithmetic revert. This means probes mixing runtime-overflow tests with other revert-reason checks will produce COMPILE_ASYMMETRY false positives unless overflow is triggered with non-constant operands.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "revert-reason-payloads",
+          "verdict": "DIVERGENCE",
+          "note": "solang rejected the source at compile time: 'value ...936 does not fit into type uint256' at 'return m + 1;' where m = type(uint256).max. solc compiled fine. Runtime revert-reason comparison never executed."
+        }
+      ],
+      "next_probe": "Rewrite the overflow step as function overflow(uint256 m) external pure returns (uint256) { return m + 1; } called with type(uint256).max as an argument (runtime value, not constant) and compile under both toolchains; prediction: both compile, and both revert at runtime \u2014 then compare the decoded panic payloads (0x11 arithmetic overflow) between solc and solang."
+    }
+  ],
+  "updated_ts": 1790160635.822453
+}

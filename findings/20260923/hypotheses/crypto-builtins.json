@@ -1,0 +1,48 @@
+{
+  "seed_id": "crypto-builtins",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "solang's abi.encode (standard, padded encoding) produces different bytes than solc for mixed static/dynamic arguments (uint8, string, bytes), while abi.encodePacked agrees byte-for-byte. Likely cause: incorrect 32-byte padding of small static types or wrong head/tail layout for dynamic types in solang's encoder.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "crypto-packed-encoding-hashes",
+          "verdict": "DIVERGENCE",
+          "note": "getEncoded/encodedH differ (EVM 0x998173... vs Polkadot 0x7b8cba...) while packedH and shaH match exactly, isolating the bug to abi.encode, not the hash builtins."
+        }
+      ],
+      "next_probe": "Minimize: compute keccak256(abi.encode(x)) for a single uint8 and keccak256(abi.encode(s)) for a single string separately; whichever mismatches isolates static-padding vs dynamic-offset encoding. Also compare abi.encode of two static types (uint8, uint8) to check padding only."
+    },
+    {
+      "id": "h2",
+      "statement": "keccak256 and sha256 builtins themselves agree between solc/anvil and solang/pallet-contracts when given identical input bytes.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "crypto-packed-encoding-hashes",
+          "verdict": "DIVERGENCE",
+          "note": "keccak256(abi.encodePacked(...)) and sha256(abi.encodePacked(...)) produced identical digests on both targets (0x24541e... and 0x0929c3...), so the divergence came from encoding, not hashing."
+        }
+      ],
+      "next_probe": "Probe ripemd160 and ecrecover with fixed well-known inputs (e.g., ecrecover of a known signed message) to extend the agreement map to the remaining crypto builtins; ecrecover is the most likely divergence given Substrate account semantics."
+    },
+    {
+      "id": "h3",
+      "statement": "Raw storage comparison in mode=exact is non-comparable across targets: solang/pallet-contracts uses hashed (non-sequential) storage keys and possibly transformed values, so identical Solidity-level state appears as entirely different key/value pairs. Storage oracle must compare via getter functions, not raw slots.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "crypto-packed-encoding-hashes",
+          "verdict": "DIVERGENCE",
+          "note": "EVM shows sequential slots 0x00..0x02 with the hash values; Polkadot shows unrelated hashed keys whose values match none of the emitted hashes, indicating layout/encoding transformation rather than state divergence."
+        }
+      ],
+      "next_probe": "Run a probe with a single simple state variable (e.g., uint256 counter) and compare raw storage dumps; confirm Polkadot side uses hashed keys unrelated to slot 0 while getters return equal values."
+    }
+  ],
+  "updated_ts": 1790161147.616005
+}

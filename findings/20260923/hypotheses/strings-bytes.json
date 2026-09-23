@@ -1,0 +1,48 @@
+{
+  "seed_id": "strings-bytes",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "Event argument rendering for bytes is backend-dependent in the current oracle: EVM emits bytes as 0x-prefixed hex while the Polkadot/solang path decodes printable bytes as UTF-8 text (and empty bytes as empty string), producing EVENT_MISMATCH even when semantic payloads are identical.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "string-bytes-length-boundaries",
+          "verdict": "DIVERGENCE",
+          "note": "Steps 0-2 Echo events matched semantically but EVM b values were hex ('0x', '0x6161...') while Polkadot rendered '' / 'aaaa...' / 'bbbb...'."
+        }
+      ],
+      "next_probe": "Emit one event Echo(string s, bytes b) with s='ab' and b=0x6162; compare after normalizing bytes to hex. If raw outputs are EVM b='0x6162' vs Polkadot b='ab' but normalized values match, this is confirmed as an oracle artifact."
+    },
+    {
+      "id": "h2",
+      "statement": "Raw storage-count comparison is not portable across EVM and pallet-contracts for dynamic string/bytes: the same logical state yields different nonzero_entries and slot/value integers because EVM packs short strings and length metadata into slots while solang/SCALE uses a different storage layout.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "string-bytes-length-boundaries",
+          "verdict": "DIVERGENCE",
+          "note": "STORAGE_MISMATCH at steps 1,2,3,5 showed differing nonzero_entries and raw integer encodings despite matching high-level operations."
+        }
+      ],
+      "next_probe": "Store '' then a 31-byte string then a 32-byte string plus bytes blob; assert equality only through semantic getters stored(), blob(), count(), names length/nameAt(0) rather than storage nonzero_entries."
+    },
+    {
+      "id": "h3",
+      "statement": "Non-ASCII UTF-8 string ABI round-trips appear aligned between solc and solang for pure/view calls: concat/join, array element readback, and len() returned byte-length semantics without listed divergence.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "string-bytes-length-boundaries",
+          "verdict": "DIVERGENCE",
+          "note": "Overall probe diverged on events/storage, but steps 4,6,7 for join/nameAt/len on '\u00fcn\u00efcod\u00e9-\u540d\u524d-\ud83d\ude80' produced no listed mismatch, indicating agreement for those query paths."
+        }
+      ],
+      "next_probe": "Query len() and join()/nameAt() with boundary multibyte cases: 2-byte \u00e9, 3-byte CJK \u540d\u524d, 4-byte emoji \ud83d\ude80, combining marks, and invalid-UTF8 bytes only in bytes (not string)."
+    }
+  ],
+  "updated_ts": 1790161933.7441103
+}

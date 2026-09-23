@@ -1,0 +1,48 @@
+{
+  "seed_id": "value-transfers",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "Basic payable semantics agree across solc/anvil and solang/pallet-contracts: payable deposits record msg.value, non-payable functions called with nonzero value revert on both, and address.transfer forwarding succeeds identically (status-level).",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "payable-value-forwarding",
+          "verdict": "PASS",
+          "note": "All 8 steps agreed: deposit with 0.001 ether, nonPayable with value=1000 behaved the same (revert or accept) on both, and transfer-forward of 0.5 ether plus count/balance storage matched."
+        }
+      ],
+      "next_probe": "Probe revert-reason parity: call nonPayable with value on both targets and compare exact revert data/reason strings, since this probe only established status-level agreement."
+    },
+    {
+      "id": "h2",
+      "statement": "Existential-deposit edge cases will diverge: a transfer that leaves the solang contract's balance below pallet-contracts' existential deposit (or drains it to exactly zero) may revert or behave differently than solc/EVM, where no keep-alive constraint exists.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "payable-value-forwarding",
+          "verdict": "PASS",
+          "note": "The forward step left a healthy remaining balance, so ED/keep-alive boundaries were never exercised; this remains untested."
+        }
+      ],
+      "next_probe": "Deposit a small value into Vault, then call forward() with an amount that leaves the contract balance below the pallet existential deposit but above zero; compare success/revert status between solc and solang."
+    },
+    {
+      "id": "h3",
+      "statement": "Value-denomination rounding diverges for tiny msg.value: because anvil uses 18-decimal wei while pallet-contracts uses planck with its own decimals/existential minimum, a msg.value of 1 (or another sub-planck amount) may be accepted by solc but rejected or zeroed by solang.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "payable-value-forwarding",
+          "verdict": "PASS",
+          "note": "Values used (10^15, 1000, 5*10^14) were all comfortably above any denomination floor, so precision/minimum-unit behavior was not probed."
+        }
+      ],
+      "next_probe": "Call deposit() with value=1 and with value just below the pallet's minimum transferable unit on both targets; compare accept/revert status and lastValue storage."
+    }
+  ],
+  "updated_ts": 1790161340.0431018
+}
