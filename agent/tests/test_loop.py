@@ -116,9 +116,12 @@ class FakeExecutor:
         pass
 
 
-def make_loop(tmp_path, *, budget=100):
+def make_loop(tmp_path, *, budget=100, p_mutate=0.7):
     cfg = AgentConfig(
-        findings_dir=tmp_path, llm_calls_budget=budget, oracle_runs_budget=50
+        findings_dir=tmp_path,
+        llm_calls_budget=budget,
+        oracle_runs_budget=50,
+        p_mutate=p_mutate,
     )
     llm = FakeLLM(budget)
     loop = HuntLoop(
@@ -172,3 +175,41 @@ def test_loop_stops_on_llm_budget(tmp_path):
     summary = loop.hunt(loop.default_policy(10), only_seeds=["int-semantics"])
     assert summary["llm_calls"] <= 1
     assert summary["stop_reason"] == "llm_budget"
+
+
+def test_corpus_admission_via_loop(tmp_path):
+    """The corpus grows only through the admission rule, with lineage fields."""
+    loop, _ = make_loop(tmp_path)
+    loop.hunt(StopPolicy(max_rounds=3), only_seeds=["int-semantics"])
+    entries = loop.store.corpus.entries()
+    # round 1 admits the divergence; later rounds replay the same canned
+    # spec -> known finding + already-seen kind combo -> not admitted
+    assert len(entries) == 1
+    entry = entries[0]
+    assert entry["admitted_by"] == "divergence"
+    assert entry["origin"] == "generated"
+    assert entry["parent_id"] is None
+    assert entry["outcome"]["kinds"] == ["RETURN_MISMATCH"]
+    # probes carry lineage metadata
+    for probe in loop.store.probes():
+        assert probe["origin"] == "generated"
+        assert probe["parent_id"] is None
+    # the persisted finding spec carries the same meta
+    assert loop.store.findings()[0]["spec"]["meta"]["origin"] == "generated"
+
+
+def test_p_mutate_zero_is_generation_only_baseline(tmp_path):
+    """p_mutate=0 never consults the corpus for parents (ablation switch)."""
+    loop, _ = make_loop(tmp_path, p_mutate=0.0)
+    loop.hunt(StopPolicy(max_rounds=2), only_seeds=["int-semantics"])
+    # corpus still grows via admission, but no parent is ever selected:
+    # every probe is generated from scratch
+    assert len(loop.store.corpus.entries()) == 1
+    assert all(p["origin"] == "generated" for p in loop.store.probes())
+
+
+def test_corpus_file_persists_across_stores(tmp_path):
+    loop, _ = make_loop(tmp_path)
+    loop.hunt(StopPolicy(max_rounds=1), only_seeds=["int-semantics"])
+    reloaded = FindingStore(tmp_path)
+    assert len(reloaded.corpus.entries()) == 1

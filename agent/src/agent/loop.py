@@ -16,7 +16,7 @@ from .minimize import minimize
 from .reflect import reflect_notebook
 from .seeds import load_seeds, pick_seed
 from .stop import LoopState, StopPolicy
-from .store import FindingStore
+from .store import FindingStore, fingerprint
 from .triage import triage_report
 
 
@@ -58,6 +58,23 @@ class HuntLoop:
         self.log(f"[seed] {seed.id}: {seed.title}")
 
         notebook = load_notebook(self.store.root, seed.id)
+
+        # Two-level scheduling: topic level (pick_seed above) -> input level
+        # (corpus parent selection). Mutation operators land in plan 04; until
+        # then a selected parent falls back to plain generation (logged), so
+        # p_mutate=0 remains an exact generation-only baseline.
+        parent = None
+        if self.cfg.p_mutate > 0 and self.rng.random() < self.cfg.p_mutate:
+            parent = self.store.corpus.select_parent(seed.id, self.rng)
+            if parent is not None:
+                self.log(
+                    f"[corpus] parent {parent['id']} selected but mutation is "
+                    "not implemented yet; generating from scratch"
+                )
+                parent = None
+        parent_id = parent["id"] if parent else None
+        origin = "generated" if parent is None else "mutated_llm"
+
         t0 = time.perf_counter()
         try:
             spec = generate_spec(
@@ -74,6 +91,7 @@ class HuntLoop:
                 "usage": self.client.usage_since(usage_mark)["totals"],
             }
         phase_ms["generate_ms"] = (time.perf_counter() - t0) * 1000.0
+        spec["meta"] = {"parent_id": parent_id, "origin": origin}
 
         self.log(f"[run] {spec.get('name')} ({len(spec.get('steps', []))} steps)")
         t0 = time.perf_counter()
@@ -102,8 +120,34 @@ class HuntLoop:
             usage=usage,
             oracle_runs_total=self.executor.runs,
             llm_calls_total=self.client.calls,
+            parent_id=parent_id,
+            origin=origin,
         )
         self.store.note_seed_result(seed.id, kinds)
+
+        corpus = self.store.corpus
+        if parent is not None:
+            corpus.record_offspring(
+                parent["id"],
+                corpus.classify_offspring(
+                    parent=parent, spec=spec, report=report, category=category
+                ),
+            )
+        detail = "; ".join(d.get("detail", "") for d in report.get("divergences", []))
+        fp = fingerprint(kinds, detail, spec.get("solidity", ""))
+        entry = corpus.admit(
+            spec=spec,
+            report=report,
+            seed_id=seed.id,
+            parent_id=parent_id,
+            origin=origin,
+            category=category,
+            known_finding=fp in self.store.known_fingerprints(),
+        )
+        if entry is not None:
+            self.log(f"[corpus] admitted {entry['id']} ({entry['admitted_by']})")
+        corpus.decay()
+        corpus.save()
 
         if category != "error":
             t0 = time.perf_counter()
@@ -118,6 +162,8 @@ class HuntLoop:
             "verdict": verdict,
             "category": category,
             "kinds": sorted(kinds),
+            "parent_id": parent_id,
+            "origin": origin,
             "hypotheses_open": sum(
                 1 for h in notebook["hypotheses"] if h["status"] == "open"
             ),

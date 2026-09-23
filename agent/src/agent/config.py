@@ -43,6 +43,7 @@ class AgentConfig:
     oracle_runs_budget: int = 100
     saturation_window: int = 10
     parallel: int = 4
+    p_mutate: float = 0.7  # 0.0 reproduces the generation-only baseline loop
     findings_dir: Path = field(default_factory=lambda: Path("findings"))
     price_input_per_1m: float = 0.0
     price_cached_input_per_1m: float | None = None  # None -> same as input
@@ -81,6 +82,7 @@ def load_config(
     oracle_runs: int | None = None,
     saturation_window: int | None = None,
     parallel: int | None = None,
+    p_mutate: float | None = None,
 ) -> AgentConfig:
     cfg = AgentConfig(
         base_url=os.environ.get("AGENT_LLM_BASE_URL", PLACEHOLDER_BASE_URL),
@@ -97,6 +99,8 @@ def load_config(
         cfg.saturation_window = saturation_window
     if parallel is not None:
         cfg.parallel = parallel
+    if p_mutate is not None:
+        cfg.p_mutate = p_mutate
     cfg.price_input_per_1m = float(os.environ.get("AGENT_LLM_PRICE_INPUT_PER_1M", 0.0))
     cached = os.environ.get("AGENT_LLM_PRICE_CACHED_INPUT_PER_1M")
     cfg.price_cached_input_per_1m = float(cached) if cached else None

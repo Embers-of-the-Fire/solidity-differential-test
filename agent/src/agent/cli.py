@@ -32,6 +32,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     hunt.add_argument("--parallel", type=int, metavar="K", help="parallel oracle runs")
     hunt.add_argument(
+        "--p-mutate",
+        type=float,
+        metavar="P",
+        help="probability of mutating a corpus parent instead of generating "
+        "from scratch (0.0 = generation-only baseline)",
+    )
+    hunt.add_argument(
         "--findings-dir", metavar="DIR", default=None, help="findings DB directory"
     )
     hunt.add_argument(
@@ -58,12 +65,16 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def _cmd_hunt(args: argparse.Namespace) -> int:
+    if args.p_mutate is not None and not 0.0 <= args.p_mutate <= 1.0:
+        print("--p-mutate must be in [0.0, 1.0]", file=sys.stderr)
+        return 2
     cfg = load_config(
         findings_dir=args.findings_dir,
         llm_calls=args.llm_calls,
         oracle_runs=args.oracle_runs,
         saturation_window=args.saturation_window,
         parallel=args.parallel,
+        p_mutate=args.p_mutate,
     )
     only = args.seeds.split(",") if args.seeds else None
     loop = HuntLoop(

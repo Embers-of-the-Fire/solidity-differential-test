@@ -4,6 +4,7 @@ Layout under the findings dir:
 
     probes.jsonl      every probe: spec, verdict, triage category, seed id
     findings.jsonl    accepted findings (bug candidates), one per line
+    corpus.jsonl      admitted specs with lineage/energy (see corpus.py)
     reports/<id>.json full oracle report for each finding
     seeds_state.json  per-seed coverage stats (probes run, kinds found)
 
@@ -19,6 +20,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from .corpus import Corpus
 from .executor import divergence_kinds
 from .usage import summarize_jsonl
 
@@ -44,6 +46,7 @@ class FindingStore:
         self._probes = self.root / "probes.jsonl"
         self._findings = self.root / "findings.jsonl"
         self._seeds_state = self.root / "seeds_state.json"
+        self.corpus = Corpus(self.root / "corpus.jsonl")
 
     # --- probes -------------------------------------------------------------
 
@@ -58,6 +61,8 @@ class FindingStore:
         usage: dict[str, Any] | None = None,
         oracle_runs_total: int | None = None,
         llm_calls_total: int | None = None,
+        parent_id: str | None = None,
+        origin: str = "generated",
     ) -> None:
         self._append(
             self._probes,
@@ -68,6 +73,8 @@ class FindingStore:
                 "verdict": report.get("verdict"),
                 "category": category,
                 "kinds": sorted(divergence_kinds(report)),
+                "parent_id": parent_id,
+                "origin": origin,
                 "timing": timing,
                 "usage": usage,
                 "oracle_runs_total": oracle_runs_total,
