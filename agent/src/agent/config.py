@@ -35,6 +35,7 @@ class AgentConfigError(Exception):
 class AgentConfig:
     base_url: str = PLACEHOLDER_BASE_URL
     model: str = PLACEHOLDER_MODEL
+    model_light: str | None = None  # None -> same as model (single-model deploys)
     api_key: str = "local"
     temperature: float = 1.0
     max_tokens: int = 4096
@@ -51,6 +52,12 @@ class AgentConfig:
     admission: str = (
         "on"  # "on" | "off" (off = admit everything, random-restart control)
     )
+    # --- verified reduction (L1) ---------------------------------------------
+    predicate: str = "signature"  # "signature" | "kind" (drift experiment, T3.4)
+    reduce_step_budget: int = 40  # oracle runs for the ddmin step stage
+    reduce_ast_budget: int = 200  # oracle runs for AST-guided source deletion
+    reduce_arg_budget: int = 40  # oracle runs for argument shrinking
+    reduce_llm_rounds: int = 3  # LLM simplify rounds on the residual
     findings_dir: Path = field(default_factory=lambda: Path("findings"))
     seeds_dir: Path | None = None  # None -> packaged agent/seeds/
     price_input_per_1m: float = 0.0
@@ -97,12 +104,18 @@ def load_config(
     reflect: str | None = None,
     admission: str | None = None,
     seeds_dir: str | Path | None = None,
+    predicate: str | None = None,
+    reduce_step_budget: int | None = None,
+    reduce_ast_budget: int | None = None,
+    reduce_arg_budget: int | None = None,
+    reduce_llm_rounds: int | None = None,
 ) -> AgentConfig:
     cfg = AgentConfig(
         base_url=os.environ.get("AGENT_LLM_BASE_URL", PLACEHOLDER_BASE_URL),
         model=os.environ.get("AGENT_LLM_MODEL", PLACEHOLDER_MODEL),
         api_key=os.environ.get("AGENT_LLM_API_KEY", "local"),
     )
+    cfg.model_light = os.environ.get("AGENT_LLM_MODEL_LIGHT") or cfg.model
     if findings_dir is not None:
         cfg.findings_dir = Path(findings_dir)
     if llm_calls is not None:
@@ -133,6 +146,20 @@ def load_config(
                 f"admission must be 'on' or 'off', got {admission!r}"
             )
         cfg.admission = admission
+    if predicate is not None:
+        if predicate not in ("signature", "kind"):
+            raise AgentConfigError(
+                f"predicate must be 'signature' or 'kind', got {predicate!r}"
+            )
+        cfg.predicate = predicate
+    if reduce_step_budget is not None:
+        cfg.reduce_step_budget = reduce_step_budget
+    if reduce_ast_budget is not None:
+        cfg.reduce_ast_budget = reduce_ast_budget
+    if reduce_arg_budget is not None:
+        cfg.reduce_arg_budget = reduce_arg_budget
+    if reduce_llm_rounds is not None:
+        cfg.reduce_llm_rounds = reduce_llm_rounds
     if seeds_dir is not None:
         cfg.seeds_dir = Path(seeds_dir)
     cfg.price_input_per_1m = float(os.environ.get("AGENT_LLM_PRICE_INPUT_PER_1M", 0.0))

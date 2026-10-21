@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -10,6 +11,12 @@ from pathlib import Path
 from typing import Any
 
 from .wasmutil import strip_function_exports
+
+
+def _solang_bin() -> str:
+    """solang binary override (T2.2 multi-version runs): ORACLE_SOLANG_BIN
+    keeps the spec schema clean of toolchain concerns."""
+    return os.environ.get("ORACLE_SOLANG_BIN", "solang")
 
 
 @dataclass
@@ -132,30 +139,34 @@ def compile_solc(
 def compile_solang(
     source: str, contract: str, settings: dict | None = None
 ) -> CompileOutcome:
-    """Compile with solang --target polkadot; returns stripped WASM + metadata."""
+    """Compile with solang --target polkadot; returns stripped WASM + metadata.
+
+    solang <= 0.3.1 predates the `polkadot` target rename: on the specific
+    "invalid value for --target" CLI error we retry with `--target substrate`
+    (same pallet-contracts output). Recorded in `errors` on failure as usual.
+    """
     settings = settings or {}
-    version = _tool_version(["solang", "--version"])
+    version = _tool_version([_solang_bin(), "--version"])
     opt_level = settings.get("opt_level", "default")
 
     with tempfile.TemporaryDirectory(prefix="solang-") as tmp:
         src_path = Path(tmp) / "input.sol"
         src_path.write_text(source)
-        proc = subprocess.run(
-            [
-                "solang",
-                "compile",
-                "--target",
-                "polkadot",
-                "-O",
-                str(opt_level),
-                "-o",
-                tmp,
-                str(src_path),
-            ],
-            capture_output=True,
-            text=True,
-            timeout=180,
-        )
+        cmd = [
+            _solang_bin(),
+            "compile",
+            "--target",
+            "polkadot",
+            "-O",
+            str(opt_level),
+            "-o",
+            tmp,
+            str(src_path),
+        ]
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+        if proc.returncode != 0 and "invalid value 'polkadot'" in proc.stderr:
+            cmd[cmd.index("polkadot")] = "substrate"
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
         if proc.returncode != 0:
             return CompileOutcome(
                 "solang",
@@ -193,7 +204,7 @@ def compile_solang(
 def tool_versions() -> dict[str, str]:
     return {
         "solc": _tool_version(["solc", "--version"], line=-1),
-        "solang": _tool_version(["solang", "--version"]),
+        "solang": _tool_version([_solang_bin(), "--version"]),
         "anvil": _tool_version(["anvil", "--version"]),
         "substrate-contracts-node": _tool_version(
             ["substrate-contracts-node", "--version"]

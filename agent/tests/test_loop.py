@@ -37,8 +37,13 @@ DIVERGENT_REPORT = {
             "detail": "dry-run return values differ",
             "evm": 44,
             "polkadot": 300,
+            "signature": "RETURN_MISMATCH|0|add|int≠int",
         }
     ],
+    "earliest_divergence": {
+        "point": 0,
+        "signature": "RETURN_MISMATCH|0|add|int≠int",
+    },
     "steps": [
         {"index": 0, "function": "add", "divergences": [{"kind": "RETURN_MISMATCH"}]}
     ],
@@ -132,8 +137,11 @@ class FakeExecutor:
     def _one(self, spec_dict):
         if any(s.get("function") == "add" for s in spec_dict.get("steps", [])):
             report = json.loads(json.dumps(DIVERGENT_REPORT))
-            # spec-dependent detail: each spec gets its own finding fingerprint
-            report["divergences"][0]["detail"] += f" [{spec_dict.get('name')}]"
+            if spec_dict.get("name") == "canned-add-mut":
+                # the LLM mutant witnesses a *different* bug (different relation)
+                sig = "RETURN_MISMATCH|0|add|int≠null"
+                report["divergences"][0]["signature"] = sig
+                report["earliest_divergence"] = {"point": 0, "signature": sig}
             return report
         return dict(PASS_REPORT)
 
@@ -322,10 +330,14 @@ def test_mutation_round_lineage_and_offspring_feedback(tmp_path):
 def test_mutation_round_minimizes_new_bug_candidates(tmp_path):
     loop, _ = make_mutation_loop(tmp_path)
     summary = loop.round(only_seeds=["int-semantics"])
-    # all mutants still call `add` -> all diverge; each has a distinct
-    # fingerprint (spec-dependent detail), so each is minimized and recorded
+    # all mutants diverge; the programmatic ones replay round 1's known
+    # signature and are caught by the cheap pre-minimize dedup, while the LLM
+    # mutant (distinct relation) is minimized and recorded
     bug_candidates = [m for m in summary["mutants"] if m["category"] == "bug_candidate"]
-    assert bug_candidates
+    assert len(bug_candidates) > 1
     assert summary["finding_id"] is not None
-    assert len(summary["finding_ids"]) == len(bug_candidates)
-    assert len(loop.store.findings()) == 1 + len(bug_candidates)  # + round 1
+    assert len(summary["finding_ids"]) == 1
+    assert len(loop.store.findings()) == 2  # round 1's + the LLM mutant's
+    finding = loop.store.findings()[-1]
+    assert finding["earliest_signature"] == "RETURN_MISMATCH|0|add|int≠null"
+    assert finding["minimality"]["verified_one_minimal"] in (True, False)

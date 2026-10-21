@@ -28,8 +28,16 @@ Mapping onto standard fuzzing components:
 | Power schedule | Energy: +1 divergent offspring, +2 novel, −0.1 invalid/duplicate; ×0.95 decay/round | `corpus.py` |
 | Termination | Budget on oracle runs / LLM calls, plus saturation stop (K signal-free rounds) | `stop.py` |
 | Crash triage | Deterministic known-difference rules first; LLM classification only for uncovered divergences | `triage.py`, `data/known_differences.json` |
-| Unique-crash dedup | Fingerprint over divergence kinds + detail + source | `store.py` |
-| Minimization | Delta-debugging on steps + LLM source shrinking, oracle-re-verified | `minimize.py` |
+| Unique-crash dedup | Fingerprint = sha1 over the sorted divergence-signature set; two-tier (cheap earliest-signature pre-check before minimize spend, post-minimization merge) | `store.py`, `loop.py` |
+| Minimization | Verified staged reduction: ddmin steps → dead-function sweep → solc-AST-guided deletion (two-gate) → argument shrinking → LLM simplify (last, flash tier) → exhaustive 1-minimality verification; acceptance = earliest-divergence signature equality | `minimize.py`, `ddmin.py`, `solast.py`, `shrink_args.py` |
+
+Witness identity is the **earliest-divergence signature**
+(`<kind>|<point>|<function>|<relation>`, relation is a structural,
+value-free descriptor — see `oracle/src/oracle/signature.py`). It is strict
+at the causal head and tolerant of downstream consequences, which is what
+makes signature-preserving reduction well-defined. The lenient kind-superset
+predicate survives behind `AgentConfig.predicate = "kind"` for the drift
+experiment (T3.3/T3.4 of `docs/agents/refine/plan.md`).
 
 Two measured facts drive the design (dev hunt `findings/20260918`, 20
 rounds):

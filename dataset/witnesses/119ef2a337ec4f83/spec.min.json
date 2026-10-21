@@ -1,0 +1,36 @@
+{
+  "name": "event-indexed-emission-matrix",
+  "solidity": "pragma solidity >=0.8.0;contract EventProbe{event Simple(uint256 x);event TwoIndexed(address indexed who,uint256 indexed val,string note);event ThreeIndexed(address indexed a,bytes32 indexed b,uint256 indexed c,string payload);event IndexedString(string indexed tag,uint256 v);function emitMany(string calldata tag,uint256 v)external{emit Simple(v);emit TwoIndexed(msg.sender,v,tag);emit IndexedString(tag,v);emit ThreeIndexed(msg.sender,keccak256(bytes(tag)),v,tag);emit Simple(v+1);}function emitDupes(uint256 n)external{for(uint256 i=0;i<n;i++){emit Simple(i);emit Simple(i);}}}",
+  "contract": "EventProbe",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "emitMany",
+      "args": [
+        "a much longer tag string to exercise dynamic indexed hashing",
+        0
+      ],
+      "sender": "charlie",
+      "value": 0
+    }
+  ],
+  "meta": {
+    "parent_id": null,
+    "origin": "generated"
+  }
+}

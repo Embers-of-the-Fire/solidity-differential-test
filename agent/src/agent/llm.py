@@ -26,6 +26,22 @@ class LLMError(Exception):
     """Unrecoverable LLM interaction failure (API down, repair budget spent)."""
 
 
+# Per-stage model routing (T2.4): reasoning stages (generate, triage, reflect)
+# go to AGENT_LLM_MODEL; proposal-volume stages (mutation, minimize) go to
+# AGENT_LLM_MODEL_LIGHT ("flash" tier). Single-model deployments set both equal.
+_LIGHT_STAGES = {"mutate", "minimize"}
+
+
+def tier_for_stage(stage: str) -> str:
+    return "flash" if stage in _LIGHT_STAGES else "reasoning"
+
+
+def model_for_stage(cfg: AgentConfig, stage: str) -> str:
+    if tier_for_stage(stage) == "flash" and cfg.model_light:
+        return cfg.model_light
+    return cfg.model
+
+
 class ChatClient(Protocol):
     """Structural type for anything the agent can query (real or fake)."""
 
@@ -96,17 +112,24 @@ class LLMClient:
 
         return summarize(self.usage.records_since(marker))
 
-    def chat(self, system: str, user: str, *, max_retries: int = 3) -> str:
+    def chat(
+        self, system: str, user: str, *, max_retries: int = 3, tier: str = "reasoning"
+    ) -> str:
         """One chat completion with retries on transient API errors."""
         if self.budget_left() <= 0:
             raise LLMError("LLM call budget exhausted")
+        model = (
+            self.cfg.model
+            if tier == "reasoning"
+            else (self.cfg.model_light or self.cfg.model)
+        )
         last_err: Exception | None = None
         for _ in range(max_retries):
             t0 = time.perf_counter()
             try:
                 self.calls += 1
                 resp = self._client.chat.completions.create(
-                    model=self.cfg.model,
+                    model=model,
                     temperature=self.cfg.temperature,
                     max_tokens=self.cfg.max_tokens,
                     messages=[
@@ -116,10 +139,11 @@ class LLMClient:
                 )
                 latency_ms = (time.perf_counter() - t0) * 1000.0
                 self.usage.record(
-                    model=self.cfg.model,
+                    model=model,
                     temperature=self.cfg.temperature,
                     latency_ms=latency_ms,
                     usage_raw=getattr(resp, "usage", None),
+                    tier=tier,
                 )
                 content = resp.choices[0].message.content
                 if not content:
@@ -128,10 +152,11 @@ class LLMClient:
             except OpenAIError as e:
                 last_err = e
                 self.usage.record(
-                    model=self.cfg.model,
+                    model=model,
                     temperature=self.cfg.temperature,
                     latency_ms=(time.perf_counter() - t0) * 1000.0,
                     error=f"{type(e).__name__}: {e}",
+                    tier=tier,
                 )
         raise LLMError(f"LLM API failed after {max_retries} attempts: {last_err}")
 
@@ -151,9 +176,10 @@ class LLMClient:
         """
         feedback = ""
         last_err = ""
+        tier = tier_for_stage(stage)
         for attempt in range(max_attempts):
             self.usage.set_context(stage, attempt)
-            text = self.chat(system, user + feedback)
+            text = self.chat(system, user + feedback, tier=tier)
             try:
                 obj = extract_json(text)
             except LLMError as e:

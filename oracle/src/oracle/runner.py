@@ -15,6 +15,18 @@ from .spec import TestSpec
 from .timing import Timer, now_epoch, now_iso
 
 
+def _earliest(divergences: list[Divergence]) -> dict[str, Any] | None:
+    """Report-level earliest divergence (point + signature).
+
+    Divergences accumulate in causal order (compile < deploy < step i), so the
+    first entry is the causal head of the witness.
+    """
+    if not divergences:
+        return None
+    d = divergences[0]
+    return {"point": d.point, "signature": d.signature}
+
+
 class DifferentialRunner:
     def __init__(
         self, spec: TestSpec, workdir: str | Path | None = None, verbose: bool = False
@@ -45,6 +57,7 @@ class DifferentialRunner:
                 "revert_reasons": spec.oracle.revert_reasons,
                 "gas": spec.oracle.gas,
             },
+            "execution": spec.execution,
             "workdir": str(self.workdir),
             "timing": {
                 "started_at": now_iso(),
@@ -56,6 +69,7 @@ class DifferentialRunner:
             "deploy": {},
             "steps": [],
             "divergences": [],
+            "earliest_divergence": None,
             "verdict": "ERROR",
         }
         divergences: list[Divergence] = []
@@ -77,6 +91,7 @@ class DifferentialRunner:
         divergences.extend(compare_compile(solc_out, solang_out))
         if not solc_out.ok or not solang_out.ok:
             report["divergences"] = [d.to_dict() for d in divergences]
+            report["earliest_divergence"] = _earliest(divergences)
             report["verdict"] = "DIVERGENCE" if divergences else "PASS"
             total.__exit__()
             report["timing"]["total_ms"] = total.elapsed_ms
@@ -104,6 +119,11 @@ class DifferentialRunner:
             if self.evm.address and self.polkadot.address:
                 self.labels.register_contract(self.evm.address, self.polkadot.address)
             deployed = all(report["deploy"][n]["status"] == "success" for n in chains)
+            # dry-run-only mode (RQ4 baseline): deployment is real (nothing else
+            # is callable), but call steps never commit transactions — every
+            # step is a dry-run against post-deploy state, so state never
+            # evolves. compare_step is untouched: tx=None follows the query path.
+            commit_tx = spec.execution == "on-chain"
 
             if deployed:
                 for i, step in enumerate(spec.steps):
@@ -124,7 +144,7 @@ class DifferentialRunner:
                         with Timer() as t_step:
                             with Timer() as t_dry:
                                 dry = chain.dry_run(step)
-                            if step.action == "call":
+                            if step.action == "call" and commit_tx:
                                 with Timer() as t_tx:
                                     tx = chain.transact(step)
                                 with Timer() as t_snap:
@@ -145,7 +165,11 @@ class DifferentialRunner:
                         }
                         step_report["timing"][f"{name}_total_ms"] = t_step.elapsed_ms
                     step_divs = compare_step(
-                        i, results["evm"], results["polkadot"], spec.oracle
+                        i,
+                        results["evm"],
+                        results["polkadot"],
+                        spec.oracle,
+                        function=step.function,
                     )
                     for d in step_divs:
                         self.log(f"  DIVERGENCE {d.kind}: {d.detail}")
@@ -163,6 +187,7 @@ class DifferentialRunner:
                 )
 
         report["divergences"] = [d.to_dict() for d in divergences]
+        report["earliest_divergence"] = _earliest(divergences)
         report["verdict"] = "DIVERGENCE" if divergences else "PASS"
         total.__exit__()
         report["timing"]["total_ms"] = total.elapsed_ms

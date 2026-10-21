@@ -1,0 +1,28 @@
+{
+  "name": "shift-struct-rhs",
+  "solidity": "contract C {\n    struct S { uint8 sh; }\n    S s;\n    constructor() { s.sh = 3; }\n    function f(uint v) public view returns (uint) { return v << s.sh; }\n}",
+  "contract": "C",
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "query",
+      "function": "f",
+      "args": [
+        5
+      ]
+    }
+  ],
+  "_affected": [
+    "0.3.1",
+    "0.3.2",
+    "0.3.3"
+  ],
+  "_fixed_in": "0.3.4",
+  "_source": "https://github.com/hyperledger-solang/solang/pull/1627",
+  "_note": "codegen omitted the storage load when the RHS of a shift is a struct member (issue #1618)"
+}

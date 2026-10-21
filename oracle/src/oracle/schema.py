@@ -164,6 +164,8 @@ class Divergence:
     detail: str
     evm: Any = None
     polkadot: Any = None
+    point: str | int | None = None  # "compile" | "deploy" | step index
+    signature: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -172,6 +174,8 @@ class Divergence:
             "detail": self.detail,
             "evm": norm_value(self.evm),
             "polkadot": norm_value(self.polkadot),
+            "point": self.point,
+            "signature": self.signature,
         }
 
 

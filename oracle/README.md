@@ -34,6 +34,7 @@ oracle/
 │   │   └── polkadot.py     # substrate-contracts-node adapter
 │   ├── runner.py           # orchestration: compile -> deploy -> steps
 │   ├── compare.py          # oracle comparator + divergence classes
+│   ├── signature.py        # divergence signatures (witness identity)
 │   └── report.py           # JSON + Markdown reports
 ├── examples/               # ready-to-run test environments
 └── tests/                  # pytest smoke tests (spawn both nodes)
@@ -170,6 +171,41 @@ address returned on both chains compares equal regardless of the 20-byte
 `COMPILE_ASYMMETRY`, `DEPLOY_MISMATCH`, `STATUS_MISMATCH`, `RETURN_MISMATCH`,
 `REASON_MISMATCH`, `TX_STATUS_MISMATCH`, `EVENT_MISMATCH`, `STORAGE_MISMATCH`,
 `GAS_MISMATCH` (opt-in).
+
+### Divergence signatures
+
+Every divergence carries a **signature** — a stable, value-free identity for
+"same bug" (`oracle/src/oracle/signature.py`):
+
+    signature = "<kind>|<point>|<function-or-empty>|<relation>"
+
+`point` is `compile`, `deploy`, or the step index; `relation` is a per-kind
+*structural* descriptor of the two normalized payloads (status pair, return
+type-shape pair, reason-class pair, first structural event difference,
+storage mode tag) — deliberately not the values themselves. The report's
+`earliest_divergence` field (point + signature) identifies the causal head
+of a witness; the agent's dedup and reduction are defined over it.
+
+## Execution modes
+
+The top-level spec field `"execution": "on-chain" | "dry-run-only"` (default
+`on-chain`) selects whether call steps commit transactions. In
+`dry-run-only` mode deployment still happens for real (nothing else is
+callable), but every step executes as a dry-run against post-deploy state —
+state never evolves and multi-step sequences degrade to "all steps see
+identical initial state". This is the RQ4 baseline
+(`agent/tools/offline_contrast.py`); the report records the mode.
+
+## Multi-version solang
+
+`flake.nix` exposes `packages.solang_0_3_0 … solang_0_3_5` (prebuilt upstream
+binaries); the devShell keeps the latest as the default `solang`. Point the
+oracle at another version with the `ORACLE_SOLANG_BIN` environment variable
+(keeps the spec schema clean). solang ≤ 0.3.1 predates the `--target
+polkadot` rename; the driver retries with `--target substrate` on that
+specific CLI error. Per-version compatibility with the current
+substrate-contracts-node is probed by `agent/tools/solang_compat.py` into
+`agent/data/version_matrix.json`.
 
 ## Report
 

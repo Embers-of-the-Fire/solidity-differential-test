@@ -138,6 +138,7 @@ class UsageTracker:
         latency_ms: float,
         usage_raw: Any = None,
         error: str | None = None,
+        tier: str | None = None,
     ) -> dict[str, Any]:
         fields = extract_usage(usage_raw)
         cost: float | None = None
@@ -154,6 +155,7 @@ class UsageTracker:
             "ts": time.time(),
             "stage": self._stage,
             "attempt": self._attempt,
+            "tier": tier,
             "model": model,
             "temperature": temperature,
             "latency_ms": latency_ms,

@@ -30,18 +30,43 @@ from .schema import (
     StepChainResult,
     canonical_storage_value,
     nonzero_storage,
+    norm_value,
     strip_hex,
 )
+from .signature import POINT_COMPILE, POINT_DEPLOY, make_signature
 from .spec import OracleConfig
+
+
+def _divergence(
+    kind: str,
+    step: int | None,
+    point: str | int,
+    function: str | None,
+    detail: str,
+    evm: Any,
+    polkadot: Any,
+) -> Divergence:
+    evm_n, polkadot_n = norm_value(evm), norm_value(polkadot)
+    return Divergence(
+        kind,
+        step=step,
+        detail=detail,
+        evm=evm,
+        polkadot=polkadot,
+        point=point,
+        signature=make_signature(kind, point, function, evm_n, polkadot_n),
+    )
 
 
 def compare_compile(solc: CompileOutcome, solang: CompileOutcome) -> list[Divergence]:
     if solc.ok == solang.ok:
         return []
     return [
-        Divergence(
+        _divergence(
             "COMPILE_ASYMMETRY",
             step=None,
+            point=POINT_COMPILE,
+            function=None,
             detail="one compiler rejected the source while the other accepted it",
             evm={"solc_ok": solc.ok, "errors": solc.errors},
             polkadot={"solang_ok": solang.ok, "errors": solang.errors},
@@ -53,9 +78,11 @@ def compare_deploy(evm: dict, polkadot: dict) -> list[Divergence]:
     if evm["status"] == polkadot["status"]:
         return []
     return [
-        Divergence(
+        _divergence(
             "DEPLOY_MISMATCH",
             step=None,
+            point=POINT_DEPLOY,
+            function=None,
             detail="deployment status differs",
             evm=evm,
             polkadot=polkadot,
@@ -125,7 +152,11 @@ def _dry_run_error_artifact(evm: StepChainResult, polkadot: StepChainResult) -> 
 
 
 def compare_step(
-    index: int, evm: StepChainResult, polkadot: StepChainResult, config: OracleConfig
+    index: int,
+    evm: StepChainResult,
+    polkadot: StepChainResult,
+    config: OracleConfig,
+    function: str | None = None,
 ) -> list[Divergence]:
     divs: list[Divergence] = []
 
@@ -133,9 +164,11 @@ def compare_step(
     if evm.dry_run.status != polkadot.dry_run.status:
         if not _dry_run_error_artifact(evm, polkadot):
             divs.append(
-                Divergence(
+                _divergence(
                     "STATUS_MISMATCH",
                     step=index,
+                    point=index,
+                    function=function,
                     detail="dry-run status differs",
                     evm={"status": evm.dry_run.status, "error": evm.dry_run.error},
                     polkadot={
@@ -150,9 +183,11 @@ def compare_step(
             bb = _as_bytes(polkadot.dry_run.return_value)
             if not (ba is not None and bb is not None and ba == bb):
                 divs.append(
-                    Divergence(
+                    _divergence(
                         "RETURN_MISMATCH",
                         step=index,
+                        point=index,
+                        function=function,
                         detail="dry-run return values differ",
                         evm=evm.dry_run.return_value,
                         polkadot=polkadot.dry_run.return_value,
@@ -165,9 +200,11 @@ def compare_step(
         )
         if ra != rb:
             divs.append(
-                Divergence(
+                _divergence(
                     "REASON_MISMATCH",
                     step=index,
+                    point=index,
+                    function=function,
                     detail="both sides reverted with different reasons",
                     evm=ra or evm.dry_run.return_data_raw,
                     polkadot=rb or polkadot.dry_run.return_data_raw,
@@ -186,9 +223,11 @@ def compare_step(
         and polkadot.tx.status in ("revert", "error")
     ):
         divs.append(
-            Divergence(
+            _divergence(
                 "TX_STATUS_MISMATCH",
                 step=index,
+                point=index,
+                function=function,
                 detail="committed transaction status differs",
                 evm=evm.tx.status,
                 polkadot=polkadot.tx.status,
@@ -196,9 +235,11 @@ def compare_step(
         )
     if config.events and not _events_equal(evm.tx.events, polkadot.tx.events):
         divs.append(
-            Divergence(
+            _divergence(
                 "EVENT_MISMATCH",
                 step=index,
+                point=index,
+                function=function,
                 detail="emitted events differ",
                 evm=evm.tx.events,
                 polkadot=polkadot.tx.events,
@@ -206,9 +247,11 @@ def compare_step(
         )
     if config.gas and evm.tx.gas_used != polkadot.tx.gas_used:
         divs.append(
-            Divergence(
+            _divergence(
                 "GAS_MISMATCH",
                 step=index,
+                point=index,
+                function=function,
                 detail="gas consumption differs (note: different gas models)",
                 evm=evm.tx.gas_used,
                 polkadot=polkadot.tx.gas_used,
@@ -229,9 +272,11 @@ def compare_step(
             )
             if differ:
                 divs.append(
-                    Divergence(
+                    _divergence(
                         "STORAGE_MISMATCH",
                         step=index,
+                        point=index,
+                        function=function,
                         detail=f"contract storage differs (mode={config.storage})",
                         evm=sa,
                         polkadot=sb,

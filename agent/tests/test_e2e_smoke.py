@@ -13,6 +13,7 @@ import pytest
 from agent.config import AgentConfig
 from agent.executor import Executor
 from agent.loop import HuntLoop
+from agent.stop import StopPolicy
 from agent.store import FindingStore
 from agent.triage import triage_report
 from agent.usage import NoUsage
@@ -89,7 +90,7 @@ def test_e2e_hunt_loop_one_round(tmp_path):
         log=lambda *_: None,
     )
     try:
-        summary = loop.hunt(max_rounds=1)
+        summary = loop.hunt(StopPolicy(max_rounds=1))
     finally:
         loop.executor.close()
     assert summary["rounds"] == 1

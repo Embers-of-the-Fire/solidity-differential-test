@@ -11,12 +11,21 @@ A test environment is a JSON document:
       "solang": {"opt_level": "default"},
       "oracle": {"storage": "count", "events": true,
                  "revert_reasons": true, "gas": false},
+      "execution": "on-chain",
       "steps": [
         {"action": "query", "function": "count"},
         {"action": "call", "function": "inc", "args": [5],
          "sender": "alice", "value": 0}
       ]
     }
+
+Top-level fields:
+  execution   "on-chain" (default) commits call steps as transactions and
+              snapshots post-tx state; "dry-run-only" executes every step as
+              a dry-run against post-deploy state — deployment still happens
+              for real (nothing else is callable), but state never evolves,
+              so multi-step sequences degrade to "all steps see identical
+              initial state". Used by the RQ4 replay-vs-dry-run contrast.
 
 Step fields:
   action   "call" (state-changing tx) or "query" (read-only dry run)
@@ -68,6 +77,7 @@ class TestSpec:
     solc_settings: dict = field(default_factory=dict)
     solang_settings: dict = field(default_factory=dict)
     oracle: OracleConfig = field(default_factory=OracleConfig)
+    execution: str = "on-chain"  # "on-chain" | "dry-run-only"
 
 
 def load_test_spec(path: str | Path) -> TestSpec:
@@ -119,6 +129,10 @@ def load_test_spec(path: str | Path) -> TestSpec:
     if oracle.storage not in ("count", "exact", "off"):
         raise ValueError("oracle.storage must be 'count', 'exact' or 'off'")
 
+    execution = raw.get("execution", "on-chain")
+    if execution not in ("on-chain", "dry-run-only"):
+        raise ValueError("execution must be 'on-chain' or 'dry-run-only'")
+
     return TestSpec(
         name=raw.get("name", path.stem),
         source=source,
@@ -128,4 +142,5 @@ def load_test_spec(path: str | Path) -> TestSpec:
         solc_settings=dict(raw.get("solc", {})),
         solang_settings=dict(raw.get("solang", {})),
         oracle=oracle,
+        execution=execution,
     )

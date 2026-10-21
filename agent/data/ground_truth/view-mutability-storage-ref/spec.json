@@ -1,0 +1,24 @@
+{
+  "name": "view-mutability-storage-ref",
+  "solidity": "contract C {\n    bool x;\n    int[4] a;\n    function test() public view returns (int) {\n        return foo()[1];\n    }\n    function foo() internal returns (int[4] storage) {\n        x = true;\n        return a;\n    }\n}",
+  "contract": "C",
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "query",
+      "function": "test"
+    }
+  ],
+  "_affected": [
+    "0.3.1",
+    "0.3.2"
+  ],
+  "_fixed_in": "0.3.3",
+  "_source": "https://github.com/hyperledger-solang/solang/issues/1493",
+  "_note": "mutability check missed writes through functions returning storage references; invalid view function accepted (PR #1544)"
+}

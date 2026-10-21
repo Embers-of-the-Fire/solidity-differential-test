@@ -8,11 +8,17 @@ from collections.abc import Callable
 from typing import Any
 
 from .config import AgentConfig
-from .executor import Executor, OracleRunner, divergence_kinds
+from .executor import (
+    Executor,
+    OracleRunner,
+    divergence_kinds,
+    divergence_signatures,
+    earliest_signature,
+)
 from .generator import generate_spec
 from .hypotheses import load_notebook, summary_counts
 from .llm import ChatClient, LLMClient, LLMError
-from .minimize import minimize
+from .minimize import ReduceConfig, minimize
 from .mutate import llm_mutants, programmatic_mutants
 from .reflect import reflect_notebook
 from .seeds import load_seeds, pick_seed
@@ -48,6 +54,21 @@ class HuntLoop:
         self.store = store or FindingStore(cfg.findings_dir)
         self.rng = random.Random(rng_seed)
         self.log = log
+
+    def _same_witness(
+        self, original_report: dict[str, Any], candidate_report: dict[str, Any]
+    ) -> bool:
+        """Post-minimization acceptance under the configured predicate."""
+        if self.cfg.predicate == "signature":
+            sig = earliest_signature(original_report)
+            return sig is not None and earliest_signature(candidate_report) == sig
+        return divergence_kinds(original_report) <= divergence_kinds(candidate_report)
+
+    def _known_witness(self, report: dict[str, Any]) -> bool:
+        """Tier-1 dedup: cheapest possible check — is this report's earliest
+        signature already a stored finding's? Skips the minimize spend."""
+        sig = earliest_signature(report)
+        return sig is not None and sig in self.store.known_signatures()
 
     def _is_resolved(self, seed_id: str) -> bool:
         """A seed is resolved when it has hypotheses and none are open."""
@@ -133,8 +154,7 @@ class HuntLoop:
         self.store.note_seed_result(seed.id, kinds)
 
         corpus = self.store.corpus
-        detail = "; ".join(d.get("detail", "") for d in report.get("divergences", []))
-        fp = fingerprint(kinds, detail, spec.get("solidity", ""))
+        fp = fingerprint(divergence_signatures(report))
         entry = corpus.admit(
             spec=spec,
             report=report,
@@ -173,14 +193,25 @@ class HuntLoop:
         }
 
         if category == "bug_candidate":
+            if self._known_witness(report):
+                self.log("[finding] known earliest signature; skipping minimize")
+                summary["finding_id"] = None
+                phase_ms["round_ms"] = (time.perf_counter() - t_round) * 1000.0
+                return summary
             self.log("[minimize] shrinking reproducer ...")
             t0 = time.perf_counter()
-            small_spec = minimize(spec, report, self.executor.run, self.client)
+            small_spec, minimality = minimize(
+                spec,
+                report,
+                self.executor.run,
+                self.client,
+                config=ReduceConfig.from_agent_config(self.cfg),
+            )
             small_report = self.executor.run(small_spec)
             phase_ms["minimize_ms"] = (time.perf_counter() - t0) * 1000.0
             summary["usage"] = self.client.usage_since(usage_mark)["totals"]
             summary["timing"] = phase_ms
-            if divergence_kinds(small_report) >= kinds:
+            if self._same_witness(report, small_report):
                 finding_id = self.store.add_finding(
                     spec=small_spec,
                     report=small_report,
@@ -190,6 +221,8 @@ class HuntLoop:
                     usage=summary["usage"],
                     oracle_runs_total=self.executor.runs,
                     llm_calls_total=self.client.calls,
+                    minimality=minimality,
+                    original_spec=spec,
                 )
                 if finding_id:
                     self.log(f"[finding] NEW {finding_id}: {triage.get('summary')}")
@@ -352,10 +385,7 @@ class HuntLoop:
                     parent=parent, spec=spec, report=report, category=category
                 ),
             )
-            detail = "; ".join(
-                d.get("detail", "") for d in report.get("divergences", [])
-            )
-            fp = fingerprint(kinds, detail, spec.get("solidity", ""))
+            fp = fingerprint(divergence_signatures(report))
             entry = corpus.admit(
                 spec=spec,
                 report=report,
@@ -401,21 +431,22 @@ class HuntLoop:
         for (spec, _), report, triage in zip(batch, reports, triages, strict=True):
             if triage["category"] != "bug_candidate":
                 continue
-            kinds = divergence_kinds(report)
-            detail = "; ".join(
-                d.get("detail", "") for d in report.get("divergences", [])
-            )
-            fp = fingerprint(kinds, detail, spec.get("solidity", ""))
-            if fp in self.store.known_fingerprints():
-                self.log(f"[finding] {spec.get('name')} is a known fingerprint")
+            if self._known_witness(report):
+                self.log(f"[finding] {spec.get('name')} has a known earliest signature")
                 continue
             self.log(f"[minimize] shrinking {spec.get('name')} ...")
-            small_spec = minimize(spec, report, self.executor.run, self.client)
+            small_spec, minimality = minimize(
+                spec,
+                report,
+                self.executor.run,
+                self.client,
+                config=ReduceConfig.from_agent_config(self.cfg),
+            )
             small_report = self.executor.run(small_spec)
-            kept_spec, kept_report = (
-                (small_spec, small_report)
-                if divergence_kinds(small_report) >= kinds
-                else (spec, report)
+            kept_spec, kept_report, kept_minimality = (
+                (small_spec, small_report, minimality)
+                if self._same_witness(report, small_report)
+                else (spec, report, None)
             )
             finding_id = self.store.add_finding(
                 spec=kept_spec,
@@ -426,6 +457,8 @@ class HuntLoop:
                 usage=self.client.usage_since(usage_mark)["totals"],
                 oracle_runs_total=self.executor.runs,
                 llm_calls_total=self.client.calls,
+                minimality=kept_minimality,
+                original_spec=spec,
             )
             if finding_id:
                 self.log(f"[finding] NEW {finding_id}: {triage.get('summary')}")

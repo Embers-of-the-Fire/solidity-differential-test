@@ -1,0 +1,29 @@
+{
+  "name": "revert-reason-payloads",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract RevertProbe {\n    function overflow() external pure returns (uint256) {\n        uint256 m = type(uint256).max;\n        return m + 1;\n    }\n}\n",
+  "contract": "RevertProbe",
+  "constructor": {
+    "args": []
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "customErr",
+      "args": [
+        0
+      ],
+      "sender": "charlie",
+      "value": 0
+    }
+  ],
+  "meta": {
+    "parent_id": null,
+    "origin": "generated"
+  }
+}

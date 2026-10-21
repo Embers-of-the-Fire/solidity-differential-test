@@ -1,0 +1,38 @@
+{
+  "name": "crypto-packed-encoding-hashes",
+  "solidity": "pragma solidity >=0.8.0;\ncontract CryptoPackedProbe {\n    bytes32 hEncoded;\n\n    event Hashes(bytes32 packedH, bytes32 encodedH, bytes32 shaH);\n\n    function compute(uint8 x, string memory s, bytes memory b) external {\n        bytes32 p = keccak256(abi.encodePacked(x, s, b));\n        hEncoded = keccak256(abi.encode(x, s, b));\n        emit Hashes(p, hEncoded, sha256(abi.encodePacked(x, s, b)));\n    }\n\n    function getEncoded() external view returns (bytes32) { return hEncoded; }\n}",
+  "contract": "CryptoPackedProbe",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "exact",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "compute",
+      "args": [
+        1,
+        "a",
+        "0x02"
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "getEncoded"
+    }
+  ],
+  "meta": {
+    "parent_id": null,
+    "origin": "generated"
+  }
+}

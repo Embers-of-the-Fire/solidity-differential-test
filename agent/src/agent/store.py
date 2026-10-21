@@ -21,20 +21,19 @@ from pathlib import Path
 from typing import Any
 
 from .corpus import Corpus
-from .executor import divergence_kinds
+from .executor import divergence_kinds, divergence_signatures, earliest_signature
 from .usage import summarize_jsonl
 
 
-def fingerprint(divergence_kinds: set[str], detail: str, source: str) -> str:
-    """Stable dedup key: kinds + normalized detail + source text."""
-    norm_detail = " ".join(detail.lower().split())
-    src = " ".join(source.split())
+def fingerprint(signatures: set[str]) -> str:
+    """Stable dedup key: sha1 over the sorted divergence-signature set.
+
+    Deliberately excludes source text and payload values (T0.2/D2): a bug is
+    its signature set, not its spelling. One-time migration of pre-signature
+    findings is handled by agent/tools/refingerprint.py.
+    """
     h = hashlib.sha1()
-    h.update("|".join(sorted(divergence_kinds)).encode())
-    h.update(b"\x00")
-    h.update(norm_detail.encode())
-    h.update(b"\x00")
-    h.update(src.encode())
+    h.update("\n".join(sorted(signatures)).encode())
     return h.hexdigest()[:16]
 
 
@@ -113,6 +112,15 @@ class FindingStore:
             for line in self._findings.read_text().strip().splitlines()
         }
 
+    def known_signatures(self) -> set[str]:
+        """Earliest signatures of all stored findings (cheap pre-minimize dedup)."""
+        sigs: set[str] = set()
+        for f in self.findings():
+            sig = f.get("earliest_signature")
+            if sig:
+                sigs.add(sig)
+        return sigs
+
     def add_finding(
         self,
         *,
@@ -124,11 +132,12 @@ class FindingStore:
         usage: dict[str, Any] | None = None,
         oracle_runs_total: int | None = None,
         llm_calls_total: int | None = None,
+        minimality: dict[str, Any] | None = None,
+        original_spec: dict[str, Any] | None = None,
     ) -> str | None:
         """Persist a finding; returns its id, or None if it is a duplicate."""
-        kinds = divergence_kinds(report)
-        detail = "; ".join(d.get("detail", "") for d in report.get("divergences", []))
-        fp = fingerprint(kinds, detail, spec.get("solidity", ""))
+        sigs = divergence_signatures(report)
+        fp = fingerprint(sigs)
         if fp in self.known_fingerprints():
             return None
         finding = {
@@ -136,7 +145,9 @@ class FindingStore:
             "ts": time.time(),
             "seed": seed_id,
             "name": spec.get("name"),
-            "kinds": sorted(kinds),
+            "kinds": sorted(divergence_kinds(report)),
+            "signatures": sorted(sigs),
+            "earliest_signature": earliest_signature(report),
             "fingerprint": fp,
             "triage": triage,
             "spec": spec,
@@ -145,6 +156,8 @@ class FindingStore:
             "usage": usage,
             "oracle_runs_total": oracle_runs_total,
             "llm_calls_total": llm_calls_total,
+            "minimality": minimality,
+            "original_spec": original_spec,
         }
         self._append(self._findings, finding)
         report_path = self.root / "reports" / f"{fp}.json"

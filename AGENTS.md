@@ -64,25 +64,43 @@ exit is a *finding*, not a crash.
 ## Layout
 
 `oracle/src/oracle/` — `cli.py` (entrypoint `solidity-diff-oracle`),
-`runner.py` (orchestration), `compilers.py` (solc/solang drivers),
-`timing.py` (elapsed-time tracing; recorded in the report, never compared),
+`runner.py` (orchestration), `compilers.py` (solc/solang drivers;
+`ORACLE_SOLANG_BIN` env override + `--target substrate` fallback for solang
+≤ 0.3.1), `timing.py` (elapsed-time tracing; recorded in the report, never compared),
 `chains/{base,evm,polkadot}.py` (adapters + node process management),
-`compare.py` (divergence classes), `spec.py` (JSON test-env schema).
+`compare.py` (divergence classes), `signature.py` (value-free divergence
+signatures: `<kind>|<point>|<function>|<relation>`; report-level
+`earliest_divergence`), `spec.py` (JSON test-env schema; top-level
+`execution: on-chain | dry-run-only` mode).
 `oracle/examples/` holds ready-to-run specs.
 
 `agent/` — AI-in-the-loop bug hunter (entrypoint `solidity-diff-agent`;
 see `agent/README.md`). `agent/src/agent/`: `llm.py` (OpenAI-compatible
-client + validate-and-repair loop; `ChatClient` protocol for fakes),
+client + validate-and-repair loop; `ChatClient` protocol for fakes;
+per-stage model routing — `AGENT_LLM_MODEL_LIGHT` for mutate/minimize),
 `usage.py` (per-call token/cost/latency tracing -> `llm_usage.jsonl`;
 pricing via `AGENT_LLM_PRICE_{INPUT,CACHED_INPUT,OUTPUT}_PER_1M`, default
 0.0; `NoUsage` mixin for fakes), `generator.py` (spec prompt + validation),
-`executor.py` (parallel `oracle.runner.run_spec`; `OracleRunner` protocol), `triage.py`
+`executor.py` (parallel `oracle.runner.run_spec`; `OracleRunner` protocol;
+`divergence_signatures`/`earliest_signature` helpers), `triage.py`
 (deterministic known-difference rules + LLM classification),
-`minimize.py` (step delta-debugging + LLM source shrinking),
+`minimize.py` + `ddmin.py` + `solast.py` + `shrink_args.py`
+(verified staged reduction: ddmin steps -> dead-function sweep ->
+solc-AST-guided deletion -> arg shrink -> LLM simplify -> exhaustive
+1-minimality verification; acceptance = earliest-signature equality, lenient
+`kind` predicate behind `AgentConfig.predicate`),
 `hypotheses.py` (per-seed hypothesis notebooks; op validation),
 `reflect.py` (post-probe notebook update, runs on every probe),
-`store.py` (JSONL findings DB + fingerprint dedup), `loop.py`
-(orchestration), `prompts/*.md` (string.Template — escape literal `$` as
+`store.py` (JSONL findings DB + signature-set fingerprint dedup), `loop.py`
+(orchestration; two-tier dedup: earliest-signature pre-check before minimize,
+post-minimization fingerprint merge), `prompts/*.md` (string.Template —
+escape literal `$` as
 `$$`), `seeds/*.json` (feature cards), `data/known_differences.json`
-(triage rules). The agent imports the oracle read-only; oracle comparison
+(triage rules), `data/ground_truth/` (hand-encoded historical solang bugs,
+validated by `tools/validate_ground_truth.py`), `data/version_matrix.json`
+(per-solang-version compatibility). Tools: `tools/refingerprint.py`,
+`tools/solang_compat.py`, `tools/offline_contrast.py`,
+`tools/storage_mode_contrast.py`, `tools/reduce_eval.py`,
+`tools/replay_check.py`, `tools/export_witnesses.py` (-> `dataset/`). The
+agent imports the oracle read-only; oracle comparison
 logic is never modified by agent work.

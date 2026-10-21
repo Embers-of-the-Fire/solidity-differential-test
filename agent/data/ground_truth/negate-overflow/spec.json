@@ -1,0 +1,26 @@
+{
+  "name": "negate-overflow",
+  "solidity": "contract C {\n    function neg(int8 x) public returns (int8) { return -x; }\n}",
+  "contract": "C",
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": false,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "neg",
+      "args": [
+        -128
+      ]
+    }
+  ],
+  "_affected": [
+    "0.3.1"
+  ],
+  "_fixed_in": "0.3.2",
+  "_source": "https://github.com/hyperledger-solang/solang/issues/1484",
+  "_note": "negate operator -x did not check for overflow at runtime; -intN.min silently wraps (PR #1488)"
+}

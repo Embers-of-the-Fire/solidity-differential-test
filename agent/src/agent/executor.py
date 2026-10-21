@@ -61,6 +61,23 @@ def divergence_kinds(report: dict[str, Any]) -> set[str]:
     return {d["kind"] for d in report.get("divergences", [])}
 
 
+def divergence_signatures(report: dict[str, Any]) -> set[str]:
+    """All divergence signatures in a report (empty for legacy reports)."""
+    return {d["signature"] for d in report.get("divergences", []) if d.get("signature")}
+
+
+def earliest_signature(report: dict[str, Any]) -> str | None:
+    """Signature of the causal head: report-level earliest_divergence, else the
+    first signed divergence. None for unsigned (legacy) or clean reports."""
+    ed = report.get("earliest_divergence")
+    if ed and ed.get("signature"):
+        return ed["signature"]
+    for d in report.get("divergences", []):
+        if d.get("signature"):
+            return d["signature"]
+    return None
+
+
 class Executor:
     """Parallel oracle runner. Nodes pick free ports and use --tmp chains,
     so concurrent runs are safe (each run still pays node startup)."""

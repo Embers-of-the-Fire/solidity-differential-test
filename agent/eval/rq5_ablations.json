@@ -1,0 +1,14 @@
+{
+  "_comment": "T3.5 RQ5 ablation matrix on the latest solang: architecture ablations (as T3.1) plus reduction ablations via the L1 budget knobs. ddmin-only: no AST/arg/LLM stages; llm-only: no ddmin/AST/arg stages; hybrid: defaults.",
+  "budget": {"oracle_runs": 300, "llm_calls": 200, "saturation_window": 10},
+  "repeats": 5,
+  "configs": [
+    {"name": "full", "overrides": {}},
+    {"name": "no-mutate", "overrides": {"p_mutate": 0.0}},
+    {"name": "no-reflect", "overrides": {"reflect": "never"}},
+    {"name": "no-admit", "overrides": {"admission": "off"}},
+    {"name": "reduce-ddmin-only", "overrides": {"reduce_ast_budget": 0, "reduce_arg_budget": 0, "reduce_llm_rounds": 0}},
+    {"name": "reduce-llm-only", "overrides": {"reduce_step_budget": 0, "reduce_ast_budget": 0, "reduce_arg_budget": 0}},
+    {"name": "reduce-kind-predicate", "overrides": {"predicate": "kind"}}
+  ]
+}

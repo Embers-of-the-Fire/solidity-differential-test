@@ -5,10 +5,15 @@ def spec(source="contract c {}", name="x"):
     return {"name": name, "solidity": source, "contract": "c", "steps": []}
 
 
-def div_report(kind="RETURN_MISMATCH", detail="dry-run return values differ"):
+SIG = "RETURN_MISMATCH|0|get|int≠int"
+SIG2 = "EVENT_MISMATCH|0|emit|args"
+
+
+def div_report(kind="RETURN_MISMATCH", detail="dry-run return values differ", sig=SIG):
     return {
         "verdict": "DIVERGENCE",
-        "divergences": [{"kind": kind, "step": 0, "detail": detail}],
+        "divergences": [{"kind": kind, "step": 0, "detail": detail, "signature": sig}],
+        "earliest_divergence": {"point": 0, "signature": sig},
         "tool_versions": {"solc": "x"},
     }
 
@@ -35,18 +40,52 @@ def test_add_finding_and_dedup(tmp_path):
     assert len(store.findings()) == 1
     finding = store.get_finding(fid)
     assert finding is not None and finding["triage"]["blame"] == "solang"
+    assert finding["earliest_signature"] == SIG
+    assert finding["signatures"] == [SIG]
     report = store.report_for(fid)
     assert report is not None and report["verdict"] == "DIVERGENCE"
 
 
-def test_fingerprint_normalizes_whitespace_and_case():
-    a = fingerprint(
-        {"RETURN_MISMATCH"}, "Dry-Run  RETURN values differ", "contract c  { }"
+def test_same_signature_different_source_dedups(tmp_path):
+    """T0.2/D2: the fingerprint is the signature set, not the source text."""
+    store = FindingStore(tmp_path)
+    fid = store.add_finding(
+        spec=spec(
+            source="contract c { function get() external returns (uint) { return 1; } }"
+        ),
+        report=div_report(),
+        triage=TRIAGE,
+        seed_id="s1",
     )
-    b = fingerprint(
-        {"RETURN_MISMATCH"}, "dry-run return values differ", "contract c { }"
+    assert fid is not None
+    dup = store.add_finding(
+        spec=spec(
+            source="contract c { // different spelling\n function get() external returns (uint) { return 2; } }"
+        ),
+        report=div_report(),
+        triage=TRIAGE,
+        seed_id="s1",
     )
-    assert a == b
+    assert dup is None
+    assert len(store.findings()) == 1
+
+
+def test_distinct_signatures_are_distinct_findings(tmp_path):
+    store = FindingStore(tmp_path)
+    a = store.add_finding(spec=spec(), report=div_report(), triage=TRIAGE, seed_id="s1")
+    b = store.add_finding(
+        spec=spec(),
+        report=div_report(kind="EVENT_MISMATCH", sig=SIG2),
+        triage=TRIAGE,
+        seed_id="s1",
+    )
+    assert a is not None and b is not None and a != b
+    assert store.known_signatures() == {SIG, SIG2}
+
+
+def test_fingerprint_is_order_insensitive():
+    assert fingerprint({"a", "b"}) == fingerprint({"b", "a"})
+    assert fingerprint({"a", "b"}) != fingerprint({"a"})
 
 
 def test_probes_and_seed_stats(tmp_path):

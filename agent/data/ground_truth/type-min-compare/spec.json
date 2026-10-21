@@ -1,0 +1,27 @@
+{
+  "name": "type-min-compare",
+  "solidity": "contract C {\n    function f(int256 x) public pure returns (bool) { return x == type(int256).min; }\n}",
+  "contract": "C",
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "query",
+      "function": "f",
+      "args": [
+        -1
+      ]
+    }
+  ],
+  "_affected": [
+    "0.3.1",
+    "0.3.2"
+  ],
+  "_fixed_in": "0.3.3",
+  "_source": "https://github.com/hyperledger-solang/solang/issues/1523",
+  "_note": "bounds-check bug when resolving comparisons against type(int256).min; valid code rejected (PR #1527)"
+}
