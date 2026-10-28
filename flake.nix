@@ -74,6 +74,7 @@
           pkgs.uv
           pkgs.python3
           pkgs.typst # compiles reports/*.typ (progress reports)
+          pkgs.dotenvx
         ];
 
         shellHook = ''

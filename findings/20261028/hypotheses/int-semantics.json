@@ -1,0 +1,48 @@
+{
+  "seed_id": "int-semantics",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "solang accepts explicit narrowing conversions from signed to unsigned integer types of different widths (e.g. int16 -> uint8) that solc >=0.8 rejects with 'Explicit type conversion not allowed'. This creates compile-time asymmetry for any seed using direct signed->unsigned narrowing casts; such specs only exercise solang and mask runtime divergences.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "signed-div-mod-shift-cast",
+          "verdict": "DIVERGENCE",
+          "note": "COMPILE_ASYMMETRY: solc rejected uint8(x) where x is int16; solang compiled fine. Runtime steps never executed on EVM side."
+        }
+      ],
+      "next_probe": "Minimal compile-only probe: contract with function f(int16 x) returns (uint8) { return uint8(x); } compiled by both toolchains. Expect solc reject / solang accept. Also try int8 -> uint16 and int32 -> uint128 to map the scope of the asymmetry."
+    },
+    {
+      "id": "h2",
+      "statement": "solang's runtime semantics for the two-step legal cast chain (int16 -> int8 -> uint8 -> uint64 -> int64, i.e. truncate then zero-extend) match solc's: int16(-1) yields 255, not -1. If solang instead sign-extends through the chain (yields -1) that is a codegen bug.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "signed-div-mod-shift-cast",
+          "verdict": "DIVERGENCE",
+          "note": "Cast semantics untested: solc compile failure blocked all runtime comparison."
+        }
+      ],
+      "next_probe": "Rewrite doCast as int64(uint64(uint8(int8(x)))) \u2014 legal in both compilers \u2014 call with -1, query lastCast; expect 255 on both."
+    },
+    {
+      "id": "h3",
+      "statement": "solang agrees with solc on signed division/modulo truncation toward zero (-7/2==-3, -7%2==-1), arithmetic shift right on signed ints (-8>>1==-4), and the int8 overflow edge case -128 / -1 (solc >=0.8 reverts on overflow). No evidence yet because the probe died at compile time.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "signed-div-mod-shift-cast",
+          "verdict": "DIVERGENCE",
+          "note": "Div/mod/shift behavior never observed due to compile asymmetry; hypothesis carries zero runtime evidence."
+        }
+      ],
+      "next_probe": "Same spec minus the doCast function (drop lastCast and its step): run doDivMod(-7,2), doShift(-8), doDivMod(-128,-1), then query lastDiv/lastMod/lastShift. Compare revert behavior and stored values."
+    }
+  ],
+  "updated_ts": 1793171781.417665
+}

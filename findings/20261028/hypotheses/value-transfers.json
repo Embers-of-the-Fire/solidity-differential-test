@@ -1,0 +1,48 @@
+{
+  "seed_id": "value-transfers",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "Raw storage-multiset comparison is unreliable in the value-transfer area: polkadot-side storage can legitimately differ from EVM (e.g., a slot holding msg.value absent/different on pallet-contracts), producing oracle_artifact STORAGE_MISMATCHes even when observable behavior (getters, revert status) matches. Oracle for this area should compare decoded getter return values and call status, not raw storage.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "payable-vs-nonpayable-value-revert",
+          "verdict": "DIVERGENCE",
+          "note": "STORAGE_MISMATCH at step 4 triaged as oracle_artifact: EVM storage multiset [1e12, 2] vs polkadot [2] \u2014 lastValue slot present on EVM, absent on polkadot."
+        }
+      ],
+      "next_probe": "Re-run the same deposit/strict sequence but with oracle.storage disabled and oracle comparing only getLast()/getCount() return values plus per-call status; predict PASS on both backends if the raw-storage mismatch is purely an artifact."
+    },
+    {
+      "id": "h2",
+      "statement": "On pallet-contracts via solang, a deposit() call carrying value 1e12 planck leaves lastValue (msg.value recording) as zero/absent in storage, unlike solc/EVM where msg.value is stored verbatim \u2014 possibly due to value-vs-existential-deposit handling or solang's msg.value mapping.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "payable-vs-nonpayable-value-revert",
+          "verdict": "DIVERGENCE",
+          "note": "Polkadot storage lacked the 1e12 lastValue entry that EVM storage contained after alice's deposit."
+        }
+      ],
+      "next_probe": "Minimal probe: single payable deposit(value=1e12) followed by getLast() query, comparing the getter's returned uint256 across backends. If polkadot returns 0 while EVM returns 1e12, confirmed; then repeat with a value above the existential deposit to isolate the cause."
+    },
+    {
+      "id": "h3",
+      "statement": "Sending value to a non-payable function (strict) reverts identically on both backends: on EVM solc enforces non-payability with a revert; solang/pallet-contracts is expected to match, but this probe's count value of 2 at step 4 on both sides leaves it ambiguous whether strict reverted or was accepted.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "payable-vs-nonpayable-value-revert",
+          "verdict": "DIVERGENCE",
+          "note": "count=2 observed on both backends at step 4 despite bob's value-bearing strict() call, so revert parity for non-payable functions was not cleanly isolated."
+        }
+      ],
+      "next_probe": "Single-step probe: call strict() with value=1e12 as the only state-changing action, capture status and revert_reason on both backends, then query getCount(); predict count stays 0 and statuses match."
+    }
+  ],
+  "updated_ts": 1793172143.706384
+}

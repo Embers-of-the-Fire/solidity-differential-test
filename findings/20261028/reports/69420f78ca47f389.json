@@ -1,0 +1,81 @@
+{
+  "name": "signed-div-mod-shift-cast",
+  "contract": "IntSemantics",
+  "tool_versions": {
+    "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+    "solang": "solang version v0.3.5",
+    "anvil": "anvil Version: 1.7.1-dev",
+    "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+  },
+  "oracle_config": {
+    "storage": "count",
+    "events": false,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "execution": "on-chain",
+  "workdir": "/tmp/oracle-run-5__574v7",
+  "timing": {
+    "started_at": "2026-10-28T07:16:43.254+00:00",
+    "started_epoch": 1793171803.2549028,
+    "total_ms": 277.48424699893803,
+    "nodes": {}
+  },
+  "compile": {
+    "solc": {
+      "compiler": "solc",
+      "ok": false,
+      "version": "Version: 0.8.33+commit.64118f21.Linux.g++",
+      "errors": [
+        "TypeError: Explicit type conversion not allowed from \"int16\" to \"uint8\".\n --> input.sol:4:9:\n  |\n4 |         uint8(x);\n  |         ^^^^^^^^\n\n"
+      ],
+      "warnings": [
+        "Warning: SPDX license identifier not provided in source file. Before publishing, consider adding a comment containing \"SPDX-License-Identifier: <SPDX-License>\" to each source file. Use \"SPDX-License-Identifier: UNLICENSED\" for non-open-source code. Please see https://spdx.org for more information.\n--> input.sol\n\n"
+      ],
+      "artifacts": null,
+      "elapsed_ms": 5.192164000618504
+    },
+    "solang": {
+      "compiler": "solang",
+      "ok": true,
+      "version": "solang version v0.3.5",
+      "errors": null,
+      "warnings": [
+        "\u001b[0m\u001b[1m\u001b[38;5;11mwarning\u001b[0m\u001b[1m: function parameter 'x' is unused\u001b[0m"
+      ],
+      "artifacts": {
+        "abi": false,
+        "bytecode_bytes": 0,
+        "wasm_bytes": 37760,
+        "metadata": true
+      },
+      "elapsed_ms": 272.26789300038945
+    }
+  },
+  "deploy": {},
+  "steps": [],
+  "divergences": [
+    {
+      "kind": "COMPILE_ASYMMETRY",
+      "step": null,
+      "detail": "one compiler rejected the source while the other accepted it",
+      "evm": {
+        "solc_ok": false,
+        "errors": [
+          "TypeError: Explicit type conversion not allowed from \"int16\" to \"uint8\".\n --> input.sol:4:9:\n  |\n4 |         uint8(x);\n  |         ^^^^^^^^\n\n"
+        ]
+      },
+      "polkadot": {
+        "solang_ok": true,
+        "errors": null
+      },
+      "point": "compile",
+      "signature": "COMPILE_ASYMMETRY|compile||solc-rejects"
+    }
+  ],
+  "earliest_divergence": {
+    "point": "compile",
+    "signature": "COMPILE_ASYMMETRY|compile||solc-rejects"
+  },
+  "verdict": "DIVERGENCE"
+}

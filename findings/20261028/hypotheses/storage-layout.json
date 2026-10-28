@@ -1,0 +1,34 @@
+{
+  "seed_id": "storage-layout",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "solang's code emitter panics (unwrap on None at src/emit/instructions.rs:774) when compiling a contract combining packed small-width storage fields, a struct, a dynamic bytes field with delete, and a multi-arg event \u2014 while solc compiles it fine. This is a hard compiler crash (bug in solang's emitter), not a semantic rejection, and it blocks any storage-layout comparison for such contracts.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "storage-packing-mixed-width-delete",
+          "verdict": "DIVERGENCE",
+          "note": "COMPILE_ASYMMETRY: solc accepted; solang panicked with 'called Option::unwrap() on a None value' at src/emit/instructions.rs:774 (emitter codegen crash, not a sema error)."
+        }
+      ],
+      "next_probe": "Bisect the trigger with minimal single-feature contracts compiled by solang: (1) only uint8/bool/int32/uint8 fields with write+delete, (2) only the struct Mixed with assignment, (3) only `bytes blob` with setBlob/clearFields(delete blob)/blobLen, (4) only the event Wrote emitted from writeFields. The smallest variant that still panics localizes the emitter bug."
+    },
+    {
+      "id": "h2",
+      "statement": "solang emitter panics are masked as ordinary compile asymmetries by the harness: a Rust panic with a backtrace hint is reported as solang_ok=false with errors, making compiler crashes indistinguishable from legitimate source rejections without inspecting the error text.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "storage-packing-mixed-width-delete",
+          "verdict": "DIVERGENCE",
+          "note": "The only error reported for solang was a Rust panic message; the verdict pipeline treats it identically to a normal compile failure (signature COMPILE_ASYMMETRY|compile||solang-rejects)."
+        }
+      ],
+      "next_probe": "Check whether triage/signature generation distinguishes panic messages (containing 'panicked at' / 'RUST_BACKTRACE') from normal solang diagnostics; if not, propose a probe spec with deliberately invalid Solidity to confirm normal rejections carry structured diagnostics rather than panic text."
+    }
+  ],
+  "updated_ts": 1793171880.4777575
+}
