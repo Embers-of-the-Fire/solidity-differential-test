@@ -19,7 +19,9 @@ uv sync         # python deps (once)
 ## Configure the model
 
 Point the agent at any OpenAI-compatible server (llama.cpp, vLLM, Ollama, or a
-hosted API):
+hosted API). Either export the variables or put them in a `.env` file at the
+repo root (loaded automatically; exported variables take precedence; the
+`export` prefix is valid in both):
 
 ```bash
 export AGENT_LLM_BASE_URL=http://127.0.0.1:8080/v1

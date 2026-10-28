@@ -5,6 +5,8 @@ from __future__ import annotations
 import argparse
 import sys
 
+from dotenv import load_dotenv
+
 from .report import write_json, write_markdown
 from .runner import DifferentialRunner
 from .spec import load_test_spec
@@ -28,6 +30,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Load the nearest .env (searched upward from the package, so the repo-root
+    # .env is found from any cwd) so ORACLE_SOLANG_BIN can live there;
+    # real environment variables still win.
+    load_dotenv()
     args = build_parser().parse_args(argv)
     if args.command == "run":
         spec = load_test_spec(args.spec)

@@ -21,6 +21,8 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from .usage import Pricing
 
 PLACEHOLDER_BASE_URL = "http://REPLACE-ME.invalid/v1"
@@ -110,6 +112,9 @@ def load_config(
     reduce_arg_budget: int | None = None,
     reduce_llm_rounds: int | None = None,
 ) -> AgentConfig:
+    # Load the nearest .env (searched upward from the package, so the repo-root
+    # .env is found from any cwd); real environment variables still win.
+    load_dotenv()
     cfg = AgentConfig(
         base_url=os.environ.get("AGENT_LLM_BASE_URL", PLACEHOLDER_BASE_URL),
         model=os.environ.get("AGENT_LLM_MODEL", PLACEHOLDER_MODEL),
