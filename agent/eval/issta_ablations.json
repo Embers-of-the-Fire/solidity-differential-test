@@ -1,0 +1,23 @@
+{
+  "budget": {"oracle_runs": 300, "llm_calls": 200, "saturation_window": 10},
+  "repeats": 5,
+  "configs": [
+    {"name": "full", "overrides": {}},
+    {"name": "generation-only", "overrides": {"p_mutate": 0.0}},
+    {"name": "no-reflect", "overrides": {"reflect": "never"}},
+    {
+      "name": "no-llm",
+      "overrides": {
+        "generation_backend": "template",
+        "triage_backend": "rules",
+        "reflect": "never",
+        "llm_mutants_per_round": 0,
+        "reduce_llm_rounds": 0
+      }
+    },
+    {
+      "name": "dry-run-only",
+      "overrides": {"execution_mode": "dry-run-only"}
+    }
+  ]
+}

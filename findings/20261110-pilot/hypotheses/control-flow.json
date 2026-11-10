@@ -1,0 +1,20 @@
+{
+  "seed_id": "control-flow",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "Structured control flow (nested loops with break/continue, internal recursion, early return) produces identical storage, return values, and events on solc/anvil and solang/pallet-contracts at moderate input scales; divergence risk is concentrated near resource limits, not in control-flow semantics themselves.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "controlflow-loops-recursion-earlyreturn",
+          "verdict": "PASS",
+          "note": "nestedLoops(6) with break/continue, recurse(5) via factorial, earlyReturn(3) hitting both branches, and loopAccum(1000) all matched: counter/lastLoop storage, return values, and LoopDone event identical; no divergence in control-flow semantics at these scales."
+        }
+      ],
+      "next_probe": "Call loopAccum with increasing n (e.g. 10k, 100k, 1M) on both chains to find the point where one chain runs out of gas/weight while the other still succeeds, exposing the metering-model threshold."
+    }
+  ],
+  "updated_ts": 1794271249.501063
+}

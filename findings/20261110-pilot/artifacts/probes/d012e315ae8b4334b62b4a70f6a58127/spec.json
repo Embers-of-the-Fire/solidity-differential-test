@@ -1,0 +1,52 @@
+{
+  "name": "events-indexed-args-dynamic",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract EventProbe {\n    event CtorIndexed(address indexed who, bytes32 tag);\n    event OneIndexed(uint indexed a, uint b);\n    event TwoIndexed(address indexed a, uint indexed b, string c);\n    event ThreeIndexed(address indexed a, bytes indexed data, uint indexed n);\n    event Dup(uint indexed v);\n\n    uint256 public count;\n\n    constructor(address who) {\n        emit CtorIndexed(who, bytes32(uint256(0xC0FFEE)));\n        count = 1;\n    }\n\n    function emitMulti() public {\n        emit OneIndexed(11, 22);\n        emit TwoIndexed(msg.sender, 33, \"hello-events\");\n        emit ThreeIndexed(msg.sender, hex\"aabbccdd\", 44);\n        emit Dup(55);\n        emit Dup(55);\n        count += 5;\n    }\n\n    function emitSimple(uint256 v) public {\n        emit OneIndexed(v, v + 1);\n        count += 1;\n    }\n\n    function getCount() public view returns (uint256) {\n        return count;\n    }\n}",
+  "contract": "EventProbe",
+  "constructor": {
+    "args": [
+      "$deployer"
+    ]
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "emitMulti",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "getCount",
+      "args": []
+    },
+    {
+      "action": "call",
+      "function": "emitSimple",
+      "args": [
+        7
+      ],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "getCount",
+      "args": []
+    }
+  ],
+  "meta": {
+    "parent_id": null,
+    "origin": "generated"
+  },
+  "execution": "on-chain"
+}

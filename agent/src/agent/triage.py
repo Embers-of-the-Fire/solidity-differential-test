@@ -56,9 +56,17 @@ def _validate_triage(d: dict[str, Any]) -> list[str]:
 
 
 def triage_report(
-    client: ChatClient, spec_dict: dict[str, Any], report: dict[str, Any]
+    client: ChatClient,
+    spec_dict: dict[str, Any],
+    report: dict[str, Any],
+    *,
+    backend: str = "llm",
 ) -> dict[str, Any]:
-    """Classify one oracle report. Never raises on LLM failure."""
+    """Classify one oracle report. Never raises on LLM failure.
+
+    ``backend=rules`` supports genuinely LLM-free hunts: unresolved divergences
+    remain bug candidates and are deferred to the common offline review layer.
+    """
     verdict = report.get("verdict")
     if verdict == "PASS":
         return {"category": "pass", "rationale": "chains agree"}
@@ -85,6 +93,17 @@ def triage_report(
             "blame": "neither",
             "summary": "; ".join(d.get("detail", "") for d in divs),
             "rule_based": True,
+        }
+
+    if backend == "rules":
+        return {
+            "category": "bug_candidate",
+            "confidence": "low",
+            "rationale": "deterministic triage could not resolve the divergence; deferred to offline adjudication",
+            "blame": "neither",
+            "summary": "; ".join(d.get("detail", "") for d in divs),
+            "rule_based": True,
+            "triage_deferred": True,
         }
 
     kinds = divergence_kinds(report)

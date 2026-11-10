@@ -5,6 +5,7 @@ No chain nodes, no network: the matrix runs through the same FakeLLM /
 FakeExecutor plumbing as test_loop.
 """
 
+import dataclasses
 import json
 from pathlib import Path
 
@@ -49,6 +50,15 @@ def test_shipped_ablations_matrix_is_valid():
         "hybrid-no-reflect",
         "hybrid-no-admission",
     ]
+
+
+def test_issta_matrix_has_genuine_no_llm_and_dry_run_configs():
+    path = Path(__file__).parents[1] / "eval" / "issta_ablations.json"
+    matrix = load_eval_config(path)
+    configs = {c.name: c.overrides for c in matrix.configs}
+    no_llm = dataclasses.replace(AgentConfig(), **configs["no-llm"])
+    assert not no_llm.requires_llm()
+    assert configs["dry-run-only"]["execution_mode"] == "dry-run-only"
 
 
 def test_load_eval_config_valid(tmp_path):

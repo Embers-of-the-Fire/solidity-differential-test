@@ -30,6 +30,7 @@ from .config import AgentConfig
 from .executor import OracleRunner
 from .llm import ChatClient
 from .loop import HuntLoop
+from .provenance import write_campaign_metadata
 from .stop import StopPolicy
 from .usage import summarize_jsonl
 
@@ -178,6 +179,11 @@ def _run_one(
         **entry.overrides,
     )
     seed = run_seed(entry.name, repeat)
+    write_campaign_metadata(
+        run_dir,
+        cfg,
+        extra={"config_name": entry.name, "repeat": repeat, "rng_seed": seed},
+    )
     policy = StopPolicy(
         oracle_runs_budget=matrix.budget.oracle_runs,
         llm_calls_budget=matrix.budget.llm_calls,

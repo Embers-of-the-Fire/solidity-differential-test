@@ -18,11 +18,15 @@ divergences, not oracle artifacts.
 
 ## C2 — Effectiveness
 
-The loop finds previously unknown divergences on the latest solang.
+The loop finds distinct, reproducible solang bugs on the latest solang;
+"previously unreported" is a separate, human-reviewed and time-stamped upstream
+claim, never inferred from an LLM label or fingerprint count.
 
-- Evidence: grown witness corpus under `findings/hunt-latest/` (T3.2,
-  requires LLM budget); the seed corpus `findings/20260923/` (3 witnesses,
-  exported in `dataset/witnesses/`) as the existence proof of the pipeline.
+- Evidence: controlled comparisons in `agent/eval/issta_ablations.json`; grown
+  witness corpus under `findings/hunt-latest/` (T3.2, requires LLM budget);
+  retained rejected-probe audits; `review/decisions.jsonl` and confirmed-bug
+  analysis; the seed corpus `findings/20260923/` (3 witnesses, exported in
+  `dataset/witnesses/`) as the existence proof of the pipeline.
 
 ## C3 — Verified reduction is cheap and tight
 

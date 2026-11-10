@@ -1,0 +1,71 @@
+{
+  "name": "env-gasleft-txorigin-flags",
+  "solidity": "pragma solidity >=0.8.0;\ncontract EnvVarsProbe {\n    uint256 public strictFlag;   // gasleft() > 0 at time of capture\n    uint256 public originMatch;  // msg.sender == tx.origin for a direct call\n    address public seenSender;\n    address public seenOrigin;\n    event Captured(uint256 number, uint256 gasLeft, address sender, address origin);\n\n    function capture() external {\n        strictFlag = gasleft() > 0 ? 1 : 0;\n        seenSender = msg.sender;\n        seenOrigin = tx.origin;\n        originMatch = (msg.sender == tx.origin) ? 1 : 0;\n        emit Captured(block.number, gasleft(), msg.sender, tx.origin);\n    }\n\n    function strict() external view returns (uint256) {\n        return strictFlag;\n    }\n\n    function matchOrigin() external view returns (uint256) {\n        return originMatch;\n    }\n\n    function originIsSender() external view returns (bool) {\n        return seenOrigin == seenSender;\n    }\n}",
+  "contract": "EnvVarsProbe",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "capture",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "strict",
+      "args": []
+    },
+    {
+      "action": "query",
+      "function": "matchOrigin",
+      "args": []
+    },
+    {
+      "action": "query",
+      "function": "originIsSender",
+      "args": []
+    },
+    {
+      "action": "call",
+      "function": "capture",
+      "args": [],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "strict",
+      "args": []
+    },
+    {
+      "action": "query",
+      "function": "matchOrigin",
+      "args": []
+    },
+    {
+      "action": "query",
+      "function": "originIsSender",
+      "args": []
+    }
+  ],
+  "meta": {
+    "parent_id": null,
+    "origin": "generated"
+  },
+  "execution": "on-chain"
+}

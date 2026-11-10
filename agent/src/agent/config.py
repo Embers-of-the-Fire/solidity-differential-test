@@ -46,6 +46,9 @@ class AgentConfig:
     oracle_runs_budget: int = 100
     saturation_window: int = 10
     parallel: int = 4
+    generation_backend: str = "llm"  # "llm" | "template"
+    triage_backend: str = "llm"  # "llm" | "rules" (unresolved -> bug_candidate)
+    execution_mode: str = "on-chain"  # "on-chain" | "dry-run-only"
     p_mutate: float = 0.7  # 0.0 reproduces the generation-only baseline loop
     prog_mutants_per_round: int = 4  # free programmatic mutants per mutation round
     llm_mutants_per_round: int = 4  # mutants requested in the single batch LLM call
@@ -65,6 +68,29 @@ class AgentConfig:
     price_input_per_1m: float = 0.0
     price_cached_input_per_1m: float | None = None  # None -> same as input
     price_output_per_1m: float = 0.0
+
+    def __post_init__(self) -> None:
+        choices = {
+            "generation_backend": {"llm", "template"},
+            "triage_backend": {"llm", "rules"},
+            "execution_mode": {"on-chain", "dry-run-only"},
+        }
+        for field_name, allowed in choices.items():
+            value = getattr(self, field_name)
+            if value not in allowed:
+                raise AgentConfigError(
+                    f"{field_name} must be one of {sorted(allowed)}, got {value!r}"
+                )
+
+    def requires_llm(self) -> bool:
+        """Whether any enabled discovery/reduction stage can call an LLM."""
+        return (
+            self.generation_backend == "llm"
+            or self.triage_backend == "llm"
+            or self.reflect != "never"
+            or self.llm_mutants_per_round > 0
+            or self.reduce_llm_rounds > 0
+        )
 
     def pricing(self) -> Pricing:
         return Pricing(
@@ -99,6 +125,9 @@ def load_config(
     oracle_runs: int | None = None,
     saturation_window: int | None = None,
     parallel: int | None = None,
+    generation_backend: str | None = None,
+    triage_backend: str | None = None,
+    execution_mode: str | None = None,
     p_mutate: float | None = None,
     prog_mutants_per_round: int | None = None,
     llm_mutants_per_round: int | None = None,
@@ -131,6 +160,12 @@ def load_config(
         cfg.saturation_window = saturation_window
     if parallel is not None:
         cfg.parallel = parallel
+    if generation_backend is not None:
+        cfg.generation_backend = generation_backend
+    if triage_backend is not None:
+        cfg.triage_backend = triage_backend
+    if execution_mode is not None:
+        cfg.execution_mode = execution_mode
     if p_mutate is not None:
         cfg.p_mutate = p_mutate
     if prog_mutants_per_round is not None:
@@ -173,4 +208,5 @@ def load_config(
     cfg.price_output_per_1m = float(
         os.environ.get("AGENT_LLM_PRICE_OUTPUT_PER_1M", 0.0)
     )
+    cfg.__post_init__()
     return cfg

@@ -17,7 +17,7 @@ from .executor import (
 )
 from .generator import generate_spec
 from .hypotheses import load_notebook, summary_counts
-from .llm import ChatClient, LLMClient, LLMError
+from .llm import ChatClient, LLMClient, LLMError, NullChatClient
 from .minimize import ReduceConfig, minimize
 from .mutate import llm_mutants, programmatic_mutants
 from .reflect import reflect_notebook
@@ -49,8 +49,12 @@ class HuntLoop:
         log: Callable[[str], None] = print,
     ):
         self.cfg = cfg
-        self.client = client or LLMClient(cfg)
-        self.executor = executor or Executor(cfg.parallel)
+        self.client = client or (
+            LLMClient(cfg) if cfg.requires_llm() else NullChatClient()
+        )
+        self.executor = executor or Executor(
+            cfg.parallel, execution_mode=cfg.execution_mode
+        )
         self.store = store or FindingStore(cfg.findings_dir)
         self.rng = random.Random(rng_seed)
         self.log = log
@@ -76,6 +80,18 @@ class HuntLoop:
         return bool(nb["hypotheses"]) and all(
             h["status"] != "open" for h in nb["hypotheses"]
         )
+
+    def _generate(self, seed, notebook: dict[str, Any]) -> dict[str, Any]:
+        if self.cfg.generation_backend == "template":
+            from .template_generator import generate_template_spec
+
+            return generate_template_spec(
+                seed,
+                self.rng,
+                recent_probes=self.store.recent_probes(),
+                notebook=notebook,
+            )
+        return generate_spec(self.client, seed, self.store.recent_probes(), notebook)
 
     def round(self, only_seeds: list[str] | None = None) -> dict[str, Any]:
         """One generate-run-triage-reflect cycle. Returns a probe summary."""
@@ -103,9 +119,7 @@ class HuntLoop:
 
         t0 = time.perf_counter()
         try:
-            spec = generate_spec(
-                self.client, seed, self.store.recent_probes(), notebook
-            )
+            spec = self._generate(seed, notebook)
         except LLMError as e:
             phase_ms["generate_ms"] = (time.perf_counter() - t0) * 1000.0
             self.log(f"[generate] failed: {e}")
@@ -130,7 +144,9 @@ class HuntLoop:
         self.log(f"[run] verdict={verdict} kinds={sorted(kinds) or '-'}")
 
         t0 = time.perf_counter()
-        triage = triage_report(self.client, spec, report)
+        triage = triage_report(
+            self.client, spec, report, backend=self.cfg.triage_backend
+        )
         phase_ms["triage_ms"] = (time.perf_counter() - t0) * 1000.0
         category = triage["category"]
         self.log(
@@ -139,7 +155,7 @@ class HuntLoop:
 
         phase_ms["round_ms"] = (time.perf_counter() - t_round) * 1000.0
         usage = self.client.usage_since(usage_mark)["totals"]
-        self.store.record_probe(
+        probe_id = self.store.record_probe(
             spec=spec,
             report=report,
             seed_id=seed.id,
@@ -148,6 +164,7 @@ class HuntLoop:
             usage=usage,
             oracle_runs_total=self.executor.runs,
             llm_calls_total=self.client.calls,
+            llm_tokens_total=self.client.usage_totals()["totals"]["total_tokens"],
             parent_id=parent_id,
             origin=origin,
         )
@@ -223,6 +240,7 @@ class HuntLoop:
                     llm_calls_total=self.client.calls,
                     minimality=minimality,
                     original_spec=spec,
+                    origin_probe_id=probe_id,
                 )
                 if finding_id:
                     self.log(f"[finding] NEW {finding_id}: {triage.get('summary')}")
@@ -243,6 +261,7 @@ class HuntLoop:
                     usage=summary["usage"],
                     oracle_runs_total=self.executor.runs,
                     llm_calls_total=self.client.calls,
+                    origin_probe_id=probe_id,
                 )
                 summary["finding_id"] = finding_id
         phase_ms["round_ms"] = (time.perf_counter() - t_round) * 1000.0
@@ -311,9 +330,7 @@ class HuntLoop:
             self.log("[mutate] empty batch; falling back to generation")
             t0 = time.perf_counter()
             try:
-                spec = generate_spec(
-                    self.client, seed, self.store.recent_probes(), notebook
-                )
+                spec = self._generate(seed, notebook)
             except LLMError as e:
                 phase_ms["generate_ms"] = (time.perf_counter() - t0) * 1000.0
                 return {
@@ -342,6 +359,7 @@ class HuntLoop:
                 origin="mutated_llm",
                 oracle_runs_total=self.executor.runs,
                 llm_calls_total=self.client.calls,
+                llm_tokens_total=self.client.usage_totals()["totals"]["total_tokens"],
             )
             corpus.record_offspring(parent_id, "invalid")
 
@@ -350,16 +368,29 @@ class HuntLoop:
         phase_ms["oracle_ms"] = (time.perf_counter() - t0) * 1000.0
 
         t0 = time.perf_counter()
-        triages = [
-            triage_report(self.client, spec, report)
-            for (spec, _), report in zip(batch, reports, strict=True)
-        ]
+        triages = []
+        discovery_counters = []
+        for (spec, _), report in zip(batch, reports, strict=True):
+            triages.append(
+                triage_report(
+                    self.client, spec, report, backend=self.cfg.triage_backend
+                )
+            )
+            discovery_counters.append(
+                (
+                    self.client.calls,
+                    self.client.usage_totals()["totals"]["total_tokens"],
+                )
+            )
         phase_ms["triage_ms"] = (time.perf_counter() - t0) * 1000.0
 
         known_fps = self.store.known_fingerprints()
         per_mutant: list[dict[str, Any]] = []
+        probe_ids: list[str] = []
         union_kinds: set[str] = set()
-        for (spec, origin), report, triage in zip(batch, reports, triages, strict=True):
+        for (spec, origin), report, triage, (llm_calls, llm_tokens) in zip(
+            batch, reports, triages, discovery_counters, strict=True
+        ):
             verdict = report.get("verdict")
             kinds = divergence_kinds(report)
             union_kinds |= kinds
@@ -368,7 +399,7 @@ class HuntLoop:
                 f"[run] {spec.get('name')} verdict={verdict} "
                 f"kinds={sorted(kinds) or '-'} category={category}"
             )
-            self.store.record_probe(
+            probe_id = self.store.record_probe(
                 spec=spec,
                 report=report,
                 seed_id=seed.id,
@@ -376,8 +407,10 @@ class HuntLoop:
                 parent_id=parent_id,
                 origin=origin,
                 oracle_runs_total=self.executor.runs,
-                llm_calls_total=self.client.calls,
+                llm_calls_total=llm_calls,
+                llm_tokens_total=llm_tokens,
             )
+            probe_ids.append(probe_id)
             self.store.note_seed_result(seed.id, kinds)
             corpus.record_offspring(
                 parent_id,
@@ -400,6 +433,7 @@ class HuntLoop:
                 self.log(f"[corpus] admitted {entry['id']} ({entry['admitted_by']})")
             per_mutant.append(
                 {
+                    "probe_id": probe_id,
                     "name": spec.get("name"),
                     "origin": origin,
                     "verdict": verdict,
@@ -428,7 +462,9 @@ class HuntLoop:
 
         finding_ids: list[str] = []
         t0 = time.perf_counter()
-        for (spec, _), report, triage in zip(batch, reports, triages, strict=True):
+        for (spec, _), report, triage, probe_id in zip(
+            batch, reports, triages, probe_ids, strict=True
+        ):
             if triage["category"] != "bug_candidate":
                 continue
             if self._known_witness(report):
@@ -459,6 +495,7 @@ class HuntLoop:
                 llm_calls_total=self.client.calls,
                 minimality=kept_minimality,
                 original_spec=spec,
+                origin_probe_id=probe_id,
             )
             if finding_id:
                 self.log(f"[finding] NEW {finding_id}: {triage.get('summary')}")
@@ -494,7 +531,9 @@ class HuntLoop:
         return StopPolicy(
             max_rounds=max_rounds,
             oracle_runs_budget=self.cfg.oracle_runs_budget,
-            llm_calls_budget=self.cfg.llm_calls_budget,
+            llm_calls_budget=(
+                self.cfg.llm_calls_budget if self.cfg.requires_llm() else None
+            ),
             saturation_window=self.cfg.saturation_window,
         )
 

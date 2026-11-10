@@ -1,0 +1,48 @@
+{
+  "seed_id": "value-transfers",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "For a selector-resolved external function declared nonpayable, both solc/anvil and solang/pallet-contracts reject a nonzero msg.value at the call boundary before executing the body, leaving storage unchanged and emitting no function event.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "payable-value-nonpayable-status",
+          "verdict": "PASS",
+          "note": "pay(0) reverted and kept count=0; pay(1) incremented count and emitted Paid; np() with value=1 reverted without changing count; np() with value=0 incremented count. No status/storage/event/revert-reason divergence was reported."
+        }
+      ],
+      "next_probe": "Add a receive()/fallback() to the same probe and call the nonpayable function with value to check whether value is rejected by the targeted nonpayable function or rerouted to fallback/receive differently across chains."
+    },
+    {
+      "id": "h2",
+      "statement": "A payable function using require(msg.value > 0) behaves equivalently on both chains for the zero/nonzero boundary: value=0 reverts with the expected reason and no state/event effect, while the minimum nonzero value=1 executes the body.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "payable-value-nonpayable-status",
+          "verdict": "PASS",
+          "note": "The zero-value require path and the value=1 success path matched across solc and solang; revert_reasons and events were enabled in the oracle and produced no divergence."
+        }
+      ],
+      "next_probe": "Change pay() to branch on exact msg.value, e.g. require(msg.value == 1), and test values 0, 1, and 2 to verify equality-vs-inequality value predicates also match."
+    },
+    {
+      "id": "h3",
+      "statement": "Native-token unit differences (EVM wei vs pallet-contracts planck/existential-deposit model) did not surface as a behavioral divergence for status-only oracles when comparing payable gating, nonpayable rejection, storage count, and event emission.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "payable-value-nonpayable-status",
+          "verdict": "PASS",
+          "note": "All value-transfer semantics probed here agreed despite the known different balance models; balances were not compared, consistent with the seed area guidance."
+        }
+      ],
+      "next_probe": "Probe larger value magnitudes near the funding limit, especially a value accepted by anvil but potentially dust/ED-affecting on pallet-contracts, while keeping the oracle to status/storage/events and never comparing balances."
+    }
+  ],
+  "updated_ts": 1794271727.6437078
+}

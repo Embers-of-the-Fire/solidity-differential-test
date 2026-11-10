@@ -98,3 +98,7 @@ def test_e2e_hunt_loop_one_round(tmp_path):
     probe = loop.store.recent_probes(1)[0]
     assert probe["verdict"] == "DIVERGENCE"
     assert probe["category"] == "known_semantic"
+    # Rejected divergences remain replayable for offline false-negative audits.
+    assert probe["probe_id"]
+    assert (tmp_path / probe["spec_path"]).exists()
+    assert (tmp_path / probe["report_path"]).exists()

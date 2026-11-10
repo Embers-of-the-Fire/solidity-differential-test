@@ -1,0 +1,34 @@
+{
+  "seed_id": "crypto-builtins",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "solang rejects the global builtin `ecrecover(hash,v,r,s)` at compile time as an unknown function, while solc accepts it; any contract using the ecrecover builtin fails to compile for pallet-contracts. This is a compile-time asymmetry, not a runtime semantic divergence.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "crypto-builtin-hash-packed-ecrecover",
+          "verdict": "DIVERGENCE",
+          "note": "solc compiled and ran the full contract including ecrecover; solang failed with 'unknown function or type ecrecover' at the ecrecover call site, so no runtime comparison of any builtin was possible."
+        }
+      ],
+      "next_probe": "Remove the ecrecover call from CryptoProbe (keccak256/sha256/ripemd160 only) and rerun setData with args 0x010203; verify solang compiles and all three hashes plus packedHash/encodedHash match solc exactly."
+    },
+    {
+      "id": "h2",
+      "statement": "On solang/pallet-contracts, the ecrecover precompile at address 0x1 (if reachable via low-level call/delegatecall) may behave differently than EVM's ecrecover, since Substrate uses a different account/curve model; solang contracts may need `ecrecover` emulation via CryptoHasher-style host functions instead.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "crypto-builtin-hash-packed-ecrecover",
+          "verdict": "DIVERGENCE",
+          "note": "Could not test runtime ecrecover semantics because solang rejected the builtin; this motivates probing the raw 0x1 precompile path instead."
+        }
+      ],
+      "next_probe": "Compile a contract that performs a static call to address 0x1 with a well-formed ecrecover input (known msg hash and signature from a fixed private key) and compare the returned 32-byte output against EVM's ecrecover result and against the signer address."
+    }
+  ],
+  "updated_ts": 1794271849.3853395
+}

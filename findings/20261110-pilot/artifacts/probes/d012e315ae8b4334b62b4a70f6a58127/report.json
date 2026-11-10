@@ -1,0 +1,811 @@
+{
+  "name": "events-indexed-args-dynamic",
+  "contract": "EventProbe",
+  "tool_versions": {
+    "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+    "solang": "solang version v0.3.5",
+    "anvil": "anvil Version: 1.7.1-dev",
+    "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+  },
+  "oracle_config": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "execution": "on-chain",
+  "workdir": "/tmp/oracle-run-tlpl_24k",
+  "timing": {
+    "started_at": "2026-11-10T00:38:44.673+00:00",
+    "started_epoch": 1794271124.6736867,
+    "total_ms": 2219.874878999974,
+    "nodes": {
+      "evm": {
+        "start_ms": 503.0824540000367,
+        "stop_ms": 3.155434999996487
+      },
+      "polkadot": {
+        "start_ms": 1006.8496299999765,
+        "stop_ms": 15.279199000019617
+      }
+    }
+  },
+  "compile": {
+    "solc": {
+      "compiler": "solc",
+      "ok": true,
+      "version": "Version: 0.8.33+commit.64118f21.Linux.g++",
+      "errors": null,
+      "warnings": [
+        "Warning: SPDX license identifier not provided in source file. Before publishing, consider adding a comment containing \"SPDX-License-Identifier: <SPDX-License>\" to each source file. Use \"SPDX-License-Identifier: UNLICENSED\" for non-open-source code. Please see https://spdx.org for more information.\n--> input.sol\n\n"
+      ],
+      "artifacts": {
+        "abi": true,
+        "bytecode_bytes": 1574,
+        "wasm_bytes": 0,
+        "metadata": false
+      },
+      "elapsed_ms": 9.654866000005313
+    },
+    "solang": {
+      "compiler": "solang",
+      "ok": true,
+      "version": "solang version v0.3.5",
+      "errors": null,
+      "warnings": null,
+      "artifacts": {
+        "abi": false,
+        "bytecode_bytes": 0,
+        "wasm_bytes": 46281,
+        "metadata": true
+      },
+      "elapsed_ms": 342.33300900001495
+    }
+  },
+  "deploy": {
+    "evm": {
+      "status": "success",
+      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "tx_hash": "75a9eb056536443914597c4e5cfefa9b7b977c45c1d0af5e5fca92b3623f7d1b",
+      "error": null,
+      "elapsed_ms": 12.876622000021598
+    },
+    "polkadot": {
+      "status": "success",
+      "address": "5CWM963z1sVz6e6TBmg62vdagNUVpZnsDSvi7Uhxyi2p3Dc6",
+      "tx_hash": null,
+      "error": null,
+      "elapsed_ms": 196.24645599998303
+    }
+  },
+  "steps": [
+    {
+      "index": 0,
+      "action": "call",
+      "function": "emitMulti",
+      "args": [],
+      "sender": "alice",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 2.647385999978269,
+          "tx_ms": 7.450740000024325,
+          "snapshot_ms": 2.1968170000263854
+        },
+        "evm_total_ms": 12.298343000054501,
+        "polkadot": {
+          "dry_run_ms": 1.3726980000114963,
+          "tx_ms": 46.580314999971506,
+          "snapshot_ms": 1.4228879999791388
+        },
+        "polkadot_total_ms": 49.38001099998246
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "ca105ab328ef2b51712bb3c6798b73de45d23439d9856f87bbfeef89b8e130d8",
+          "block_hash": "910831489dfe1ef568a1ca542d46c7c7bba73b39f0a5714448c857667d551d5d",
+          "gas_used": 35143,
+          "events": [
+            {
+              "name": "OneIndexed",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 11
+                },
+                {
+                  "name": "b",
+                  "value": 22
+                }
+              ]
+            },
+            {
+              "name": "TwoIndexed",
+              "args": [
+                {
+                  "name": "a",
+                  "value": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+                },
+                {
+                  "name": "b",
+                  "value": 33
+                },
+                {
+                  "name": "c",
+                  "value": "hello-events"
+                }
+              ]
+            },
+            {
+              "name": "ThreeIndexed",
+              "args": [
+                {
+                  "name": "a",
+                  "value": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+                },
+                {
+                  "name": "data",
+                  "value": "0x40eed0325a12c6c6af8db2ea05450bfe21d6343b6fe955bff65045b67d9d5fe6"
+                },
+                {
+                  "name": "n",
+                  "value": 44
+                }
+              ]
+            },
+            {
+              "name": "Dup",
+              "args": [
+                {
+                  "name": "v",
+                  "value": 55
+                }
+              ]
+            },
+            {
+              "name": "Dup",
+              "args": [
+                {
+                  "name": "v",
+                  "value": 55
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "evm",
+          "block": {
+            "number": 2,
+            "hash": "0x910831489dfe1ef568a1ca542d46c7c7bba73b39f0a5714448c857667d551d5d",
+            "timestamp": 1794271126
+          },
+          "contract": {
+            "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+            "balance": "0",
+            "nonce": 1
+          },
+          "storage": {
+            "0x0000000000000000000000000000000000000000000000000000000000000000": "0x0000000000000000000000000000000000000000000000000000000000000006"
+          }
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "error",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": null,
+          "debug_message": null,
+          "error": "0x0000000000000000000000000000000000000000000000014c00000000000000c2945c3f551702000000010000000408d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d65cfc26ad20000000000000000000000000001000000080256c461e321ece240d0345cda2b5ad3cecc47692af75038f345e29f270dc948f9006a8484640000000000000000000000d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d0000010000000003138ea423fd360bae91c2736f430e12dc9ce167491891c8bae5a133320162d5290000010000000400138ea423fd360bae91c2736f430e12dc9ce167491891c8bae5a133320162d52900ca9a3b0000000000000000000000000000010000000402d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d138ea423fd360bae91c2736f430e12dc9ce167491891c8bae5a133320162d52900ca9a3b0000000000000000000000000000010000000803138ea423fd360bae91c2736f430e12dc9ce167491891c8bae5a133320162d5290101d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d0000000000000000000000000000000000000000000000000000000000c0ffee08786390bfeeffec250b00e86ef85db6b391c8109940aa13e7855bc9abb004702cd43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d00010000000800d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d138ea423fd360bae91c2736f430e12dc9ce167491891c8bae5a133320162d5290000010000000808d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d138ea423fd360bae91c2736f430e12dc9ce167491891c8bae5a133320162d52980c4d26c1700000000000000000000000000010000000808d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d138ea423fd360bae91c2736f430e12dc9ce167491891c8bae5a133320162d529005000521700000000000000000000000000010000000407d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d4166fd70d100000000000000000000000000010000000600d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d2469c5f90000000000000000000000000000000000000000000000000000000000000100000000000399b3c4f9f65e0100000000020803138ea423fd360bae91c2736f430e12dc9ce167491891c8bae5a133320162d52901010b000000000000000000000000000000000000000000000000000000000000001600000000000000000000000000000000000000000000000000000000000000089855cecb0450d608e06759df95ce617f21500836cbd17e844a0e525d674131dc0b00000000000000000000000000000000000000000000000000000000000000020803138ea423fd360bae91c2736f430e12dc9ce167491891c8bae5a133320162d52935018eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a4821000000000000000000000000000000000000000000000000000000000000003068656c6c6f2d6576656e74730cba4f0c86e095700483c560a55a6ba4af7c253dd69fcfdef78a69992d6b954d008eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a482100000000000000000000000000000000000000000000000000000000000000020803138ea423fd360bae91c2736f430e12dc9ce167491891c8bae5a133320162d52915018eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a4810aabbccdd2c0000000000000000000000000000000000000000000000000000000000000010f5f96fd18c3658f13e1b9d426ab3f3e091b8325fc29f61427b84c6248fabd8008eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a4810aabbccdd0000000000000000000000000000000000000000000000000000002c00000000000000000000000000000000000000000000000000000000000000020803138ea423fd360bae91c2736f430e12dc9ce167491891c8bae5a133320162d52980370000000000000000000000000000000000000000000000000000000000000008c35d5331c5ccb36c46ebd9f1e8e478db3adbdef0d1e8f640bcfd701b64acbe3f3700000000000000000000000000000000000000000000000000000000000000020803138ea423fd360bae91c2736f430e12dc9ce167491891c8bae5a133320162d52980370000000000000000000000000000000000000000000000000000000000000008c35d5331c5ccb36c46ebd9f1e8e478db3adbdef0d1e8f640bcfd701b64acbe3f3700000000000000000000000000000000000000000000000000000000000000020806018eaf04151687736326c9fea17e25fc5287613693c912909cb226aa4794f26a48138ea423fd360bae91c2736f430e12dc9ce167491891c8bae5a133320162d52900"
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "0x93b1f0bfa960444c7a8b8ae19c1e1e7cc6e25ade71cb55f4edb9b46c0b200d03",
+          "block_hash": "0x97fceca3e4afd27e8cfc04597b72d9b574dcbe969979c65a9bd52beca5f6db62",
+          "gas_used": 2647390832,
+          "events": [
+            {
+              "name": "OneIndexed",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 11
+                },
+                {
+                  "name": "b",
+                  "value": 22
+                }
+              ]
+            },
+            {
+              "name": "TwoIndexed",
+              "args": [
+                {
+                  "name": "a",
+                  "value": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
+                },
+                {
+                  "name": "b",
+                  "value": 33
+                },
+                {
+                  "name": "c",
+                  "value": "hello-events"
+                }
+              ]
+            },
+            {
+              "name": "ThreeIndexed",
+              "args": [
+                {
+                  "name": "a",
+                  "value": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
+                },
+                {
+                  "name": "data",
+                  "value": "0xaabbccdd"
+                },
+                {
+                  "name": "n",
+                  "value": 44
+                }
+              ]
+            },
+            {
+              "name": "Dup",
+              "args": [
+                {
+                  "name": "v",
+                  "value": 55
+                }
+              ]
+            },
+            {
+              "name": "Dup",
+              "args": [
+                {
+                  "name": "v",
+                  "value": 55
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "polkadot",
+          "block": {
+            "number": 2,
+            "hash": "0x97fceca3e4afd27e8cfc04597b72d9b574dcbe969979c65a9bd52beca5f6db62",
+            "timestamp": 1794271126760
+          },
+          "contract": {
+            "address": "5CWM963z1sVz6e6TBmg62vdagNUVpZnsDSvi7Uhxyi2p3Dc6",
+            "balance": "1000000000",
+            "nonce": 0
+          },
+          "storage": {
+            "0xff0f22492f44bac4c4b30ae58d0e8daa0000000000000000000000000000000000000000000000000000000000000000": "0x0600000000000000000000000000000000000000000000000000000000000000"
+          }
+        }
+      },
+      "divergences": [
+        {
+          "kind": "EVENT_MISMATCH",
+          "step": 0,
+          "detail": "emitted events differ",
+          "evm": [
+            {
+              "name": "OneIndexed",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 11
+                },
+                {
+                  "name": "b",
+                  "value": 22
+                }
+              ]
+            },
+            {
+              "name": "TwoIndexed",
+              "args": [
+                {
+                  "name": "a",
+                  "value": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+                },
+                {
+                  "name": "b",
+                  "value": 33
+                },
+                {
+                  "name": "c",
+                  "value": "hello-events"
+                }
+              ]
+            },
+            {
+              "name": "ThreeIndexed",
+              "args": [
+                {
+                  "name": "a",
+                  "value": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+                },
+                {
+                  "name": "data",
+                  "value": "0x40eed0325a12c6c6af8db2ea05450bfe21d6343b6fe955bff65045b67d9d5fe6"
+                },
+                {
+                  "name": "n",
+                  "value": 44
+                }
+              ]
+            },
+            {
+              "name": "Dup",
+              "args": [
+                {
+                  "name": "v",
+                  "value": 55
+                }
+              ]
+            },
+            {
+              "name": "Dup",
+              "args": [
+                {
+                  "name": "v",
+                  "value": 55
+                }
+              ]
+            }
+          ],
+          "polkadot": [
+            {
+              "name": "OneIndexed",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 11
+                },
+                {
+                  "name": "b",
+                  "value": 22
+                }
+              ]
+            },
+            {
+              "name": "TwoIndexed",
+              "args": [
+                {
+                  "name": "a",
+                  "value": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
+                },
+                {
+                  "name": "b",
+                  "value": 33
+                },
+                {
+                  "name": "c",
+                  "value": "hello-events"
+                }
+              ]
+            },
+            {
+              "name": "ThreeIndexed",
+              "args": [
+                {
+                  "name": "a",
+                  "value": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
+                },
+                {
+                  "name": "data",
+                  "value": "0xaabbccdd"
+                },
+                {
+                  "name": "n",
+                  "value": 44
+                }
+              ]
+            },
+            {
+              "name": "Dup",
+              "args": [
+                {
+                  "name": "v",
+                  "value": 55
+                }
+              ]
+            },
+            {
+              "name": "Dup",
+              "args": [
+                {
+                  "name": "v",
+                  "value": 55
+                }
+              ]
+            }
+          ],
+          "point": 0,
+          "signature": "EVENT_MISMATCH|0|emitMulti|args"
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "action": "query",
+      "function": "getCount",
+      "args": [],
+      "sender": "deployer",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 2.4676670000189915,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "evm_total_ms": 2.4688569999966603,
+        "polkadot": {
+          "dry_run_ms": 1.5302780000183702,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "polkadot_total_ms": 1.5313580000224647
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": 6,
+          "revert_reason": null,
+          "return_data_raw": "0x0000000000000000000000000000000000000000000000000000000000000006",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": 6,
+          "revert_reason": null,
+          "return_data_raw": "0x0600000000000000000000000000000000000000000000000000000000000000",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "divergences": []
+    },
+    {
+      "index": 2,
+      "action": "call",
+      "function": "emitSimple",
+      "args": [
+        7
+      ],
+      "sender": "bob",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 2.0474969999781933,
+          "tx_ms": 7.672298999978011,
+          "snapshot_ms": 2.2505370000089897
+        },
+        "evm_total_ms": 11.97409299999208,
+        "polkadot": {
+          "dry_run_ms": 1.7495280000048297,
+          "tx_ms": 45.29954600002384,
+          "snapshot_ms": 1.3709379999795601
+        },
+        "polkadot_total_ms": 48.42367200001263
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "a43cedb91701d8417f9609e8d74dedef4b709dfb2d33ec5baf0e1b5060abc3a2",
+          "block_hash": "011ac8b527dde9e588dc81b5073d77f7bc0da1a541249e015d8b3cc06773f7c4",
+          "gas_used": 28610,
+          "events": [
+            {
+              "name": "OneIndexed",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 7
+                },
+                {
+                  "name": "b",
+                  "value": 8
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "evm",
+          "block": {
+            "number": 3,
+            "hash": "0x011ac8b527dde9e588dc81b5073d77f7bc0da1a541249e015d8b3cc06773f7c4",
+            "timestamp": 1794271126
+          },
+          "contract": {
+            "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+            "balance": "0",
+            "nonce": 1
+          },
+          "storage": {
+            "0x0000000000000000000000000000000000000000000000000000000000000000": "0x0000000000000000000000000000000000000000000000000000000000000007"
+          }
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "0xca314763365a7004b5d8003eb5058b99f275bfeeacc0c4ce65c264f334c02c1a",
+          "block_hash": "0x373b9fe1412beebd47068f63e3cdfa281c420b10ace3a3e9a9bb50d0bb0fc30e",
+          "gas_used": 1181005668,
+          "events": [
+            {
+              "name": "OneIndexed",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 7
+                },
+                {
+                  "name": "b",
+                  "value": 8
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "polkadot",
+          "block": {
+            "number": 3,
+            "hash": "0x373b9fe1412beebd47068f63e3cdfa281c420b10ace3a3e9a9bb50d0bb0fc30e",
+            "timestamp": 1794271126826
+          },
+          "contract": {
+            "address": "5CWM963z1sVz6e6TBmg62vdagNUVpZnsDSvi7Uhxyi2p3Dc6",
+            "balance": "1000000000",
+            "nonce": 0
+          },
+          "storage": {
+            "0xff0f22492f44bac4c4b30ae58d0e8daa0000000000000000000000000000000000000000000000000000000000000000": "0x0700000000000000000000000000000000000000000000000000000000000000"
+          }
+        }
+      },
+      "divergences": []
+    },
+    {
+      "index": 3,
+      "action": "query",
+      "function": "getCount",
+      "args": [],
+      "sender": "deployer",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 2.6874669999870093,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "evm_total_ms": 2.689986999996563,
+        "polkadot": {
+          "dry_run_ms": 1.3497379999876102,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "polkadot_total_ms": 1.350447999982407
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": 7,
+          "revert_reason": null,
+          "return_data_raw": "0x0000000000000000000000000000000000000000000000000000000000000007",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": 7,
+          "revert_reason": null,
+          "return_data_raw": "0x0700000000000000000000000000000000000000000000000000000000000000",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "divergences": []
+    }
+  ],
+  "divergences": [
+    {
+      "kind": "EVENT_MISMATCH",
+      "step": 0,
+      "detail": "emitted events differ",
+      "evm": [
+        {
+          "name": "OneIndexed",
+          "args": [
+            {
+              "name": "a",
+              "value": 11
+            },
+            {
+              "name": "b",
+              "value": 22
+            }
+          ]
+        },
+        {
+          "name": "TwoIndexed",
+          "args": [
+            {
+              "name": "a",
+              "value": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+            },
+            {
+              "name": "b",
+              "value": 33
+            },
+            {
+              "name": "c",
+              "value": "hello-events"
+            }
+          ]
+        },
+        {
+          "name": "ThreeIndexed",
+          "args": [
+            {
+              "name": "a",
+              "value": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+            },
+            {
+              "name": "data",
+              "value": "0x40eed0325a12c6c6af8db2ea05450bfe21d6343b6fe955bff65045b67d9d5fe6"
+            },
+            {
+              "name": "n",
+              "value": 44
+            }
+          ]
+        },
+        {
+          "name": "Dup",
+          "args": [
+            {
+              "name": "v",
+              "value": 55
+            }
+          ]
+        },
+        {
+          "name": "Dup",
+          "args": [
+            {
+              "name": "v",
+              "value": 55
+            }
+          ]
+        }
+      ],
+      "polkadot": [
+        {
+          "name": "OneIndexed",
+          "args": [
+            {
+              "name": "a",
+              "value": 11
+            },
+            {
+              "name": "b",
+              "value": 22
+            }
+          ]
+        },
+        {
+          "name": "TwoIndexed",
+          "args": [
+            {
+              "name": "a",
+              "value": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
+            },
+            {
+              "name": "b",
+              "value": 33
+            },
+            {
+              "name": "c",
+              "value": "hello-events"
+            }
+          ]
+        },
+        {
+          "name": "ThreeIndexed",
+          "args": [
+            {
+              "name": "a",
+              "value": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
+            },
+            {
+              "name": "data",
+              "value": "0xaabbccdd"
+            },
+            {
+              "name": "n",
+              "value": 44
+            }
+          ]
+        },
+        {
+          "name": "Dup",
+          "args": [
+            {
+              "name": "v",
+              "value": 55
+            }
+          ]
+        },
+        {
+          "name": "Dup",
+          "args": [
+            {
+              "name": "v",
+              "value": 55
+            }
+          ]
+        }
+      ],
+      "point": 0,
+      "signature": "EVENT_MISMATCH|0|emitMulti|args"
+    }
+  ],
+  "earliest_divergence": {
+    "point": 0,
+    "signature": "EVENT_MISMATCH|0|emitMulti|args"
+  },
+  "verdict": "DIVERGENCE"
+}

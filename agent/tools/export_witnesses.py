@@ -8,7 +8,8 @@ Exports a findings dir to dataset/witnesses/<id>/:
     spec.min.json      the stored (reduced) witness spec
     report.min.json    the oracle report of the stored spec
     signature.json     {fingerprint, earliest_signature, signatures}
-    provenance.json    compiler/node versions, repo git rev, export timestamp
+    provenance.json    compiler/node versions, repo git rev, export timestamp,
+                       origin probe, campaign metadata, review decisions
 
 Plus dataset/SCHEMA.md and dataset/verify_all.py (replays every minimized
 spec, asserts the earliest signature matches, exits 1 on any mismatch).
@@ -47,7 +48,8 @@ One directory per witness under `witnesses/<id>/`:
   Signature format: `<kind>|<point>|<function-or-empty>|<relation>`; see
   `oracle/src/oracle/signature.py`.
 - `provenance.json` — compiler/node versions at export, repo git revision,
-  export timestamp.
+  export timestamp, origin probe, frozen campaign metadata, and any matching
+  human review/upstream decisions.
 
 Verification: `uv run python dataset/verify_all.py` replays every
 `spec.min.json` through the oracle and asserts the earliest signature
@@ -94,6 +96,14 @@ if __name__ == "__main__":
 '''
 
 
+def _id_list(value) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        return [item for item in value if isinstance(item, str)]
+    return []
+
+
 def git_rev() -> str:
     out = subprocess.run(
         ["git", "rev-parse", "HEAD"], capture_output=True, text=True, cwd=ROOT
@@ -113,6 +123,18 @@ def main(argv: list[str] | None = None) -> int:
         if line.strip()
     ]
     rev = git_rev()
+    campaign_path = args.corpus / "campaign.json"
+    campaign = json.loads(campaign_path.read_text()) if campaign_path.exists() else None
+    decisions_path = args.corpus / "review" / "decisions.jsonl"
+    decisions = (
+        [
+            json.loads(line)
+            for line in decisions_path.read_text().splitlines()
+            if line.strip()
+        ]
+        if decisions_path.exists()
+        else []
+    )
     witnesses_dir = args.out / "witnesses"
     witnesses_dir.mkdir(parents=True, exist_ok=True)
     for f in findings:
@@ -140,6 +162,13 @@ def main(argv: list[str] | None = None) -> int:
             )
             + "\n"
         )
+        origin_probe_id = f.get("origin_probe_id")
+        review_decisions = [
+            d
+            for d in decisions
+            if wid in _id_list(d.get("finding_ids"))
+            or origin_probe_id in _id_list(d.get("probe_ids"))
+        ]
         (out_dir / "provenance.json").write_text(
             json.dumps(
                 {
@@ -149,6 +178,9 @@ def main(argv: list[str] | None = None) -> int:
                     "legacy": legacy,
                     "seed": f.get("seed"),
                     "name": f.get("name"),
+                    "origin_probe_id": origin_probe_id,
+                    "campaign": campaign,
+                    "review_decisions": review_decisions,
                 },
                 indent=2,
             )

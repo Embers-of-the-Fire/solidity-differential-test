@@ -1,0 +1,201 @@
+{
+  "case": {
+    "case_id": "finding-54c1b188dace9051",
+    "origin": "finding",
+    "spec": {
+      "name": "revert-reason-panic-variants",
+      "solidity": "pragma solidity >=0.8.0;\n\ncontract RevertProbe {\n    uint public attempts;\n    error MyError(uint code, string why);\n\n    \n\n    function trigger(uint sel) public {\n        attempts++;\n        if (sel == 0) {\n            uint a = 0;\n            a -= 1;\n        } else if (sel == 1) {\n            uint b = 1;\n            uint c = 5 / (b - 1);\n        } else if (sel == 2) {\n            require(false, \"custom revert message\");\n        } else if (sel == 3) {\n            assert(false);\n        } else if (sel == 4) {\n            revert MyError(42, \"boom\");\n        } else if (sel == 5) {\n            uint[] memory m;\n            m[3] = 1;\n        } else {\n            revert(\"fallback reason\");\n        }\n    }\n}",
+      "contract": "RevertProbe",
+      "solc": {
+        "optimizer": false
+      },
+      "solang": {
+        "opt_level": "default"
+      },
+      "oracle": {
+        "storage": "count",
+        "events": false,
+        "revert_reasons": true,
+        "gas": false
+      },
+      "steps": [
+        {
+          "action": "call",
+          "function": "trigger",
+          "args": [
+            0
+          ],
+          "sender": "alice"
+        }
+      ],
+      "meta": {
+        "parent_id": null,
+        "origin": "generated"
+      },
+      "execution": "on-chain"
+    },
+    "verdict": "DIVERGENCE",
+    "earliest_divergence": {
+      "point": 0,
+      "signature": "STATUS_MISMATCH|0|trigger|revert\u2260success"
+    },
+    "divergences": [
+      {
+        "kind": "STATUS_MISMATCH",
+        "step": 0,
+        "detail": "dry-run status differs",
+        "evm": {
+          "status": "revert",
+          "error": null
+        },
+        "polkadot": {
+          "status": "success",
+          "error": null
+        },
+        "point": 0,
+        "signature": "STATUS_MISMATCH|0|trigger|revert\u2260success"
+      },
+      {
+        "kind": "TX_STATUS_MISMATCH",
+        "step": 0,
+        "detail": "committed transaction status differs",
+        "evm": "revert",
+        "polkadot": "success",
+        "point": 0,
+        "signature": "TX_STATUS_MISMATCH|0|trigger|revert\u2260success"
+      },
+      {
+        "kind": "STORAGE_MISMATCH",
+        "step": 0,
+        "detail": "contract storage differs (mode=count)",
+        "evm": {
+          "nonzero_entries": 0,
+          "values": []
+        },
+        "polkadot": {
+          "nonzero_entries": 1,
+          "values": [
+            "1"
+          ]
+        },
+        "point": 0,
+        "signature": "STORAGE_MISMATCH|0|trigger|multiset(count)"
+      }
+    ]
+  },
+  "screening": {
+    "case_id": "finding-54c1b188dace9051",
+    "probe_id": "ee7e0106908342c6819947f257ed9d40",
+    "finding_id": "54c1b188dace9051",
+    "origin": "finding",
+    "ts": 1794272593.5590227,
+    "panel": [
+      {
+        "category": "bug_candidate",
+        "confidence": "medium",
+        "evidence": "Step 0 calls trigger(0), which executes `uint a = 0; a -= 1;` \u2014 a subtraction underflow that Solidity 0.8 semantics require to panic/revert. EVM status=revert (correct), Polkadot status=success with attempts incremented to 1 (nonzero storage entry), indicating the underflow silently wrapped to 2^256-1 instead of reverting.",
+        "rationale": "Both chains compile the same source with checked arithmetic expected. The EVM correctly reverts on the underflow while solang on Polkadot commits the transaction with state mutation (attempts=1), which is only possible if the underflow check was not enforced. This is a genuine semantic divergence in arithmetic overflow/underflow handling, not an environment, gas, or revert-encoding difference, since the Polkadot side reports outright success rather than an equivalent revert.",
+        "historical_match_url": "https://github.com/hyperledger-solang/solang/pull/1496",
+        "cluster_hint": "solang fails to trap on uint underflow in compound subtraction (`a -= 1`), wrapping instead of panicking; adjacent to the v0.3.2 overflow-checking fixes but distinct from negate-operator case"
+      },
+      {
+        "category": "bug_candidate",
+        "confidence": "high",
+        "evidence": "For trigger(0), the source executes attempts++ and then `uint a = 0; a -= 1;`. EVM dry-run and committed status are both `revert`, with zero nonzero storage entries after rollback. Polkadot reports `success` and persists one nonzero storage value, consistent with `attempts == 1`.",
+        "rationale": "Solidity 0.8 semantics require checked arithmetic, so subtracting 1 from a zero `uint` must panic and revert, including rolling back the preceding `attempts++`. The observed Polkadot success and persisted state therefore indicate that the underflow was not detected or did not cause transaction failure. The storage-count projection is not the primary basis for the finding; the independent status mismatch establishes the semantic divergence.",
+        "historical_match_url": "https://github.com/hyperledger-solang/solang/pull/1496",
+        "cluster_hint": "unchecked uint underflow in compound subtraction allows execution to succeed and persist prior state"
+      }
+    ],
+    "panel_bug_votes": 2,
+    "adversarial": {
+      "rebuttal_succeeds": false,
+      "category": "bug_candidate",
+      "evidence": "EVM dry-run and committed status are both `revert` with zero nonzero storage entries, consistent with checked-arithmetic rollback of `attempts++`. Polkadot reports committed `success` with one persisted nonzero storage value (attempts==1). Since pallet-contracts rolls back contract storage on revert/trap, the persisted increment is only explainable if the `a -= 1` underflow neither trapped nor reverted \u2014 i.e., it silently wrapped. The known Polkadot revert-encoding difference (PR #1449) explains how a revert is reported, not whether it happens; here the state mutation proves no revert occurred.",
+      "rationale": "The strongest rebuttal available is that this is a rediscovery of the v0.3.2 overflow-checking fixes (PR #1496), which addressed the negate operator and 'other math overflow fixes'. However, that PR was merged and presumably fixed compound-assignment underflow along with other operators; a still-failing `-=` on a current build would be a residual gap rather than a duplicate of the fixed negate case. There is no env-value, gas, or oracle-status explanation for persisted storage on the Polkadot side. The evidence survives scrutiny as a genuine solang arithmetic-checking divergence.",
+      "historical_match_url": "https://github.com/hyperledger-solang/solang/pull/1496"
+    },
+    "status": "survivor",
+    "survives": true,
+    "cluster_hint": "solang fails to trap on uint underflow in compound subtraction (`a -= 1`), wrapping instead of panicking; adjacent to the v0.3.2 overflow-checking fixes but distinct from negate-operator case",
+    "historical_match_urls": [
+      "https://github.com/hyperledger-solang/solang/pull/1496"
+    ],
+    "prompt_version": 1,
+    "model": "kimi-for-coding",
+    "temperature": 1.0,
+    "replay": {
+      "verdict": "DIVERGENCE",
+      "earliest_signature": "STATUS_MISMATCH|0|trigger|revert\u2260success",
+      "tool_versions": {
+        "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+        "solang": "solang version v0.3.5",
+        "anvil": "anvil Version: 1.7.1-dev",
+        "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+      },
+      "oracle_runs": 1,
+      "stable": true
+    },
+    "usage": {
+      "calls": 3,
+      "errors": 0,
+      "prompt_tokens": 13262,
+      "cached_prompt_tokens": 4287,
+      "completion_tokens": 3166,
+      "total_tokens": 16428,
+      "cost_usd": 0.2061331,
+      "latency_ms": 89643.58979400026,
+      "avg_latency_ms": 29881.196598000086
+    }
+  },
+  "history": [
+    {
+      "title": "Polkadot: Reverts return encoded error data",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1449",
+      "state": "2023-08-10T08:35:51Z",
+      "text": "This is a continuation of #1415. `require()`, `assert()` and `revert()` now return error data, according to the [Ethereum Solidity documentation](https://docs.soliditylang.org/en/v0.8.20/control-structures.html#panic-via-assert-and-error-via-require). Additionally, many reverts inserted by the compiler now return the corresponding `Panic(uint256)`  error data, to align Solang closer with `solc`.\r\n\r\nThe error types known to the contract are added in the metadata `lang_error` field. At the moment there are only `Error` and `Panic` because we don't support custom errors yet.\r\n\r\nRefactored revert-related code into a dedicated `codegen` module to. Refactored the `polkadot::errors` into distinct tests, made them less brittle and added assertions for the execution output.\r\n\r\nI'm now working on a follow-up PR for bubbling up uncaught exceptions (this is why it's already included that in the documentation)."
+    },
+    {
+      "title": "Reserved keywords collision in Yul assembly",
+      "url": "https://github.com/hyperledger-solang/solang/issues/639",
+      "state": "CLOSED",
+      "text": "Such snippet\r\n```solidity\r\ncontract Contract {\r\n    constructor() {\r\n        assembly {\r\n            return(0, 0)\r\n        }\r\n    }\r\n}\r\n```\r\ncan't be parsed due to \r\n```\r\n [Diagnostic { level: Error, ty: ParserError, pos: Some(Loc(0, 71, 77)), message: \"unrecognised token `return', expected \\\"address\\\", \\\"bool\\\", \\\"break\\\", \\\"bytes\\\", \\\"continue\\\", \\\"false\\\", \\\"for\\\", \\\"if\\\", \\\"leave\\\", \\\"let\\\", \\\"mapping\\\", \\\"payable\\\", \\\"string\\\", \\\"switch\\\", \\\"true\\\", \\\"}\\\", Bytes, Int, Uint, hexnumber, identifier, number, string\", notes: [] }]\r\n```\r\nerror. The reason for this is that `return` is a reserved keyword in Solidity but just a regular function in Yul.\r\n\r\nThis is an issue similar to https://github.com/hyperledger-labs/solang/pull/636#pullrequestreview-853224787, i.e. requires separation of Yul and Solidity keywords to prevent such collisions."
+    },
+    {
+      "title": "\"unrecognised token '.' when \"if (error.length > 0)\" ",
+      "url": "https://github.com/hyperledger-solang/solang/issues/938",
+      "state": "CLOSED",
+      "text": "I try to use solang-parser to parse some contract and found `\"unrecognised token '.'` error.\r\n\r\nThis sample contract code can trigger this issue: \r\n\r\n```solidity\r\npragma solidity 0.6.12;\r\n\r\ncontract A {\r\n    address init;\r\n\r\n    constructor(address init_addr) {\r\n        init = init_addr;\r\n    }\r\n\r\n    function f(bytes calldata _calldata) public {\r\n        (bool success, bytes memory error) = _init.delegatecall(_calldata);\r\n        if (!success) {\r\n            if (error.length > 0) {\r\n                revert(string(error));\r\n            } else {\r\n                revert(\"aa\");\r\n            }\r\n        }\r\n    }\r\n}\r\n```\r\n\r\n```\r\n\"unrecognised token '.', expected \\\"!=\\\", \\\"%\\\", \\\"%=\\\", \\\"&\\\", \\\"&&\\\", \\\"&=\\\", \\\")\\\", \\\"*\\\", \\\"**\\\", \\\"*=\\\", \\\"+\\\", \\\"+=\\\", \\\",\\\", \\\"-\\\", \\\"-=\\\", \\\"/\\\", \\\"/=\\\", \\\":\\\", \\\";\\\", \\\"<\\\", \\\"<<\\\", \\\"<<=\\\", \\\"<=\\\", \\\"=\\\", \\\"==\\\", \\\">\\\", \\\">=\\\", \\\">>\\\", \\\">>=\\\", \\\"?\\\", \\\"]\\\", \\\"^\\\", \\\"^=\\\", \\\"calldata\\\", \\\"case\\\", \\\"default\\\", \\\"error\\\", \\\"leave\\\", \\\"memory\\\", \\\"revert\\\", \\\"storage\\\", \\\"switch\\\", \\\"|\\\", \\\"|=\\\", \\\"||\\\", \\\"}\\\", identifier\"\r\n```\r\n\r\nand I found the error range is:\r\n```solidity\r\nif (error.length > 0) {\r\n```\r\n\r\nIt seems like solang-parser does not properly pars"
+    },
+    {
+      "title": "v0.3.3: Atlantis",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1573",
+      "state": "2023-10-24T10:05:49Z",
+      "text": "This release improves the Solana developer experience, since now required\r\naccounts can be specified using annotations. For Polkadot, compatibility with\r\nEthereum Solidity has been increased further, it is now possible to write\r\n[EIP-1967](https://eips.ethereum.org/EIPS/eip-1967) compatible proxy contracts.\r\nThere are many fixes all over the code base.\r\n\r\n### Added\r\n- **Solana** the required accounts for instructions can now be specified using function annotations. [LucasSte](https://github.com/LucasSte)\r\n  ```\r\n  contract Foo {\r\n      @account(oneAccount)\r\n      @signer(mySigner)\r\n      @mutableAccount(otherAccount)\r\n      @mutableSigner(otherSigner)\r\n      function bar() external returns (uint64) {}\r\n  }\r\n  ```\r\n- The language server can now format Solidity source code using the `forge-fmt` crate. [chioni16](https://github.com/chioni16)\r\n- The langauge server can now do go references, go to implementation, and go to type\r\n  definition. [chioni16](https://github.com/chioni16)\r\n- **Polkadot** `Panic` errors can now be caught in try-catch statements [xermicus](https://github.com/xermicus)\r\n- **Polkadot** custom errors are now supported [xermicus](https://github.com/xermicus)\r\n- **Po"
+    },
+    {
+      "title": "Inconsistent behaviour when calling function via contract type name",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1007",
+      "state": "CLOSED",
+      "text": "Given the following base contract:\r\n\r\n```solidity\r\ncontract Base {\r\n    uint256 public something = 0;\r\n\r\n    function nop() public pure {}\r\n\r\n    function set(uint256 val) public {\r\n        something = val;\r\n    }\r\n}\r\n```\r\nAnd the following case `A`:\r\n```solidity\r\ncontract A {\r\n    function a() public pure {\r\n        Base.nop();\r\n    }\r\n}\r\n```\r\nSolang compiles this just fine. Furthermore, consider the following case `B`:\r\n```solidity\r\ncontract B {\r\n    function b() public {\r\n        Base.set(1);\r\n    }\r\n}\r\n```\r\nSolang crashes during compilation (target either `substrate` or `solana`):\r\n```\r\nthread 'main' panicked at 'get_storage_slot called on non-storage variable', src/codegen/cfg.rs:1879:13\r\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\r\n```\r\nWhere as `solc` behaves more in a way I'd expect. For both cases it gets the same error:\r\n```\r\n\u276f solc --bin foo.sol\r\nError: Cannot call function via contract type name.\r\n  --> foo.sol:27:9:\r\n   |\r\n17 |         Base.nop();\r\n   |         ^^^^^^^^^^\r\n\r\nError: Cannot call function via contract type name.\r\n  --> foo.sol:33:9:\r\n   |\r\n23 |         Base.set(1);\r\n   |         ^^^^^^^^^^^\r\n```\r\nIs there a reason we allo"
+    },
+    {
+      "title": "Memory OOB access in try-catch",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1292",
+      "state": "CLOSED",
+      "text": "The following contract traps the execution with a `MemoryOutOfBounds` trap code:\r\n\r\n```solidity\r\ncontract c {\r\n    constructor() payable {}\r\n\r\n    function test() public returns (int32) {\r\n        int32 x = 0;\r\n        try new other(true) {\r\n            x = 1;\r\n        } catch (bytes memory _c) {\r\n            x = 2;\r\n        }\r\n        return x;\r\n    }\r\n}\r\n\r\ncontract other {\r\n    constructor(bool rev) public {\r\n        if (rev) {\r\n            revert(\"foo\");\r\n        }\r\n    }\r\n\r\n    function _ext() public {}\r\n}\r\n```\r\n\r\nA real substrate node will not tell about the OOB error, however the mock runtime will panic on this. See substrate test `calls::try_catch_constructor`. Uncommenting the last function call to the `test` function in this test will trigger the OOB access. \r\n\r\n `cargo test --test substrate -- calls::try_catch_constructor`"
+    },
+    {
+      "title": "v0.3.2 Bras\u00edlia",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1496",
+      "state": "2023-08-24T09:44:40Z",
+      "text": "The language server is much improved, and many fixes all over.\r\n\r\n### Added\r\n- Go to definition is now implemented in the language server. [chioni16](https://github.com/chioni16)\r\n- The parser has been updated to be compatible with Ethereum Solidity v0.8.21. [seanyoung](https://github.com/seanyoung)\r\n\r\n### Fixed\r\n- **breaking** Resolving import paths now matches solc more closely, and only resolves relative paths when specified as `./foo` or `../foo`. [seanyoung](https://github.com/seanyoung)\r\n- **Solana** The `lamports` and `data` fields of `tx.accounts` can be modified again. [LucasSte](https://github.com/LucasSte)\r\n- It is not longer necessary to save a Solidity file, in order for the language server to pick up changes to the file. [chioni16](https://github.com/chioni16)\r\n- The negate operator `-` now checks for overflow at runtime, and other math overflow fixes. [seanyoung](https://github.com/seanyoung)\r\n\r\n### Changed\r\n- The Substrate target has been renamed to Polkadot. [xermicus](https://github.com/xermicus)\r\n- **Polkadot** `assert()` and `require()` is now implemented as a transction revert, rather than a trap. The error data is returned, and encoded the same as on Ethereum."
+    },
+    {
+      "title": "fix(soroban): reject unsupported ABI types before codegen",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1903",
+      "state": "2026-05-24T22:36:02Z",
+      "text": "## Summary\n\nFixes the compiler-side Soroban diagnostics covered by #1897.\n\nUnsupported Soroban paths could previously reach codegen, Soroban encoder/decoder logic, spec emission, or LLVM and fail with internal panics, `todo!()`, `unimplemented!()`, Inkwell errors, or LLVM assertions. This PR adds Soroban codegen-side validation so those user-triggerable cases are reported as normal Solang diagnostics before the unsafe paths are reached.\n\n## What changed\n\n- Move unsupported Soroban ABI validation out of `sema` and into the Soroban codegen path.\n- Validate unsupported public/external Soroban function parameters and return values before dispatch wrapper generation.\n- Validate unsupported public accessor return values before generated accessor code can reach unsupported Soroban lowering.\n- Validate unsupported Soroban event argument types before event encoding.\n- Guard multiple external return values and unsupported array/struct/string/bytes cases that could otherwise reach Soroban spec, encoder/decoder, Inkwell, or LLVM failures.\n- Add precise diagnostics for internal string-helper patterns that could otherwise trigger LLVM/Inkwell failures.\n- Keep supported Soroban behavior unchanged"
+    }
+  ]
+}

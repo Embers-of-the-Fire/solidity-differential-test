@@ -26,9 +26,23 @@ pinned old solang via ORACLE_SOLANG_BIN) → `eval/rq1/rediscovery.json`
 
 ## RQ2 — Effectiveness
 
-Long hunt on the pinned latest solang (T3.2 — requires LLM budget) →
-`findings/hunt-latest/`. Witness table: id, signature, chars/steps after
-reduction, triage blame.
+Two separate tracks: (a) controlled comparisons on
+`agent/eval/issta_ablations.json` ({full, generation-only, no-reflect, no-LLM,
+dry-run-only} × repeats under a common oracle-run budget), and (b) a long hunt
+on pinned latest solang (T3.2 — requires LLM budget) → `findings/hunt-latest/`.
+The no-LLM arm uses template generation, deterministic triage/reduction, and no
+LLM mutation/reflection; it is not merely LLM-mutation-off.
+
+Automatic `unique_findings` metrics count deduplicated witnesses, not confirmed
+bugs. Every divergence (including online-triage rejects) retains its original
+spec/report and first-witness counters. Offline LLM screening plus human semantic
+and time-stamped upstream review produces `review/decisions.jsonl`;
+`review-report` joins root-cause clusters across runs and emits confirmed-bug
+curves plus separate first-witness and adjudication/replay costs. It also reports
+reviewed screening precision and rejected-audit false-negative rates when the
+corresponding human decisions exist. Multiple witnesses of one bug are never
+treated as independent observations. Witness table: id, bug cluster, signature,
+chars/steps after reduction, triage blame, review/upstream status.
 
 ## RQ3 — Reduction
 

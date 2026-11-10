@@ -1,0 +1,66 @@
+[seed] env-vars: Block/tx environment variables
+[run] env-gasleft-txorigin-flags (8 steps)
+[run] verdict=DIVERGENCE kinds=['COMPILE_ASYMMETRY']
+[triage] invalid_probe: Probe uses tx.origin, which solang does not support on Polkadot; compile-time rejection, not a runtime divergence
+[corpus] admitted ebc2453563c4b855 (divergence)
+[reflect] 2 op(s) applied: The probe failed at compile time on solang due to tx.origin being a nonexistent builtin, yielding no runtime data. The durable knowledge is the compile-time rejection itself, plus the inference that gasleft() is at least parseable in solang; follow-up probes must isolate each env var to get runtime comparisons.
+[budget] llm_calls=3/100 oracle_runs=1/100 tokens=7835 cost=$0.156126
+[seed] events: Event emission and indexed arguments
+[run] events-indexed-args-dynamic (4 steps)
+[run] verdict=DIVERGENCE kinds=['EVENT_MISMATCH']
+[triage] known_semantic: Event arg mismatch from EVM-vs-Substrate representation: hex-vs-SS58 address encoding and keccak-hashed vs raw indexed bytes topics.
+[corpus] admitted 137641495030cd12 (divergence)
+[reflect] 4 op(s) applied: The notebook was empty, so all knowledge is new. The probe confirms three durable facts: indexed dynamic bytes are hashed on EVM but raw on Polkadot (known semantic), addresses are reported in native encodings (hex vs SS58) creating false-positive arg mismatches, and event ordering/multiplicity including duplicates agrees across chains. It also reveals the oracle ignores constructor events symmetrically, which warrants a cheap follow-up probe.
+[budget] llm_calls=6/100 oracle_runs=2/100 tokens=15588 cost=$0.294170
+[seed] storage-layout: Storage packing and layout
+[run] storage-pack-delete-dynamic (8 steps)
+[run] verdict=ERROR kinds=-
+[triage] error: oracle run failed: ValueError: fromhex() arg must contain an even number of hexadecimal digits
+[budget] llm_calls=7/100 oracle_runs=3/100 tokens=18387 cost=$0.358228
+[seed] control-flow: Control flow, loops and gas limits
+[run] controlflow-loops-recursion-earlyreturn (8 steps)
+[run] verdict=PASS kinds=-
+[triage] pass: chains agree
+[reflect] 1 op(s) applied: The probe was a clean PASS covering a broad mix of control-flow constructs, which establishes agreement on semantics at moderate scale but says nothing about the seed area's core concern: metering-model limits. The single highest-value new belief is that divergence only emerges near gas/weight thresholds, with a concrete next probe that sweeps loopAccum sizes to locate the asymmetry.
+[budget] llm_calls=9/100 oracle_runs=4/100 tokens=22884 cost=$0.445442
+[seed] revert-reasons: Revert reason encoding (Error(string) / Panic(uint))
+[run] revert-reason-panic-variants (8 steps)
+[run] verdict=DIVERGENCE kinds=['RETURN_MISMATCH', 'STATUS_MISMATCH', 'STORAGE_MISMATCH', 'TX_STATUS_MISMATCH']
+[triage] bug_candidate: solang fails to trap on underflow, division-by-zero, and array OOB (Solidity 0.8 panics), committing state that solc correctly reverts
+[corpus] admitted 8335a2c1118bf97f (divergence)
+[reflect] 4 op(s) applied: The probe cleanly separates explicit revert constructs (agree: revert + rollback on both) from implicit panic sites (diverge: solang succeeds and commits state on underflow, div-by-zero, and OOB memory store, while solc reverts with Panic codes). Because assert(false) still traps in the same solang build, the likeliest cause is optimization-level-conditional omission of arithmetic/bounds checks, which the next probes should test via solang opt levels / overflow-check flags and per-panic-class coverage.
+[minimize] shrinking reproducer ...
+[finding] NEW 54c1b188dace9051: solang fails to trap on underflow, division-by-zero, and array OOB (Solidity 0.8 panics), committing state that solc correctly reverts
+[budget] llm_calls=13/100 oracle_runs=21/100 tokens=35973 cost=$0.688496
+[seed] strings-bytes: Strings and dynamic bytes ABI
+[run] strings-bytes-dynamic-abi (8 steps)
+[run] verdict=DIVERGENCE kinds=['EVENT_MISMATCH', 'STORAGE_MISMATCH']
+[triage] oracle_artifact: Empty-bytes hex formatting ("0x" vs "") plus count-mode storage-layout comparison of string/bytes slots produce false divergences; all observable semantics agree.
+[corpus] admitted aa23046f34f8d893 (divergence)
+[reflect] 3 op(s) applied: The probe produced only oracle artifacts: all semantic getter/return values matched across chains, while raw storage multisets differ due to EVM slot layout vs solang SCALE packing, and the empty-bytes event arg is serialized as '0x' vs ''. This area's behavior likely agrees; the durable knowledge is about comparator/storage-oracle normalization needs and a concrete plan to verify agreement with semantics-only oracle.
+[budget] llm_calls=16/100 oracle_runs=22/100 tokens=45259 cost=$0.835345
+[seed] contract-structure: Inheritance, overloads and dispatch
+[run] overload-inherit-virtual-dispatch (7 steps)
+[run] verdict=ERROR kinds=-
+[triage] error: oracle run failed: ValueError: message 'f' with 2 args not in metadata
+[budget] llm_calls=17/100 oracle_runs=23/100 tokens=47609 cost=$0.881463
+[seed] crypto-builtins: Crypto builtins and precompiles
+[generate] failed: model returned empty content
+[budget] llm_calls=18/100 oracle_runs=23/100 tokens=52909 cost=$1.030182
+[seed] value-transfers: msg.value, payable and balance semantics
+[run] payable-value-nonpayable-status (8 steps)
+[run] verdict=PASS kinds=-
+[triage] pass: chains agree
+[reflect] 3 op(s) applied: The probe cleanly exercised the key boundary cases: zero value into a payable require, nonzero value into a payable function, and nonzero value into a nonpayable function. Since the notebook was empty and no divergence appeared, I recorded narrow agreement hypotheses with cheap follow-up probes rather than claiming broad msg.value equivalence.
+[budget] llm_calls=20/100 oracle_runs=24/100 tokens=59696 cost=$1.203670
+[seed] crypto-builtins: Crypto builtins and precompiles
+[run] crypto-builtin-hash-packed-ecrecover (8 steps)
+[run] verdict=DIVERGENCE kinds=['COMPILE_ASYMMETRY']
+[triage] known_semantic: solang (Polkadot target) lacks the ecrecover builtin at compile time; solc accepts it — documented target feature gap
+[corpus] admitted e52c658c7d3643f2 (divergence)
+[reflect] 2 op(s) applied: The probe produced a compile-time asymmetry: solang does not recognize the ecrecover builtin at all, so the runtime behavior of keccak256/sha256/ripemd160 and packed vs encoded hashing remains untested. I recorded the compile-time rejection as a durable fact and opened a follow-up hypothesis about the raw address-0x1 precompile path, which is the only remaining way ecrecover semantics could diverge on pallet-contracts.
+[budget] llm_calls=23/100 oracle_runs=25/100 tokens=68610 cost=$1.390722
+
+hunt done: 10 rounds, 1 new finding(s) (round_limit)
+hypotheses: 19 open, 0 confirmed, 0 refuted
+llm: 23 calls, 68610 tokens (10759 cached), $1.390722, 757.6s in LLM; wall 804.2s

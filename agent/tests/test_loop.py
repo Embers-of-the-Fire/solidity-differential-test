@@ -195,6 +195,11 @@ def test_loop_records_bug_candidate_finding(tmp_path):
     # findings carry the budget counters for the evaluation harness
     assert findings[0]["oracle_runs_total"] >= 1
     assert findings[0]["llm_calls_total"] >= 1
+    origin = findings[0]["origin_probe_id"]
+    probe = next(p for p in loop.store.probes() if p["probe_id"] == origin)
+    assert probe["oracle_runs_total"] == 1
+    assert (tmp_path / probe["spec_path"]).exists()
+    assert (tmp_path / probe["report_path"]).exists()
 
 
 def test_reflect_never_skips_notebook_calls(tmp_path):
@@ -341,3 +346,34 @@ def test_mutation_round_minimizes_new_bug_candidates(tmp_path):
     finding = loop.store.findings()[-1]
     assert finding["earliest_signature"] == "RETURN_MISMATCH|0|add|int≠null"
     assert finding["minimality"]["verified_one_minimal"] in (True, False)
+    origin = finding["origin_probe_id"]
+    assert origin in {m["probe_id"] for m in summary["mutants"]}
+    probe = next(p for p in loop.store.probes() if p["probe_id"] == origin)
+    assert probe["origin"] == "mutated_llm"
+
+
+def test_no_llm_configuration_never_calls_client(tmp_path):
+    cfg = AgentConfig(
+        findings_dir=tmp_path,
+        generation_backend="template",
+        triage_backend="rules",
+        execution_mode="dry-run-only",
+        reflect="never",
+        llm_mutants_per_round=0,
+        reduce_llm_rounds=0,
+        p_mutate=0.0,
+        llm_calls_budget=0,
+    )
+    assert not cfg.requires_llm()
+    llm = FakeLLM()
+    loop = HuntLoop(
+        cfg,
+        client=llm,
+        executor=FakeExecutor(),
+        store=FindingStore(tmp_path),
+        rng_seed=0,
+        log=lambda *_: None,
+    )
+    loop.hunt(loop.default_policy(1), only_seeds=["int-semantics"])
+    assert llm.calls == 0
+    assert len(loop.store.probes()) == 1

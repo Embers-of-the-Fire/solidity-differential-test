@@ -17,7 +17,7 @@ from typing import Any, Protocol
 from openai import OpenAI, OpenAIError
 
 from .config import AgentConfig
-from .usage import UsageTracker
+from .usage import NoUsage, UsageTracker
 
 _FENCE_RE = re.compile(r"```(?:json)?\s*\n(.*?)```", re.DOTALL)
 
@@ -40,6 +40,19 @@ def model_for_stage(cfg: AgentConfig, stage: str) -> str:
     if tier_for_stage(stage) == "flash" and cfg.model_light:
         return cfg.model_light
     return cfg.model
+
+
+class NullChatClient(NoUsage):
+    """Zero-usage client for deterministic baselines; any LLM use is a bug."""
+
+    def __init__(self):
+        self.calls = 0
+
+    def budget_left(self) -> int:
+        return 0
+
+    def chat_json(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        raise LLMError("LLM call attempted in a no-LLM configuration")
 
 
 class ChatClient(Protocol):

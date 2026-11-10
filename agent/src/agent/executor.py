@@ -82,19 +82,33 @@ class Executor:
     """Parallel oracle runner. Nodes pick free ports and use --tmp chains,
     so concurrent runs are safe (each run still pays node startup)."""
 
-    def __init__(self, parallel: int = 4, verbose: bool = False):
+    def __init__(
+        self, parallel: int = 4, verbose: bool = False, execution_mode: str = "on-chain"
+    ):
         self.verbose = verbose
+        self.execution_mode = execution_mode
         self.runs = 0
         self._pool = ThreadPoolExecutor(max_workers=max(1, parallel))
 
+    def _with_execution_mode(self, spec_dict: dict[str, Any]) -> dict[str, Any]:
+        # Materialize the mode on the spec retained by the hunt loop so stored
+        # artifacts and minimized witnesses replay under the same semantics.
+        spec_dict["execution"] = self.execution_mode
+        return spec_dict
+
     def run(self, spec_dict: dict[str, Any]) -> dict[str, Any]:
         self.runs += 1
-        return run_spec_dict(spec_dict, verbose=self.verbose)
+        return run_spec_dict(self._with_execution_mode(spec_dict), verbose=self.verbose)
 
     def run_many(self, spec_dicts: list[dict[str, Any]]) -> list[dict[str, Any]]:
         self.runs += len(spec_dicts)
         return list(
-            self._pool.map(lambda s: run_spec_dict(s, verbose=self.verbose), spec_dicts)
+            self._pool.map(
+                lambda s: run_spec_dict(
+                    self._with_execution_mode(s), verbose=self.verbose
+                ),
+                spec_dicts,
+            )
         )
 
     def close(self) -> None:

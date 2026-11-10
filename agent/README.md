@@ -108,6 +108,9 @@ overrides; the ablation axes are marked):
 
 | knob | default | meaning |
 |---|---|---|
+| `generation_backend` | `llm` | `template` enables deterministic, LLM-free spec generation |
+| `triage_backend` | `llm` | `rules` defers unresolved divergences to offline adjudication instead of calling an LLM |
+| `execution_mode` | `on-chain` | `dry-run-only` forces the RQ4 execution mode for an entire hunt |
 | `p_mutate` | 0.7 | probability a round mutates a corpus parent instead of generating from scratch — **ablation: 0.0 = generation-only baseline** |
 | `prog_mutants_per_round` | 4 | free programmatic mutants per mutation round |
 | `llm_mutants_per_round` | 4 | mutants requested in the single batch LLM call (0 = programmatic-only) |
@@ -160,6 +163,9 @@ uv run --package solidity-diff-agent solidity-diff-agent hunt \
 # generation-only baseline (no mutation), or stop after 10 signal-free rounds
 solidity-diff-agent hunt --p-mutate 0.0 --saturation-window 10
 
+# genuine no-LLM baseline; optionally add --execution-mode dry-run-only
+solidity-diff-agent hunt --no-llm --rounds 20 --oracle-runs 200
+
 # restrict to specific seed areas / a frozen seed corpus
 solidity-diff-agent hunt --seeds int-semantics,revert-reasons --rounds 10
 solidity-diff-agent hunt --seeds-dir agent/seeds_derived/
@@ -173,6 +179,52 @@ solidity-diff-agent hypotheses --findings-dir findings/
 # re-run one finding's reproducer (exit 1 = still diverging)
 solidity-diff-agent replay <finding-id> --findings-dir findings/
 ```
+
+### Evidence retention and offline review
+
+Every probe has a stable `probe_id`. Every divergent probe retains its spec and
+full report under `artifacts/probes/<probe_id>/`, **including divergences rejected
+by online triage**. Findings link back through `origin_probe_id`; their own budget
+counters are post-reduction, while the origin probe carries first-witness oracle,
+LLM-call, and token counters. `campaign.json` freezes configuration, model, seed
+hashes, tool versions, and repository revision.
+
+Offline adjudication never changes the hunt loop or overwrites findings:
+
+```bash
+# Screen minimized findings with two panel calls and one adversarial pass per
+# survivor; also audit a reproducible sample of rejected divergences.
+solidity-diff-agent adjudicate --findings-dir findings/hunt-latest \
+    --judges 2 --rejected-sample 30 --rng-seed 1234 --llm-calls 500
+
+# Optionally replay survivors and minimize promoted rejected probes (real chains).
+solidity-diff-agent adjudicate --findings-dir findings/hunt-latest \
+    --replay-promoted
+```
+
+Results land in `review/screening.jsonl`; surviving cases get Markdown/JSON
+dossiers under `review/dossiers/`. Per-case confirmation tokens and replay runs
+are recorded, with detailed calls in `review/llm_usage.jsonl`. These are screening
+aids, not confirmed bugs.
+Human semantic and current upstream-tracker decisions are appended separately to
+`review/decisions.jsonl`:
+
+```json
+{"bug_id":"bug-001","finding_ids":["<finding-id>"],"status":"confirmed_solang_bug","upstream_status":"no_match_as_of:2026-11-09","reviewer":"...","rationale":"..."}
+```
+
+Use `probe_ids` for promoted rejected probes. Later decisions for the same
+`bug_id` update status while retaining cluster membership. Aggregate one or more
+runs without counting multiple witnesses as independent bugs:
+
+```bash
+solidity-diff-agent review-report findings/run-a findings/run-b --out review/summary
+```
+
+Outputs include confirmed-bug summaries, discovery curves, first-witness and
+confirmation costs, screening precision/rejected-audit false-negative rates when
+human decisions exist, and a Markdown bug table. `export_witnesses.py` includes
+campaign, origin, and matching review decisions in each witness's `provenance.json`.
 
 ## Evaluation (ablation matrix)
 
@@ -198,6 +250,11 @@ Matrix file schema:
   ]
 }
 ```
+
+`agent/eval/issta_ablations.json` adds the full, generation-only, no-reflect,
+genuine no-LLM (template generation + rules triage + deterministic reduction),
+and dry-run-only configurations. The no-LLM configuration uses no LLM in any
+discovery or reduction stage; all configurations share offline adjudication.
 
 `overrides` are `AgentConfig` fields; budgets and `findings_dir` are owned by
 the harness. Each run gets a fresh findings dir and a deterministic rng seed

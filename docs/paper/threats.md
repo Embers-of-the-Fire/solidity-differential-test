@@ -17,6 +17,14 @@
 - **LLM variance.** Generation/triage/reflect depend on the model; mitigated
   by deterministic rng seeds, per-stage usage tracing, 5 repeats, and the
   deterministic reduction stack downstream (no LLM needed for L0/L1 results).
+- **LLM adjudication.** Panel votes are screening signals, not independent
+  reviewers or proof of correctness. Confirmed counts require human semantic
+  review and time-stamped upstream searches; rejected-probe sampling estimates
+  triage false negatives.
+- **Baseline coverage.** The genuine no-LLM arm uses deterministic language
+  templates, not a complete external Solidity fuzzer. Its narrower template
+  coverage is a limitation; all arms share the oracle, budgets, reduction, and
+  offline review protocol.
 - **Determinism of the chains.** Checked by replay
   (`eval/rq5/determinism.json`; 3/3 stable on the current corpus).
 - **Signature predicate.** Signature equality is stricter than human

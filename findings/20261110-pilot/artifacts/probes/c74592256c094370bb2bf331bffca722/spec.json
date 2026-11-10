@@ -1,0 +1,61 @@
+{
+  "name": "crypto-builtin-hash-packed-ecrecover",
+  "contract": "CryptoProbe",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract CryptoProbe {\n    uint256 public count;\n    bytes32 public dataKeccak;\n    bytes32 public dataSha;\n    bytes20 public dataRipemd;\n    bytes32 public packedHash;\n    bytes32 public encodedHash;\n    address public badRecovered;\n\n    bytes1 constant B1 = 0xff;\n    string constant SX = \"x\";\n    bytes32 constant BAD_HASH = 0x0000000000000000000000000000000000000000000000000000000000000000;\n    bytes32 constant ONE32 = 0x0000000000000000000000000000000000000000000000000000000000000001;\n\n    event HashStored(bytes32 indexed k, bytes32 indexed s, bytes20 indexed r);\n\n    function setData(bytes calldata b) external {\n        count++;\n        dataKeccak = keccak256(b);\n        dataSha = sha256(b);\n        dataRipemd = ripemd160(b);\n        emit HashStored(dataKeccak, dataSha, dataRipemd);\n\n        packedHash = keccak256(abi.encodePacked(uint8(255), B1, SX));\n        encodedHash = keccak256(abi.encode(uint8(255), B1, SX));\n        badRecovered = ecrecover(BAD_HASH, 30, ONE32, ONE32);\n    }\n}",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "setData",
+      "args": [
+        "0x010203"
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "count"
+    },
+    {
+      "action": "query",
+      "function": "dataKeccak"
+    },
+    {
+      "action": "query",
+      "function": "dataSha"
+    },
+    {
+      "action": "query",
+      "function": "dataRipemd"
+    },
+    {
+      "action": "query",
+      "function": "packedHash"
+    },
+    {
+      "action": "query",
+      "function": "encodedHash"
+    },
+    {
+      "action": "query",
+      "function": "badRecovered"
+    }
+  ],
+  "meta": {
+    "parent_id": null,
+    "origin": "generated"
+  },
+  "execution": "on-chain"
+}

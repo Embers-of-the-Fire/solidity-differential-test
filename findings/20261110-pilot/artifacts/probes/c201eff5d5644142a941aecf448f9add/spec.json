@@ -1,0 +1,85 @@
+{
+  "name": "strings-bytes-dynamic-abi",
+  "solidity": "pragma solidity >=0.8.13;\ncontract StringsProbe {\n    string public stored;\n    bytes public blob;\n    string public lastConcat;\n    event Stored(string s, bytes b);\n    function setString(string memory s) public {\n        stored = s;\n        emit Stored(s, blob);\n    }\n    function setBytes(bytes memory b) public {\n        blob = b;\n    }\n    function concatAndStore(string memory a, string memory b) public {\n        lastConcat = string.concat(a, b);\n        emit Stored(lastConcat, blob);\n    }\n    function echoNames(string[] memory names) public returns (uint256) {\n        return names.length;\n    }\n    function getNames() public view returns (string[] memory) {\n        string[] memory r = new string[](3);\n        r[0] = stored;\n        r[1] = \"\";\n        r[2] = \"abcdefghijklmnopqrstuvwxyzabcdefg\";\n        return r;\n    }\n}",
+  "contract": "StringsProbe",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "setString",
+      "args": [
+        "h\u00e9llo w\u00f6rld \u4e2d\u6587 \ud834\udd1e end"
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "stored"
+    },
+    {
+      "action": "call",
+      "function": "concatAndStore",
+      "args": [
+        "",
+        "abcdefghijklmnopqrstuvwxyzabcdef"
+      ],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "lastConcat"
+    },
+    {
+      "action": "call",
+      "function": "setBytes",
+      "args": [
+        "0xdeadbeefcafe001122334455667788990011223344556677889900112233445566"
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "blob"
+    },
+    {
+      "action": "call",
+      "function": "echoNames",
+      "args": [
+        [
+          "alpha",
+          "\u03b2eta \u03b3",
+          "",
+          "abcdefghijklmnopqrstuvwxyzabcdefg"
+        ]
+      ],
+      "sender": "charlie",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "getNames"
+    }
+  ],
+  "meta": {
+    "parent_id": null,
+    "origin": "generated"
+  },
+  "execution": "on-chain"
+}

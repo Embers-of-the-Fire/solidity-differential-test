@@ -1,0 +1,82 @@
+{
+  "name": "revert-reason-panic-variants",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract RevertProbe {\n    uint public attempts;\n    error MyError(uint code, string why);\n\n    function bump() public {\n        attempts++;\n    }\n\n    function trigger(uint sel) public {\n        attempts++;\n        if (sel == 0) {\n            uint a = 0;\n            a -= 1;\n        } else if (sel == 1) {\n            uint b = 1;\n            uint c = 5 / (b - 1);\n        } else if (sel == 2) {\n            require(false, \"custom revert message\");\n        } else if (sel == 3) {\n            assert(false);\n        } else if (sel == 4) {\n            revert MyError(42, \"boom\");\n        } else if (sel == 5) {\n            uint[] memory m;\n            m[3] = 1;\n        } else {\n            revert(\"fallback reason\");\n        }\n    }\n}",
+  "contract": "RevertProbe",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": false,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "trigger",
+      "args": [
+        0
+      ],
+      "sender": "alice"
+    },
+    {
+      "action": "call",
+      "function": "trigger",
+      "args": [
+        1
+      ],
+      "sender": "alice"
+    },
+    {
+      "action": "call",
+      "function": "trigger",
+      "args": [
+        2
+      ],
+      "sender": "alice"
+    },
+    {
+      "action": "call",
+      "function": "trigger",
+      "args": [
+        3
+      ],
+      "sender": "alice"
+    },
+    {
+      "action": "call",
+      "function": "trigger",
+      "args": [
+        4
+      ],
+      "sender": "alice"
+    },
+    {
+      "action": "call",
+      "function": "trigger",
+      "args": [
+        5
+      ],
+      "sender": "alice"
+    },
+    {
+      "action": "call",
+      "function": "bump",
+      "args": [],
+      "sender": "alice"
+    },
+    {
+      "action": "query",
+      "function": "attempts"
+    }
+  ],
+  "meta": {
+    "parent_id": null,
+    "origin": "generated"
+  },
+  "execution": "on-chain"
+}

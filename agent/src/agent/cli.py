@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import sys
 from pathlib import Path
 
@@ -10,7 +11,9 @@ from .config import AgentConfigError, load_config
 from .evaluate import EvalConfigError, load_eval_config, run_matrix
 from .executor import Executor, divergence_kinds
 from .hypotheses import load_notebook
+from .llm import LLMClient
 from .loop import HuntLoop
+from .provenance import write_campaign_metadata
 from .seeds import load_seeds
 from .store import FindingStore
 
@@ -33,6 +36,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="stop after K rounds with no new findings, kinds or hypothesis changes",
     )
     hunt.add_argument("--parallel", type=int, metavar="K", help="parallel oracle runs")
+    hunt.add_argument("--generation-backend", choices=("llm", "template"), default=None)
+    hunt.add_argument("--triage-backend", choices=("llm", "rules"), default=None)
+    hunt.add_argument(
+        "--execution-mode", choices=("on-chain", "dry-run-only"), default=None
+    )
+    hunt.add_argument(
+        "--no-llm",
+        action="store_true",
+        help="template generation, rules triage, programmatic mutation, deterministic reduction",
+    )
     hunt.add_argument(
         "--p-mutate",
         type=float,
@@ -76,6 +89,27 @@ def build_parser() -> argparse.ArgumentParser:
     replay.add_argument("finding_id", help="finding id from `report`")
     replay.add_argument("--findings-dir", metavar="DIR", default=None)
 
+    adjudicate = sub.add_parser(
+        "adjudicate", help="offline LLM screening of findings and rejected probes"
+    )
+    adjudicate.add_argument("--findings-dir", metavar="DIR", default=None)
+    adjudicate.add_argument("--llm-calls", type=int, metavar="N", default=None)
+    adjudicate.add_argument("--judges", type=int, default=2)
+    adjudicate.add_argument("--rejected-sample", type=int, metavar="N", default=0)
+    adjudicate.add_argument("--rng-seed", type=int, default=0)
+    adjudicate.add_argument("--skip-findings", action="store_true")
+    adjudicate.add_argument(
+        "--replay-promoted",
+        action="store_true",
+        help="replay survivors and minimize promoted rejected probes",
+    )
+
+    review = sub.add_parser(
+        "review-report", help="aggregate human-confirmed bugs across run directories"
+    )
+    review.add_argument("runs", nargs="+", metavar="RUN_DIR")
+    review.add_argument("--out", required=True, metavar="DIR")
+
     ev = sub.add_parser(
         "eval", help="run an ablation matrix (configs x repeats x budgets)"
     )
@@ -97,16 +131,29 @@ def _cmd_hunt(args: argparse.Namespace) -> int:
     if args.p_mutate is not None and not 0.0 <= args.p_mutate <= 1.0:
         print("--p-mutate must be in [0.0, 1.0]", file=sys.stderr)
         return 2
+    if args.no_llm and (
+        args.generation_backend not in (None, "template")
+        or args.triage_backend not in (None, "rules")
+    ):
+        print("--no-llm conflicts with the selected LLM backend", file=sys.stderr)
+        return 2
     cfg = load_config(
         findings_dir=args.findings_dir,
         llm_calls=args.llm_calls,
         oracle_runs=args.oracle_runs,
         saturation_window=args.saturation_window,
         parallel=args.parallel,
+        generation_backend="template" if args.no_llm else args.generation_backend,
+        triage_backend="rules" if args.no_llm else args.triage_backend,
+        execution_mode=args.execution_mode,
         p_mutate=args.p_mutate,
+        reflect="never" if args.no_llm else None,
+        llm_mutants_per_round=0 if args.no_llm else None,
+        reduce_llm_rounds=0 if args.no_llm else None,
         seeds_dir=args.seeds_dir,
     )
     only = args.seeds.split(",") if args.seeds else None
+    write_campaign_metadata(cfg.findings_dir, cfg, extra={"only_seeds": only})
     loop = HuntLoop(
         cfg,
         rng_seed=args.rng_seed,
@@ -234,6 +281,53 @@ def _cmd_replay(args: argparse.Namespace) -> int:
     return 0 if report.get("verdict") == "PASS" else 1
 
 
+def _cmd_adjudicate(args: argparse.Namespace) -> int:
+    from .adjudicate import adjudicate_cases, load_cases
+
+    if args.judges < 1 or args.rejected_sample < 0:
+        print(
+            "--judges must be positive and --rejected-sample non-negative",
+            file=sys.stderr,
+        )
+        return 2
+    root = Path(args.findings_dir or "findings")
+    cases = load_cases(
+        root,
+        include_findings=not args.skip_findings,
+        rejected_sample=args.rejected_sample,
+        rng_seed=args.rng_seed,
+    )
+    if not cases:
+        print("no cases selected")
+        return 0
+    cfg = load_config(findings_dir=root / "review", llm_calls=args.llm_calls)
+    counts = adjudicate_cases(
+        LLMClient(cfg),
+        cfg,
+        root,
+        cases,
+        judges=args.judges,
+        replay_promoted=args.replay_promoted,
+    )
+    print(
+        f"adjudication: {counts['survivor']} survivor(s), "
+        f"{counts['rejected']} rejected, {counts['error']} error(s), "
+        f"{counts['skipped']} already screened; review dir: {root / 'review'}"
+    )
+    return 0
+
+
+def _cmd_review_report(args: argparse.Namespace) -> int:
+    from .review_analysis import analyze_runs
+
+    summary = analyze_runs(args.runs, args.out)
+    print(
+        f"review: {summary['global_confirmed_bugs']} distinct confirmed bug(s) "
+        f"across {summary['n_runs']} run(s); wrote {args.out}"
+    )
+    return 0
+
+
 def _cmd_eval(args: argparse.Namespace) -> int:
     try:
         matrix = load_eval_config(args.config)
@@ -241,7 +335,11 @@ def _cmd_eval(args: argparse.Namespace) -> int:
         print(f"eval config error: {e}", file=sys.stderr)
         return 2
     cfg = load_config(findings_dir=args.findings_dir)
-    cfg.check_llm()  # fail fast before starting a long matrix
+    if any(
+        dataclasses.replace(cfg, **entry.overrides).requires_llm()
+        for entry in matrix.configs
+    ):
+        cfg.check_llm()  # fail fast before starting a long matrix
     out_root = Path(args.out_root) if args.out_root else cfg.findings_dir / "eval"
     log = (lambda *_: None) if args.quiet else print
     summary = run_matrix(matrix, base_config=cfg, out_root=out_root, log=log)
@@ -272,6 +370,10 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_cost(args)
         if args.command == "replay":
             return _cmd_replay(args)
+        if args.command == "adjudicate":
+            return _cmd_adjudicate(args)
+        if args.command == "review-report":
+            return _cmd_review_report(args)
         if args.command == "eval":
             return _cmd_eval(args)
     except AgentConfigError as e:

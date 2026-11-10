@@ -1,0 +1,34 @@
+{
+  "seed_id": "env-vars",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "solang rejects any contract using tx.origin with a hard compile-time error (\"builtin 'tx.origin' does not exist\"), while solc compiles identical source successfully; tx.origin is a categorical compile-level divergence.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-gasleft-txorigin-flags",
+          "verdict": "DIVERGENCE",
+          "note": "COMPILE_ASYMMETRY: solang failed with \"builtin 'tx.origin' does not exist\" at the seenOrigin = tx.origin assignment; solc compiled cleanly. Compile halted before runtime, so no behavioral data on gasleft/tx.origin semantics was obtained."
+        }
+      ],
+      "next_probe": "Probe that reads tx.origin only (no gasleft), including one variant where tx.origin is used in a pure expression and one where it is an event argument, to confirm solang's rejection is context-independent and not an artifact of combined env-var usage."
+    },
+    {
+      "id": "h2",
+      "statement": "solang's parser/frontend accepts gasleft() (the only reported error was tx.origin), so gasleft() compiles in solang but its runtime semantics may differ from EVM (e.g., always-0, metering-incompatible value, or gas value in different units).",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-gasleft-txorigin-flags",
+          "verdict": "DIVERGENCE",
+          "note": "solang's single diagnostic targeted tx.origin only; no complaint about gasleft() at the same and later lines, suggesting gasleft() parsed. Runtime behavior unknown because compilation aborted."
+        }
+      ],
+      "next_probe": "Probe that captures only gasleft() (>0 flag and raw value emitted in an event) on both chains, avoiding tx.origin entirely, to compare whether the strictFlag and event gasLeft values agree."
+    }
+  ],
+  "updated_ts": 1794271111.8819635
+}

@@ -1,0 +1,62 @@
+{
+  "seed_id": "revert-reasons",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "solang (default optimization) does not trap on arithmetic underflow/overflow or division by zero: uint a = 0; a -= 1 and 5/(b-1) with b=1 execute successfully and persist state changes, whereas solc reverts with Panic(0x11)/Panic(0x12) and rolls back. This suggests wrapping/no-check semantics by default in solang.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "revert-reason-panic-variants",
+          "verdict": "DIVERGENCE",
+          "note": "steps 0 (underflow) and 1 (div-by-zero): EVM reverts with attempts=0; solang reports success and commits attempts++ (attempts=1 then 2). TX_STATUS and STORAGE mismatches at both steps."
+        }
+      ],
+      "next_probe": "Pure-arithmetic probe (no storage counter) exercising add-overflow at type(uint).max, underflow at 0, div-by-zero, and mod-by-zero, run under solang default vs solang --math-overflow panic (if supported) to determine whether the behavior is a default-flag artifact or a missing codegen check."
+    },
+    {
+      "id": "h2",
+      "statement": "solang (default optimization) does not bounds-check memory array access: m[3] = 1 on an empty uint[] memory succeeds, while solc reverts with Panic(0x32).",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "revert-reason-panic-variants",
+          "verdict": "DIVERGENCE",
+          "note": "step 5: EVM reverts (Panic OOB), solang succeeds and commits attempts++ (attempts becomes 3). STATUS/TX_STATUS/STORAGE mismatches."
+        }
+      ],
+      "next_probe": "Memory/calldata bounds probe: OOB read vs OOB write, dynamic array of lengths 0/1/n with index n, and negative index reached via uint(int(-1)), checking whether any access pattern traps in solang."
+    },
+    {
+      "id": "h3",
+      "statement": "Explicit revert constructs behave identically on both chains: require(false, msg), assert(false), and custom error revert MyError(...) all revert and roll back state on both solc and solang.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "revert-reason-panic-variants",
+          "verdict": "PASS",
+          "note": "steps 2, 3, 4: no STATUS/TX_STATUS mismatches reported for require/assert/custom error; both chains reverted and (with revert_reasons oracle on) no revert-reason divergence surfaced; storage diffs at those steps are inherited from earlier steps where solang already advanced attempts."
+        }
+      ],
+      "next_probe": "Probe asserting exact decoded revert payloads (Error(string), Panic(0x01), custom Error(uint,string) selector + args) via eth_call revert-reason comparison for the three explicit-revert paths, to confirm not just status but payload equality."
+    },
+    {
+      "id": "h4",
+      "statement": "solang's failure to trap on implicit panics (arithmetic, bounds) is not uniform across panic classes: explicit assert(false) (Panic 0x01) does trap, while arithmetic (0x11/0x12) and bounds (0x32) panic sites are elided at default optimization, implying optimization-level-conditional check codegen rather than a missing runtime entirely.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "revert-reason-panic-variants",
+          "verdict": "DIVERGENCE",
+          "note": "assert(false) at step 3 reverted on solang (no status mismatch) while steps 0/1/5 succeeded on the same build, so solang's assert path works but arithmetic/bounds checks were not emitted at default opt."
+        }
+      ],
+      "next_probe": "Same trigger matrix compiled under solang opt_level none/aggressive to see whether panic checks appear at lower optimization; also test assert(false) placed after an overflow that should have reverted earlier to verify assert still fires when reachable."
+    }
+  ],
+  "updated_ts": 1794271358.9956803
+}

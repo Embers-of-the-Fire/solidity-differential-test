@@ -83,3 +83,18 @@ batch mutation are interchangeable producers behind the same oracle
 interface. Two-tier dedup: a cheap earliest-signature pre-check skips the
 minimize spend for known witnesses; post-minimization merge via the
 signature-set fingerprint (`agent/src/agent/loop.py`, `store.py`).
+
+## Evidence retention and confirmed-bug analysis
+
+Every executed probe has a stable identity; every divergence retains its original
+spec and full report even when online triage rejects it. Findings reference the
+originating first-witness probe, whose counters precede reduction. This supports
+retrospective rejected-probe audits and separates discovery from reduction cost.
+
+Offline adjudication is deliberately outside the search loop: repeated panel
+screening and an adversarial rejection pass produce review dossiers, never final
+bug labels. Human reviewers assign root-cause bug clusters, Solidity-fault
+judgments, and time-stamped upstream status in append-only decisions. Reviewed
+analysis joins those clusters across runs, counts each bug once, and computes
+first-witness and confirmation costs without treating sibling witnesses as
+independent observations.

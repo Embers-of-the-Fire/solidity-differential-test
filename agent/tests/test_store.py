@@ -146,3 +146,39 @@ def test_probe_and_finding_carry_timing_and_usage(tmp_path):
 def test_usage_summary_empty(tmp_path):
     store = FindingStore(tmp_path)
     assert store.usage_summary()["totals"]["calls"] == 0
+
+
+def test_divergent_probe_retains_replayable_evidence(tmp_path):
+    store = FindingStore(tmp_path)
+    probe_id = store.record_probe(
+        spec=spec(),
+        report=div_report(),
+        seed_id="s1",
+        category="oracle_artifact",
+        oracle_runs_total=7,
+        llm_calls_total=3,
+        llm_tokens_total=1234,
+    )
+    probe = store.probes()[0]
+    assert probe["probe_id"] == probe_id
+    assert probe["category"] == "oracle_artifact"
+    assert probe["earliest_signature"] == SIG
+    assert probe["llm_tokens_total"] == 1234
+    assert (tmp_path / probe["spec_path"]).exists()
+    assert (tmp_path / probe["report_path"]).exists()
+
+
+def test_finding_links_to_first_witness_probe(tmp_path):
+    store = FindingStore(tmp_path)
+    probe_id = store.record_probe(
+        spec=spec(), report=div_report(), seed_id="s1", category="bug_candidate"
+    )
+    fid = store.add_finding(
+        spec=spec(),
+        report=div_report(),
+        triage=TRIAGE,
+        seed_id="s1",
+        origin_probe_id=probe_id,
+    )
+    assert fid is not None
+    assert store.get_finding(fid)["origin_probe_id"] == probe_id

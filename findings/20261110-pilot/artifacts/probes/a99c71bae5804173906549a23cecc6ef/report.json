@@ -1,0 +1,79 @@
+{
+  "name": "env-gasleft-txorigin-flags",
+  "contract": "EnvVarsProbe",
+  "tool_versions": {
+    "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+    "solang": "solang version v0.3.5",
+    "anvil": "anvil Version: 1.7.1-dev",
+    "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+  },
+  "oracle_config": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "execution": "on-chain",
+  "workdir": "/tmp/oracle-run-qkpkfknu",
+  "timing": {
+    "started_at": "2026-11-10T00:38:07.654+00:00",
+    "started_epoch": 1794271087.6541767,
+    "total_ms": 19.98787600001606,
+    "nodes": {}
+  },
+  "compile": {
+    "solc": {
+      "compiler": "solc",
+      "ok": true,
+      "version": "Version: 0.8.33+commit.64118f21.Linux.g++",
+      "errors": null,
+      "warnings": [
+        "Warning: SPDX license identifier not provided in source file. Before publishing, consider adding a comment containing \"SPDX-License-Identifier: <SPDX-License>\" to each source file. Use \"SPDX-License-Identifier: UNLICENSED\" for non-open-source code. Please see https://spdx.org for more information.\n--> input.sol\n\n"
+      ],
+      "artifacts": {
+        "abi": true,
+        "bytecode_bytes": 1200,
+        "wasm_bytes": 0,
+        "metadata": false
+      },
+      "elapsed_ms": 8.13698599995405
+    },
+    "solang": {
+      "compiler": "solang",
+      "ok": false,
+      "version": "solang version v0.3.5",
+      "errors": [
+        "\u001b[0m\u001b[1m\u001b[38;5;9merror\u001b[0m\u001b[1m: builtin 'tx.origin' does not exist\u001b[0m\n   \u001b[0m\u001b[34m\u250c\u2500\u001b[0m /tmp/solang-jylba41l/input.sol:12:22\n   \u001b[0m\u001b[34m\u2502\u001b[0m\n\u001b[0m\u001b[34m12\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m         seenOrigin = \u001b[0m\u001b[31mtx\u001b[0m.origin;\n   \u001b[0m\u001b[34m\u2502\u001b[0m                      \u001b[0m\u001b[31m^^\u001b[0m"
+      ],
+      "warnings": null,
+      "artifacts": null,
+      "elapsed_ms": 11.80146000001514
+    }
+  },
+  "deploy": {},
+  "steps": [],
+  "divergences": [
+    {
+      "kind": "COMPILE_ASYMMETRY",
+      "step": null,
+      "detail": "one compiler rejected the source while the other accepted it",
+      "evm": {
+        "solc_ok": true,
+        "errors": null
+      },
+      "polkadot": {
+        "solang_ok": false,
+        "errors": [
+          "\u001b[0m\u001b[1m\u001b[38;5;9merror\u001b[0m\u001b[1m: builtin 'tx.origin' does not exist\u001b[0m\n   \u001b[0m\u001b[34m\u250c\u2500\u001b[0m /tmp/solang-jylba41l/input.sol:12:22\n   \u001b[0m\u001b[34m\u2502\u001b[0m\n\u001b[0m\u001b[34m12\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m         seenOrigin = \u001b[0m\u001b[31mtx\u001b[0m.origin;\n   \u001b[0m\u001b[34m\u2502\u001b[0m                      \u001b[0m\u001b[31m^^\u001b[0m"
+        ]
+      },
+      "point": "compile",
+      "signature": "COMPILE_ASYMMETRY|compile||solang-rejects"
+    }
+  ],
+  "earliest_divergence": {
+    "point": "compile",
+    "signature": "COMPILE_ASYMMETRY|compile||solang-rejects"
+  },
+  "verdict": "DIVERGENCE"
+}

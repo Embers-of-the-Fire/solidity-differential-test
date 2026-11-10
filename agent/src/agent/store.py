@@ -2,10 +2,14 @@
 
 Layout under the findings dir:
 
-    probes.jsonl      every probe: spec, verdict, triage category, seed id
+    probes.jsonl      every probe: identity, verdict, triage, discovery counters
+    artifacts/probes/<probe-id>/{spec,report}.json
+                      full evidence for every divergence, including rejected ones
     findings.jsonl    accepted findings (bug candidates), one per line
     corpus.jsonl      admitted specs with lineage/energy (see corpus.py)
     reports/<id>.json full oracle report for each finding
+    campaign.json     frozen run configuration and tool/seed provenance
+    review/           offline screening and separate human decisions
     seeds_state.json  per-seed coverage stats (probes run, kinds found)
 
 Kept dependency-free (no SQLite): the volume is low and JSONL is greppable,
@@ -17,6 +21,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -60,26 +65,45 @@ class FindingStore:
         usage: dict[str, Any] | None = None,
         oracle_runs_total: int | None = None,
         llm_calls_total: int | None = None,
+        llm_tokens_total: int | None = None,
         parent_id: str | None = None,
         origin: str = "generated",
-    ) -> None:
-        self._append(
-            self._probes,
-            {
-                "ts": time.time(),
-                "seed": seed_id,
-                "name": spec.get("name"),
-                "verdict": report.get("verdict"),
-                "category": category,
-                "kinds": sorted(divergence_kinds(report)),
-                "parent_id": parent_id,
-                "origin": origin,
-                "timing": timing,
-                "usage": usage,
-                "oracle_runs_total": oracle_runs_total,
-                "llm_calls_total": llm_calls_total,
-            },
-        )
+    ) -> str:
+        """Record one probe and retain full evidence for every divergence.
+
+        The returned ID links later minimized findings to the first-witness
+        execution. Legacy non-divergent probes remain compact: their specs and
+        reports are not written to disk.
+        """
+        probe_id = uuid.uuid4().hex
+        record = {
+            "probe_id": probe_id,
+            "ts": time.time(),
+            "seed": seed_id,
+            "name": spec.get("name"),
+            "verdict": report.get("verdict"),
+            "category": category,
+            "kinds": sorted(divergence_kinds(report)),
+            "earliest_signature": earliest_signature(report),
+            "parent_id": parent_id,
+            "origin": origin,
+            "timing": timing,
+            "usage": usage,
+            "oracle_runs_total": oracle_runs_total,
+            "llm_calls_total": llm_calls_total,
+            "llm_tokens_total": llm_tokens_total,
+        }
+        if report.get("verdict") == "DIVERGENCE":
+            artifact_dir = self.root / "artifacts" / "probes" / probe_id
+            artifact_dir.mkdir(parents=True, exist_ok=True)
+            spec_path = artifact_dir / "spec.json"
+            report_path = artifact_dir / "report.json"
+            spec_path.write_text(json.dumps(spec, indent=2) + "\n")
+            report_path.write_text(json.dumps(report, indent=2) + "\n")
+            record["spec_path"] = str(spec_path.relative_to(self.root))
+            record["report_path"] = str(report_path.relative_to(self.root))
+        self._append(self._probes, record)
+        return probe_id
 
     def recent_probes(self, n: int = 15) -> list[dict[str, Any]]:
         if not self._probes.exists():
@@ -134,6 +158,7 @@ class FindingStore:
         llm_calls_total: int | None = None,
         minimality: dict[str, Any] | None = None,
         original_spec: dict[str, Any] | None = None,
+        origin_probe_id: str | None = None,
     ) -> str | None:
         """Persist a finding; returns its id, or None if it is a duplicate."""
         sigs = divergence_signatures(report)
@@ -158,6 +183,7 @@ class FindingStore:
             "llm_calls_total": llm_calls_total,
             "minimality": minimality,
             "original_spec": original_spec,
+            "origin_probe_id": origin_probe_id,
         }
         self._append(self._findings, finding)
         report_path = self.root / "reports" / f"{fp}.json"

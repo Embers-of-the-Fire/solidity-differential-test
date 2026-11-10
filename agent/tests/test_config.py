@@ -37,3 +37,20 @@ def test_knob_overrides_validate(tmp_path):
         load_config(findings_dir=tmp_path, reflect="sometimes")
     with pytest.raises(AgentConfigError, match="admission"):
         load_config(findings_dir=tmp_path, admission="maybe")
+
+
+def test_experiment_backend_overrides_validate(tmp_path):
+    cfg = load_config(
+        findings_dir=tmp_path,
+        generation_backend="template",
+        triage_backend="rules",
+        execution_mode="dry-run-only",
+        reflect="never",
+        llm_mutants_per_round=0,
+        reduce_llm_rounds=0,
+    )
+    assert not cfg.requires_llm()
+    with pytest.raises(AgentConfigError, match="generation_backend"):
+        load_config(findings_dir=tmp_path, generation_backend="unknown")
+    with pytest.raises(AgentConfigError, match="execution_mode"):
+        load_config(findings_dir=tmp_path, execution_mode="offline")

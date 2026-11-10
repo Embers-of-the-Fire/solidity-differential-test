@@ -1,0 +1,62 @@
+{
+  "seed_id": "events",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "Indexed dynamic bytes arguments are keccak256-hashed into the EVM log topic (Solidity semantics), while solang/pallet-contracts emits the raw value (0xaabbccdd); this is a known semantic divergence, not a bug.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-args-dynamic",
+          "verdict": "DIVERGENCE",
+          "note": "ThreeIndexed: EVM reports data=0x40eed0325a... (32-byte keccak hash of 0xaabbccdd), Polkadot reports raw 0xaabbccdd. Triage: known_semantic."
+        }
+      ],
+      "next_probe": "Emit an event with an indexed string and an indexed bytes of length >32, and compare topic values on both chains to check whether long dynamic values are also emitted raw by solang."
+    },
+    {
+      "id": "h2",
+      "statement": "Address values in event args are rendered in native encoding \u2014 20-byte hex on EVM, SS58/base58 on Polkadot \u2014 causing EVENT_MISMATCH even when the underlying identity is identical (deployer alice = 0x7099...79c8 = 5FHn...694ty).",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-args-dynamic",
+          "verdict": "DIVERGENCE",
+          "note": "TwoIndexed/ThreeIndexed address arg: 0x70997970c51812dc3a010c7d01b50e0d17dc79c8 vs 5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty \u2014 same alice account in both encodings."
+        }
+      ],
+      "next_probe": "Emit an event with only uint/bool value-type args from a call by a known sender; if no mismatch appears, the address encoding is the sole cause of identity-mismatch false positives."
+    },
+    {
+      "id": "h3",
+      "statement": "Emission order and multiplicity are preserved identically on both chains: five emits in one transaction (OneIndexed, TwoIndexed, ThreeIndexed, Dup, Dup) appear in the same order with both duplicate Dup events intact.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-args-dynamic",
+          "verdict": "DIVERGENCE",
+          "note": "Despite arg-level mismatches, all 5 events matched 1:1 in name, order, and multiplicity on both chains; non-indexed args (uint b, string c, uint n, uint v) all matched exactly."
+        }
+      ],
+      "next_probe": "Emit events interleaved with a revert (all-or-nothing) and events from an internal call/delegatecall-style pattern to check ordering and atomicity on reverted subcalls."
+    },
+    {
+      "id": "h4",
+      "statement": "Constructor-emitted events (CtorIndexed) do not surface in the compared event stream on either chain \u2014 both sides omitted the constructor event from step-0 results without causing a mismatch, suggesting the oracle ignores deployment events.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-args-dynamic",
+          "verdict": "DIVERGENCE",
+          "note": "CtorIndexed was defined and emitted in the constructor but appears in neither evm nor polkadot event lists at step 0, symmetrically."
+        }
+      ],
+      "next_probe": "Deploy with an emitted constructor event, then check whether the harness records deployment-phase events at all (query logs from deployment block separately on both chains)."
+    }
+  ],
+  "updated_ts": 1794271175.3024704
+}

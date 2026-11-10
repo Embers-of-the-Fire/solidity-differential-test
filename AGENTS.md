@@ -82,8 +82,10 @@ per-stage model routing — `AGENT_LLM_MODEL_LIGHT` for mutate/minimize),
 pricing via `AGENT_LLM_PRICE_{INPUT,CACHED_INPUT,OUTPUT}_PER_1M`, default
 0.0; `NoUsage` mixin for fakes), `generator.py` (spec prompt + validation),
 `executor.py` (parallel `oracle.runner.run_spec`; `OracleRunner` protocol;
-`divergence_signatures`/`earliest_signature` helpers), `triage.py`
-(deterministic known-difference rules + LLM classification),
+`divergence_signatures`/`earliest_signature` helpers; per-hunt execution-mode
+override), `triage.py` (deterministic known-difference rules + optional LLM
+classification; rules-only mode defers unresolved divergences to offline review),
+`template_generator.py` (deterministic no-LLM baseline spec generator),
 `minimize.py` + `ddmin.py` + `solast.py` + `shrink_args.py`
 (verified staged reduction: ddmin steps -> dead-function sweep ->
 solc-AST-guided deletion -> arg shrink -> LLM simplify -> exhaustive
@@ -91,9 +93,12 @@ solc-AST-guided deletion -> arg shrink -> LLM simplify -> exhaustive
 `kind` predicate behind `AgentConfig.predicate`),
 `hypotheses.py` (per-seed hypothesis notebooks; op validation),
 `reflect.py` (post-probe notebook update, runs on every probe),
-`store.py` (JSONL findings DB + signature-set fingerprint dedup), `loop.py`
-(orchestration; two-tier dedup: earliest-signature pre-check before minimize,
-post-minimization fingerprint merge), `prompts/*.md` (string.Template —
+`store.py` (JSONL findings DB + signature-set fingerprint dedup + retained
+first-witness artifacts for every divergence), `provenance.py` (frozen campaign
+metadata), `adjudicate.py` (offline LLM screening; never mutates the hunt),
+`review_analysis.py` (human-confirmed root-cause clusters and discovery costs),
+`loop.py` (orchestration; two-tier dedup: earliest-signature pre-check before
+minimize, post-minimization fingerprint merge), `prompts/*.md` (string.Template —
 escape literal `$` as
 `$$`), `seeds/*.json` (feature cards), `data/known_differences.json`
 (triage rules), `data/ground_truth/` (hand-encoded historical solang bugs,

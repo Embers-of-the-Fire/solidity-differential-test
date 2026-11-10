@@ -1,0 +1,48 @@
+{
+  "seed_id": "strings-bytes",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "For string/bytes dynamic ABI round-trips, solc and solang produce semantically identical values (UTF-8 strings incl. astral-plane chars, empty strings, >31-byte strings, bytes hex, string arrays), but the storage oracle reports false divergences because raw EVM 32-byte slots vs solang SCALE-packed storage layouts differ in entry count and values even for identical contract state.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "strings-bytes-dynamic-abi",
+          "verdict": "DIVERGENCE",
+          "note": "All semantic queries (stored, lastConcat, blob, getNames, echoNames) passed; only raw storage multiset differed (6 vs 3/2/1 entries) which is expected layout difference, triaged as oracle_artifact."
+        }
+      ],
+      "next_probe": "Re-run the same string/bytes probe with the storage oracle disabled and events oracle restricted to getter return values (setString -> query stored, setBytes -> query blob, etc.), asserting semantic equality; also compare storage before vs after a no-op step to isolate layout noise."
+    },
+    {
+      "id": "h2",
+      "statement": "The event comparator normalizes string event args to identical values but renders an empty bytes value as '0x' on EVM and '' on Polkadot, producing a false EVENT_MISMATCH on every Stored event emitted before setBytes runs.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "strings-bytes-dynamic-abi",
+          "verdict": "DIVERGENCE",
+          "note": "Both EVENT_MISMATCH divergences at steps 0 and 2 differ solely in b: '0x' (evm) vs '' (polkadot) while s matched exactly."
+        }
+      ],
+      "next_probe": "Emit an event with an empty bytes arg plus a fixed non-empty bytes arg on both chains; check whether the comparator flags only the empty-arg field, then patch normalization to treat '0x' == '' for bytes values."
+    },
+    {
+      "id": "h3",
+      "statement": "solang packs dynamic string/bytes state into fewer storage cells than solidity's slot-per-word layout (observed 3 nonzero entries on polkadot vs 6 on EVM after storing stored, lastConcat, and a 32-byte blob), so storage 'count' mode will flag any stateful dynamic-type probe as divergent regardless of correctness.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "strings-bytes-dynamic-abi",
+          "verdict": "DIVERGENCE",
+          "note": "After setBytes, EVM shows 6 slots vs polkadot 3 for the same three logical state variables; counts diverge at every stateful step."
+        }
+      ],
+      "next_probe": "Instrument the harness to snapshot storage layout per chain after deploying an empty contract: if empty-contract layouts already differ, mark storage-count oracle as unusable for cross-chain comparison in this seed area."
+    }
+  ],
+  "updated_ts": 1794271471.3453553
+}
