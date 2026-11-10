@@ -1,0 +1,71 @@
+{
+  "name": "value-payable-forward-strict",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract ValueForward {\n    uint256 public withdrawn;\n    uint128 public bump;\n    uint256 public totalReceived;\n\n    event Received(address indexed from, uint256 value);\n    event Sent(address indexed to, uint256 value);\n\n    receive() external payable {\n        totalReceived += msg.value;\n        emit Received(msg.sender, msg.value);\n    }\n\n    function deposit() external payable returns (uint256) {\n        unchecked {\n            totalReceived += msg.value;\n        }\n        emit Received(msg.sender, msg.value);\n        return msg.value;\n    }\n\n    function skim() external {\n        bump += 1;\n        totalReceived += 0;\n    }\n\n    function withdraw(uint256 amount) external {\n        require(amount < address(this).balance, \"insufficient\");\n        (bool ok, ) = payable(msg.sender).call{value: amount}(\"\");\n        require(ok, \"send-failed\");\n        withdrawn += amount;\n        emit Sent(msg.sender, amount);\n    }\n}",
+  "contract": "ValueForward",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "deposit",
+      "args": [],
+      "sender": "alice",
+      "value": 1000
+    },
+    {
+      "action": "call",
+      "function": "withdraw",
+      "args": [
+        1000
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "skim",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "deposit",
+      "args": [],
+      "sender": "bob",
+      "value": 2500
+    },
+    {
+      "action": "call",
+      "function": "withdraw",
+      "args": [
+        2999
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "withdrawn"
+    },
+    {
+      "action": "query",
+      "function": "bump"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "86e10fd29d5baffe",
+    "origin": "mutated_llm"
+  }
+}

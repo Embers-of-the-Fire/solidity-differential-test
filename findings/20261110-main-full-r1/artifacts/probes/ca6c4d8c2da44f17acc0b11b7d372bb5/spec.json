@@ -1,0 +1,60 @@
+{
+  "name": "env-vars-blocknumber-timestamp-only-p2",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract EnvProbe {\n    uint256 public numberSeen;\n    uint256 public timeSeen;\n\n    event Snapshot(uint256 number, uint256 timestamp);\n\n    function snapshot() public {\n        uint256 n = block.number;\n        numberSeen = n;\n        timeSeen = block.timestamp;\n        emit Snapshot(n, block.timestamp);\n    }\n\n    function getNumber() public view returns (uint256) {\n        return block.number;\n    }\n\n    function getTime() public view returns (uint256) {\n        return block.timestamp;\n    }\n\n    function nextNumber() public view returns (uint256) {\n        return block.number + 1;\n    }\n}",
+  "contract": "EnvProbe",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "query",
+      "function": "getNumber"
+    },
+    {
+      "action": "query",
+      "function": "getTime",
+      "sender": "alice"
+    },
+    {
+      "action": "call",
+      "function": "snapshot",
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "snapshot",
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "numberSeen"
+    },
+    {
+      "action": "query",
+      "function": "timeSeen"
+    },
+    {
+      "action": "query",
+      "function": "nextNumber"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "c288d09e58e91f19",
+    "origin": "mutated_prog"
+  }
+}

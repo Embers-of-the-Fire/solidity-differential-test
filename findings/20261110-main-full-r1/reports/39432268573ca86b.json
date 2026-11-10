@@ -1,0 +1,366 @@
+{
+  "name": "event-interleave-same-sig-scope-h11",
+  "contract": "EventInterleaveProbe",
+  "tool_versions": {
+    "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+    "solang": "solang version v0.3.5",
+    "anvil": "anvil Version: 1.7.1-dev",
+    "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+  },
+  "oracle_config": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "execution": "on-chain",
+  "workdir": "/tmp/oracle-run-fng6juzc",
+  "timing": {
+    "started_at": "2026-11-10T07:57:31.998+00:00",
+    "started_epoch": 1794297451.9989228,
+    "total_ms": 1758.7088309992396,
+    "nodes": {
+      "evm": {
+        "start_ms": 502.5810650004132,
+        "stop_ms": 3.1457289987883996
+      },
+      "polkadot": {
+        "start_ms": 648.6969500001578,
+        "stop_ms": 15.270130003045779
+      }
+    }
+  },
+  "compile": {
+    "solc": {
+      "compiler": "solc",
+      "ok": true,
+      "version": "Version: 0.8.33+commit.64118f21.Linux.g++",
+      "errors": null,
+      "warnings": [
+        "Warning: SPDX license identifier not provided in source file. Before publishing, consider adding a comment containing \"SPDX-License-Identifier: <SPDX-License>\" to each source file. Use \"SPDX-License-Identifier: UNLICENSED\" for non-open-source code. Please see https://spdx.org for more information.\n--> input.sol\n\n"
+      ],
+      "artifacts": {
+        "abi": true,
+        "bytecode_bytes": 571,
+        "wasm_bytes": 0,
+        "metadata": false
+      },
+      "elapsed_ms": 4.823529001441784
+    },
+    "solang": {
+      "compiler": "solang",
+      "ok": true,
+      "version": "solang version v0.3.5",
+      "errors": null,
+      "warnings": null,
+      "artifacts": {
+        "abi": false,
+        "bytecode_bytes": 0,
+        "wasm_bytes": 38135,
+        "metadata": true
+      },
+      "elapsed_ms": 248.2005889978609
+    }
+  },
+  "deploy": {
+    "evm": {
+      "status": "success",
+      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "tx_hash": "ce72937cec35baa1db105472caaf2430ffeab1b2d8ccf907f88d3bc3b1164003",
+      "error": null,
+      "elapsed_ms": 8.609170999989146
+    },
+    "polkadot": {
+      "status": "success",
+      "address": "5GmcCMypn5JWipCHkcDEcDC5q7goJPSJQdgEcueFZ6ANpcxM",
+      "tx_hash": null,
+      "error": null,
+      "elapsed_ms": 265.4028910001216
+    }
+  },
+  "steps": [
+    {
+      "index": 0,
+      "action": "call",
+      "function": "run",
+      "args": [],
+      "sender": "alice",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 2.612576001411071,
+          "tx_ms": 7.775276000757003,
+          "snapshot_ms": 2.051281997410115
+        },
+        "evm_total_ms": 12.44186400072067,
+        "polkadot": {
+          "dry_run_ms": 1.3928389998909552,
+          "tx_ms": 46.25410299922805,
+          "snapshot_ms": 1.7543009998917114
+        },
+        "polkadot_total_ms": 49.405783000111114
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "10eb728d501c818211e738259130f6f9070b74e824c0dbcd146af55c583e5a35",
+          "block_hash": "129a2f00b38b58371cd6686feb3981a0f27955b18ce4e0788f3c26e883a6abb2",
+          "gas_used": 25115,
+          "events": [
+            {
+              "name": "A",
+              "args": [
+                {
+                  "name": "value",
+                  "value": 1
+                }
+              ]
+            },
+            {
+              "name": "B",
+              "args": [
+                {
+                  "name": "value",
+                  "value": 9
+                }
+              ]
+            },
+            {
+              "name": "A",
+              "args": [
+                {
+                  "name": "value",
+                  "value": 2
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "evm",
+          "block": {
+            "number": 2,
+            "hash": "0x129a2f00b38b58371cd6686feb3981a0f27955b18ce4e0788f3c26e883a6abb2",
+            "timestamp": 1794297453
+          },
+          "contract": {
+            "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+            "balance": "0",
+            "nonce": 1
+          },
+          "storage": {}
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "0xf2b133d7b81a08c9c72d6bb027eb67e06e00f999fc2c8082e8197e54fd9314e8",
+          "block_hash": "0x5786a78adff7cd66e94e344e54db5348413c802c3f47a6b41f37de132a6fa136",
+          "gas_used": 1067456529,
+          "events": [
+            {
+              "name": "A",
+              "args": [
+                {
+                  "name": "value",
+                  "value": 2
+                }
+              ]
+            },
+            {
+              "name": "B",
+              "args": [
+                {
+                  "name": "value",
+                  "value": 9
+                }
+              ]
+            },
+            {
+              "name": "A",
+              "args": [
+                {
+                  "name": "value",
+                  "value": 2
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "polkadot",
+          "block": {
+            "number": 2,
+            "hash": "0x5786a78adff7cd66e94e344e54db5348413c802c3f47a6b41f37de132a6fa136",
+            "timestamp": 1794297453692
+          },
+          "contract": {
+            "address": "5GmcCMypn5JWipCHkcDEcDC5q7goJPSJQdgEcueFZ6ANpcxM",
+            "balance": "1000000000",
+            "nonce": 0
+          },
+          "storage": {}
+        }
+      },
+      "divergences": [
+        {
+          "kind": "EVENT_MISMATCH",
+          "step": 0,
+          "detail": "emitted events differ",
+          "evm": [
+            {
+              "name": "A",
+              "args": [
+                {
+                  "name": "value",
+                  "value": 1
+                }
+              ]
+            },
+            {
+              "name": "B",
+              "args": [
+                {
+                  "name": "value",
+                  "value": 9
+                }
+              ]
+            },
+            {
+              "name": "A",
+              "args": [
+                {
+                  "name": "value",
+                  "value": 2
+                }
+              ]
+            }
+          ],
+          "polkadot": [
+            {
+              "name": "A",
+              "args": [
+                {
+                  "name": "value",
+                  "value": 2
+                }
+              ]
+            },
+            {
+              "name": "B",
+              "args": [
+                {
+                  "name": "value",
+                  "value": 9
+                }
+              ]
+            },
+            {
+              "name": "A",
+              "args": [
+                {
+                  "name": "value",
+                  "value": 2
+                }
+              ]
+            }
+          ],
+          "point": 0,
+          "signature": "EVENT_MISMATCH|0|run|args"
+        }
+      ]
+    }
+  ],
+  "divergences": [
+    {
+      "kind": "EVENT_MISMATCH",
+      "step": 0,
+      "detail": "emitted events differ",
+      "evm": [
+        {
+          "name": "A",
+          "args": [
+            {
+              "name": "value",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "name": "B",
+          "args": [
+            {
+              "name": "value",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "name": "A",
+          "args": [
+            {
+              "name": "value",
+              "value": 2
+            }
+          ]
+        }
+      ],
+      "polkadot": [
+        {
+          "name": "A",
+          "args": [
+            {
+              "name": "value",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "name": "B",
+          "args": [
+            {
+              "name": "value",
+              "value": 9
+            }
+          ]
+        },
+        {
+          "name": "A",
+          "args": [
+            {
+              "name": "value",
+              "value": 2
+            }
+          ]
+        }
+      ],
+      "point": 0,
+      "signature": "EVENT_MISMATCH|0|run|args"
+    }
+  ],
+  "earliest_divergence": {
+    "point": 0,
+    "signature": "EVENT_MISMATCH|0|run|args"
+  },
+  "verdict": "DIVERGENCE"
+}

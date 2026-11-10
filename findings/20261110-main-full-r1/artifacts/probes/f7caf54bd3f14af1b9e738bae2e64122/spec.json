@@ -1,0 +1,75 @@
+{
+  "name": "value-transfer-balance-baseline-boundary",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract Vault {\n    uint256 public received;\n\n    event Deposited(address indexed sender, uint256 amount);\n    event Donated(address indexed recipient, uint256 amount);\n\n    receive() external payable {\n        received += msg.value;\n    }\n\n    function deposit() public payable {\n        received += msg.value;\n        emit Deposited(msg.sender, msg.value);\n    }\n\n    function getBalance() public view returns (uint256) {\n        return address(this).balance;\n    }\n\n    function donateBuiltin(uint256 amount) public {\n        require(amount <= address(this).balance, \"insufficient\");\n        payable(msg.sender).transfer(amount);\n        emit Donated(msg.sender, amount);\n    }\n\n    function takeStrict(uint256 amount) public {\n        require(amount < address(this).balance, \"strict-insufficient\");\n        payable(msg.sender).transfer(amount);\n    }\n}",
+  "contract": "Vault",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "deposit",
+      "args": [],
+      "sender": "alice",
+      "value": 1000
+    },
+    {
+      "action": "query",
+      "function": "getBalance"
+    },
+    {
+      "action": "call",
+      "function": "deposit",
+      "args": [],
+      "sender": "bob",
+      "value": 2500
+    },
+    {
+      "action": "query",
+      "function": "getBalance"
+    },
+    {
+      "action": "call",
+      "function": "donateBuiltin",
+      "args": [
+        2500
+      ],
+      "sender": "charlie",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "getBalance"
+    },
+    {
+      "action": "call",
+      "function": "takeStrict",
+      "args": [
+        1000
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "received"
+    }
+  ],
+  "meta": {
+    "parent_id": null,
+    "origin": "generated"
+  },
+  "execution": "on-chain"
+}

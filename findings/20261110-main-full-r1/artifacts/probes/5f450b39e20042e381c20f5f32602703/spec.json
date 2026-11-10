@@ -1,0 +1,52 @@
+{
+  "name": "int-sdiv-smod-minus-one-widths-p0-runtime-capture16",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract RuntimeDivCapture16 {\n    uint256 public count;\n    int16 public last;\n\n    function div16Runtime(int16 x, int16 y) external returns (int16) {\n        int16 r = x / y;\n        last = r;\n        count += 1;\n        return r;\n    }\n}",
+  "contract": "RuntimeDivCapture16",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "div16Runtime",
+      "args": [
+        -32768,
+        -1
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "div16Runtime",
+      "args": [
+        -32768,
+        -1
+      ],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "count"
+    },
+    {
+      "action": "query",
+      "function": "last"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "0645822dd4f228a0",
+    "origin": "mutated_llm"
+  }
+}

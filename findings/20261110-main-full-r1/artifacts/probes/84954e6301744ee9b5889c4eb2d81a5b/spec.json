@@ -1,0 +1,59 @@
+{
+  "name": "crypto-hash-packed-static-addr-bool-bytes4-literal",
+  "solidity": "pragma solidity >=0.8.0;\ncontract HashPackedStaticLiteral {\n    address constant A = 0x000000000000000000000000000000000000dEaD;\n    bytes public packedTuple;\n    bytes public encodedTuple;\n    bytes public packedBytes4;\n    bytes public packedUint16;\n    bytes32 public pKeccak;\n    bytes32 public pSha;\n    bytes20 public pRipemd;\n    bytes32 public eKeccak;\n\n    function set() external {\n        packedTuple = abi.encodePacked(A, true, bytes4(0xdeadbeef));\n        encodedTuple = abi.encode(A, true, bytes4(0xdeadbeef));\n        packedBytes4 = abi.encodePacked(bytes4(0xdeadbeef));\n        packedUint16 = abi.encodePacked(uint16(0x1234));\n        pKeccak = keccak256(abi.encodePacked(A, true, bytes4(0xdeadbeef)));\n        pSha = sha256(abi.encodePacked(A, true, bytes4(0xdeadbeef)));\n        pRipemd = ripemd160(abi.encodePacked(A, true, bytes4(0xdeadbeef)));\n        eKeccak = keccak256(abi.encode(A, true, bytes4(0xdeadbeef)));\n    }\n}",
+  "contract": "HashPackedStaticLiteral",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": false,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "set",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "packedTuple"
+    },
+    {
+      "action": "query",
+      "function": "encodedTuple"
+    },
+    {
+      "action": "query",
+      "function": "packedBytes4"
+    },
+    {
+      "action": "query",
+      "function": "packedUint16"
+    },
+    {
+      "action": "query",
+      "function": "pKeccak"
+    },
+    {
+      "action": "query",
+      "function": "pSha"
+    },
+    {
+      "action": "query",
+      "function": "pRipemd"
+    }
+  ],
+  "meta": {
+    "parent_id": null,
+    "origin": "generated"
+  },
+  "execution": "on-chain"
+}

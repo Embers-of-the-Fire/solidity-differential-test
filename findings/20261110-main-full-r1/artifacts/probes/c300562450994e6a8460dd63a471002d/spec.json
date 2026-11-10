@@ -1,0 +1,59 @@
+{
+  "name": "utf8-byte-vs-char-storage-boundary",
+  "solidity": "pragma solidity >=0.8.0;\ncontract Utf8Boundary {\n    string public shortAscii;   // 16 chars = 16 UTF-8 bytes (<=31, packed)\n    string public wide16;       // 16 chars = 32 UTF-8 bytes (crosses 31-byte bound)\n    string public wide17;       // 17 chars = 34 UTF-8 bytes\n    event Stored(uint8 tagShort, uint8 tag16, uint8 tag17);\n\n    function storeAll(string memory x, string memory y, string memory z) public {\n        shortAscii = x;\n        wide16 = y;\n        wide17 = z;\n        emit Stored(uint8(bytes(x).length), uint8(bytes(y).length), uint8(bytes(z).length));\n    }\n\n    function tagShort() public view returns (uint8) {\n        return uint8(bytes(shortAscii).length);\n    }\n\n    function tag16() public view returns (uint8) {\n        return uint8(bytes(wide16).length);\n    }\n\n    function tag17() public view returns (uint8) {\n        return uint8(bytes(wide17).length);\n    }\n}",
+  "contract": "Utf8Boundary",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "storeAll",
+      "args": [
+        "aaaaaaaaaaaaaaaa",
+        "\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9",
+        "\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9"
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "shortAscii"
+    },
+    {
+      "action": "query",
+      "function": "wide16"
+    },
+    {
+      "action": "query",
+      "function": "wide17"
+    },
+    {
+      "action": "query",
+      "function": "tagShort"
+    },
+    {
+      "action": "query",
+      "function": "tag16"
+    },
+    {
+      "action": "query",
+      "function": "tag17"
+    }
+  ],
+  "meta": {
+    "parent_id": null,
+    "origin": "generated"
+  },
+  "execution": "on-chain"
+}

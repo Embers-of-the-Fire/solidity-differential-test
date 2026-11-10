@@ -1,0 +1,57 @@
+{
+  "name": "string-bytes-indexed-event-clear-overwrite-step",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract StringBytesIndexedEventProbe {\n    event Dyn(string indexed marker, string val, bytes data);\n\n    uint256 public emitCount;\n    string public lastVal;\n    bytes public lastData;\n    uint8 public tag;\n\n    function log(string memory marker, string memory val, bytes memory data) external {\n        emitCount += 1;\n        lastData = data;\n        lastVal = val;\n        emit Dyn(marker, val, data);\n    }\n\n    function clear() external {\n        lastVal = \"\";\n        lastData = \"\";\n        tag += 1;\n    }\n}",
+  "contract": "StringBytesIndexedEventProbe",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "log",
+      "args": [
+        "first",
+        "value",
+        "0x0102"
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "clear",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "lastVal"
+    },
+    {
+      "action": "query",
+      "function": "lastData"
+    },
+    {
+      "action": "query",
+      "function": "tag"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "aec4538000dd7471",
+    "origin": "mutated_llm"
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "name": "string-bytes-indexed-event-stringarr-m2-unicode",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract StringBytesIndexedEventProbe {\n    event Dyn(string indexed marker, string val, bytes data);\n    event StrArr(string[] items);\n\n    uint256 public emitCount;\n    string public lastVal;\n    bytes public lastData;\n\n    function log(string memory marker, string memory val, bytes memory data) external {\n        emitCount += 1;\n        lastVal = val;\n        lastData = data;\n        emit Dyn(marker, val, data);\n    }\n\n    function logArr(string[] memory items) external {\n        emitCount += 1;\n        emit StrArr(items);\n    }\n}",
+  "contract": "StringBytesIndexedEventProbe",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "log",
+      "args": [
+        "mk",
+        "h\u00e9llo",
+        "0x68656c6c6f"
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "log",
+      "args": [
+        "mk",
+        "\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9\u00e9",
+        "0x"
+      ],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "logArr",
+      "args": [
+        [
+          "\ud83d\ude42\ud83d\ude42\ud83d\ude42\ud83d\ude42\ud83d\ude42\ud83d\ude42\ud83d\ude42\ud83d\ude42",
+          "h\u00e9llo"
+        ]
+      ],
+      "sender": "charlie",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "lastData"
+    },
+    {
+      "action": "query",
+      "function": "emitCount"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "c456ecbd238d2307",
+    "origin": "mutated_llm"
+  }
+}

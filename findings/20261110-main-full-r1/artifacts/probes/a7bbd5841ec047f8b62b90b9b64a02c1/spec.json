@@ -1,0 +1,46 @@
+{
+  "name": "env-gasleft-entry-vs-dryrun",
+  "solidity": "pragma solidity >=0.8.0;\ncontract GasProbe {\n    uint256 public entryGas;\n    uint256 public exitGas;\n    event GasRecorded(uint256 entryG, uint256 exitG);\n    function getGas() public view returns (uint256) {\n        return gasleft();\n    }\n    function recordEntry() public {\n        entryGas = gasleft();\n        uint256 s = 0;\n        for (uint256 i = 0; i < 20; i++) {\n            s += i * 3;\n        }\n        exitGas = gasleft();\n        emit GasRecorded(entryGas, exitGas);\n    }\n}",
+  "contract": "GasProbe",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "query",
+      "function": "getGas"
+    },
+    {
+      "action": "call",
+      "function": "recordEntry",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "entryGas"
+    },
+    {
+      "action": "query",
+      "function": "exitGas"
+    }
+  ],
+  "meta": {
+    "parent_id": null,
+    "origin": "generated"
+  },
+  "execution": "on-chain"
+}

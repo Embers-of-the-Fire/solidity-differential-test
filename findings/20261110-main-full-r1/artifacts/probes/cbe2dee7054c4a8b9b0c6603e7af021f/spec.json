@@ -1,0 +1,63 @@
+{
+  "name": "env-vars-blockhash-asymmetry-p1",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract EnvProbe {\n    uint256 public numberSeen;\n    bytes32 public hashSeen;\n\n    event Snapshot(uint256 number, bytes32 prevHash);\n\n    function snapshot() public {\n        uint256 n = block.number;\n        numberSeen = n;\n        hashSeen = blockhash(n - 1);\n        emit Snapshot(n, hashSeen);\n    }\n\n    function getNumber() public view returns (uint256) {\n        return block.number;\n    }\n\n    function getPrevHash() public view returns (bytes32) {\n        return blockhash(block.number - 1);\n    }\n\n    function hashOf(uint256 n) public view returns (bytes32) {\n        return blockhash(n);\n    }\n}",
+  "contract": "EnvProbe",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "query",
+      "function": "getNumber"
+    },
+    {
+      "action": "query",
+      "function": "getPrevHash"
+    },
+    {
+      "action": "call",
+      "function": "snapshot",
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "numberSeen"
+    },
+    {
+      "action": "query",
+      "function": "hashSeen",
+      "sender": "charlie"
+    },
+    {
+      "action": "call",
+      "function": "hashOf",
+      "args": [
+        2
+      ],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "getPrevHash"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "e16417c35f782698",
+    "origin": "mutated_prog"
+  }
+}

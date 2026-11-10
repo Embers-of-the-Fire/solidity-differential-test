@@ -1,0 +1,286 @@
+{
+  "seed_id": "revert-reasons",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "solang and solc produce identical revert reason decoding for the common failure classes: Panic(0x11) arithmetic underflow, Panic(0x12) division by zero, Error(string) for require with message, Panic(0x01) for assert(false), Panic(0x32) out-of-bounds array access, and custom error WrongValue(uint256,uint256) with its selector \u2014 despite solang re-encoding reverts through SCALE.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "revert-reason-abi-coverage",
+          "verdict": "PASS",
+          "note": "All six executed revert paths (underflow, divZero, require-with-msg, assert, custom error, OOB) produced matching revert reasons between solc/anvil and solang/pallet-contracts; counter state also matched."
+        },
+        {
+          "probe": "revert-reason-nomsg-enum-dynamic",
+          "verdict": "PASS",
+          "note": "The previously unexecuted paths from the coverage probe (needNoMsg, enumFail) plus dynamic custom errors and a repeat of divZero all matched; the hypothesis of identical revert-reason decoding across the failure classes is now directly supported with no refutations observed."
+        }
+      ],
+      "next_probe": "Extend the probe to call needNoMsg() (require(false) with no message) and enumFail() (invalid enum conversion, Panic(0x21)), since these were defined but not executed, and assert the decoded revert reason strings/ABIs match."
+    },
+    {
+      "id": "h2",
+      "statement": "require(false) with no message reverts with an empty reason string on both chains (no Error(string) wrapper divergence), because solang lowers bare require failure the same way as solc's ABI encoding.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "revert-reason-abi-coverage",
+          "verdict": "PASS",
+          "note": "Probe defined needNoMsg() but steps omitted it; the six covered classes all matched, suggesting message-bearing and panic paths are aligned, but the bare-require path is untested."
+        },
+        {
+          "probe": "revert-reason-nomsg-enum-dynamic",
+          "verdict": "PASS",
+          "note": "needNoMsg() (require(false) with no message) produced identical decoded revert payloads on solc/anvil and solang/pallet-contracts; the bare-require path matches, no Panic-code substitution or selector omission by solang."
+        }
+      ],
+      "next_probe": "Call needNoMsg() on both chains and compare the decoded revert payload (expect empty Error(string) or empty reason) \u2014 refutes if solang emits a Panic code or omits the selector."
+    },
+    {
+      "id": "h3",
+      "statement": "Invalid enum conversion (Small(42)) reverts with Panic(0x21) with the same decoded reason on both chains; solang's enum bounds check fires identically to solc's.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "revert-reason-abi-coverage",
+          "verdict": "PASS",
+          "note": "enumFail() was defined but never executed; panic-class reverts that were tested (0x01, 0x11, 0x12, 0x32) all matched, giving indirect support but no direct evidence."
+        },
+        {
+          "probe": "revert-reason-nomsg-enum-dynamic",
+          "verdict": "PASS",
+          "note": "enumFail() reverted with Panic(0x21) identically on both chains, and the in-range cast enumOk() succeeded with matching stored value (Small(1)) and counter state."
+        }
+      ],
+      "next_probe": "Call enumFail() on both chains and compare decoded revert reason; also test a valid in-range enum cast (Small(1)) to ensure non-failing casts agree on storage value."
+    },
+    {
+      "id": "h4",
+      "statement": "Custom error payloads with multiple typed arguments (WrongValue(uint256,uint256)) round-trip identically: selector plus two ABI-encoded uint256 values, unchanged by solang's SCALE re-encoding layer.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "revert-reason-abi-coverage",
+          "verdict": "PASS",
+          "note": "WrongValue(1,2) matched exactly across chains, but only static uint256 arguments were exercised; dynamic arguments in custom errors remain untested."
+        },
+        {
+          "probe": "revert-reason-nomsg-enum-dynamic",
+          "verdict": "PASS",
+          "note": "dynFail() reverted Named(string, bytes) containing non-ASCII (\u00e9\u00e8\u4e2d\u6587) and a long string plus 16-byte payload; the selector and dynamically-length-encoded arguments decoded identically across chains, confirming SCALE re-encoding preserves dynamic custom-error payloads."
+        }
+      ],
+      "next_probe": "Add a custom error with dynamic types (e.g. error Named(string, bytes)) and revert with non-ASCII / long strings to stress dynamic-length ABI encoding through SCALE."
+    },
+    {
+      "id": "h5",
+      "statement": "State changes are rolled back identically on revert across both chains: a call that increments storage then reverts (bumpThenRevert with require(false, 'rolled back')) leaves count unchanged (still 1 after one successful bump), so solang/pallet-contracts transaction rollback semantics match solc/anvil for message-bearing reverts.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "revert-cast-rollback-custom",
+          "verdict": "PASS",
+          "note": "After bump() then bumpThenRevert() (which increments then require(false, 'rolled back')), count queried as 1 on both chains and final count matched; the increment inside the reverted call was fully rolled back identically."
+        },
+        {
+          "probe": "revert-rollback-interleave-events",
+          "verdict": "PASS",
+          "note": "Interleaved sequence (bump, bumpThenRevert, bump, failCustom, bump) across three different senders: intermediate count query returned 1 on both chains and final count was 3 on both; with oracle.events enabled the Bump event streams matched, meaning the events emitted inside the reverted bumpThenRevert and failCustom calls (including their count increments) were rolled back identically on solang/pallet-contracts and solc/anvil, for both require-with-message and custom-error reverts."
+        }
+      ],
+      "next_probe": "Chain multiple interleaved successful and reverting increments (bump, bumpThenRevert, bump, failCustom, bump) and query count at each point; also use events to check whether logs from the reverted call are rolled back (oracle.events) \u2014 refutes if count drifts or reverted-call events persist on either chain."
+    },
+    {
+      "id": "h6",
+      "statement": "Explicit narrowing signed-to-unsigned casts (uint8(int8)) behave identically: an out-of-range value (-1) reverts with the same panic code/decoded reason on both chains, and an in-range value (100) returns the same uint8 (100) on both chains.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "revert-cast-rollback-custom",
+          "verdict": "PASS",
+          "note": "doCast(-1) reverted identically on both chains (int8 -1 overflows uint8) and doCast(100) succeeded with matching return value 100; no divergence in explicit cast overflow panic or successful cast result."
+        },
+        {
+          "probe": "cast-boundary-signed-narrow-p0",
+          "verdict": "PASS",
+          "note": "Executed exactly the boundary cases h6 proposed: doCast(-128) (min int8, out-of-range for uint8) reverted identically on both chains; doCast(127) (max int8) succeeded with matching return value 127; doCast(0) succeeded with return value 0. CastResult events and count state matched across chains. Explicit signed-to-unsigned narrowing cast boundary behavior is fully aligned."
+        }
+      ],
+      "next_probe": "Stress the cast boundary: doCast(-128) (min int8), doCast(127) (max int8), and a same-width signed->unsigned cast (uint8(int8) with 0), plus a widening uint8->uint256 cast; refutes if boundary values or zero produce divergent panics or return values."
+    },
+    {
+      "id": "h7",
+      "statement": "Custom errors containing an address argument (BadValue(bytes32, address, address)) decode identically across chains, including msg.sender and address(0) \u2014 solang's SCALE re-encoding does not mangle 20-byte EVM addresses in custom-error payloads on pallet-contracts. SCOPE: the only runtime evidence is failCustom from revert-cast-rollback-custom; every dedicated address-payload probe (including re-executions p0/p1/p2/p3) dies at compile on the failAddrHigh address literal (h10). No fresh address-payload probe may contain any non-zero address literal; offspring mutations of this parent have now failed at compile 7 times total, proving the mutation generator cannot escape this trap without a generator-side source lint (grep for non-zero address literals before submission).",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "revert-cast-rollback-custom",
+          "verdict": "PASS",
+          "note": "failCustom(5) reverted BadValue(bytes32('tag'), charlie) on both chains with identical selector and decoded arguments; the bytes32 tag and sender address round-tripped identically through solang's SCALE layer."
+        },
+        {
+          "probe": "revert-custom-error-address-payload-p2",
+          "verdict": "DIVERGENCE",
+          "note": "Fourth invalid attempt in this family: the mutated spec again retained failAddrHigh with address(uint160(0x8000...0000)); solang failed fatally with the same 'ethereum address literal not supported on target Polkadot' error (only non-fatal unused-parameter warnings otherwise), solc compiled fine. No runtime steps executed; h7 remains without runtime evidence and the mutation-based offspring of this parent systematically reintroduce the rejected literal."
+        },
+        {
+          "probe": "revert-custom-error-address-payload-p3",
+          "verdict": "DIVERGENCE",
+          "note": "Fifth invalid attempt in this family: mutated spec again retained failAddrHigh with address(uint160(0x8000...0000)); solang failed fatally with 'ethereum address literal not supported on target Polkadot' (only non-fatal unused-parameter warnings otherwise), solc compiled fine. No runtime steps executed. Confirms the mutation generator reliably reintroduces the rejected literal for this parent; h7 still has zero runtime payload evidence."
+        },
+        {
+          "probe": "revert-custom-error-address-payload-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Re-execution of the same spec again failed at compile: solang rejected the failAddrHigh address literal with 'ethereum address literal not supported on target Polkadot' (plus spurious unused-parameter warnings, see new hypothesis); solc compiled fine. No runtime steps executed; the mutation generator continues to reproduce this invalid pattern, reinforcing the need for a generator-side source lint before submission."
+        },
+        {
+          "probe": "revert-custom-error-address-payload-p1",
+          "verdict": "DIVERGENCE",
+          "note": "Sixth invalid attempt in this family: the mutated spec again retained failAddrHigh with address(uint160(0x8000...0000)); solang failed fatally with 'ethereum address literal not supported on target Polkadot' (plus the known spurious unused-parameter warnings), solc compiled fine. No runtime steps executed; h7 remains without runtime evidence and the mutation generator continues to reintroduce the rejected literal."
+        },
+        {
+          "probe": "revert-custom-error-address-payload-p3",
+          "verdict": "DIVERGENCE",
+          "note": "Seventh invalid attempt in this family: the mutated spec again retained failAddrHigh with address(uint160(0x8000...0000)); solang failed fatally with 'ethereum address literal not supported on target Polkadot', accompanied only by the known non-fatal spurious 'function parameter unused' warnings (h12) for tag/expected/failAddrZero.tag despite all being used in revert statements; solc compiled cleanly. No runtime steps executed; h7 remains without runtime payload evidence and the mutation-based offspring systematically reintroduce the rejected literal."
+        },
+        {
+          "probe": "revert-addr-custom-runtime-derived",
+          "verdict": "PASS",
+          "note": "Clean PASS with the lint-enforced source: failAddrZero('0x02') from charlie reverted BadValue(tag, msg.sender, address(0)) and failAddr('0x01', $bob) from alice reverted BadValue(tag, msg.sender, bob) \u2014 the selector plus both 20-byte address arguments (external sender and zero address) decoded identically on solc/anvil and solang/pallet-contracts, and count stayed 0 on both chains (increments rolled back). First runtime payload evidence for h7; confirms address(0) and msg.sender are accepted by solang and round-trip through SCALE exactly."
+        }
+      ],
+      "next_probe": "Enforce a generator-side guard: before submitting any offspring of this spec, grep the source to assert it contains no non-zero address literal (only address(0), msg.sender, and runtime-derived addresses like address(uint160(x)) are allowed). The probe source must be built fresh containing only BadValue(bytes32, address, address) with failAddr(tag, expected) reverting BadValue(tag, msg.sender, expected) and failAddrZero(tag) reverting BadValue(tag, msg.sender, address(0)), and steps must NOT reference failAddrHigh. Steps: query count, call failAddrZero('0x02') from charlie, call failAddr('0x01', $bob) from alice, query count; assert selector plus both 20-byte address arguments decode identically on both chains (oracle.revert_reasons)."
+    },
+    {
+      "id": "h8",
+      "statement": "Reverts raised inside an internal function call (nestedRevert -> innerDiv division by zero) propagate to the caller with the same decoded Panic(0x12) reason on both chains; internal-call frames do not alter revert-reason encoding.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "revert-cast-rollback-custom",
+          "verdict": "PASS",
+          "note": "nestedRevert() -> innerDiv(10, 0) reverted with Panic(0x12) decoded identically on solc/anvil and solang/pallet-contracts; revert propagation through an internal call frame preserves the reason encoding."
+        },
+        {
+          "probe": "runtime-uint160-cast-custom-revert",
+          "verdict": "PASS",
+          "note": "Reverts raised in the innermost of three internal frames (outer->mid->inner) propagated identically on both chains: mode=1 reverted BadAddr(bytes32, msg.sender, runtime-cast address) from the inner frame with matching selector and decoded arguments, and mode=2 reverted Panic(0x12) from a runtime-derived zero divisor (uint256 z = uint256(x), x=0) inside the inner frame. Internal call depth does not alter revert-reason encoding or payload contents through solang's SCALE layer; count increments inside the reverted calls rolled back identically (count stayed 0 after both reverts, 1 after the successful mode=3 call)."
+        }
+      ],
+      "next_probe": "Re-run the deep-frames probe but derive the zero divisor at runtime (e.g. 'uint256 z = count;' or msg.value) instead of a literal, since solang rejects literal-zero division at compile time (see new hypothesis). Test failDeep(0) deep require-with-message, failDeep(1) custom error BadAddr(msg.sender, address(0)) from the innermost frame l3, and failDeep(2) runtime div-by-zero across 3 internal frames; refutes if solang alters the revert payload or attaches call-frame info for deeper internal chains."
+    },
+    {
+      "id": "h9",
+      "statement": "A failed external call does not roll back the caller's own state or events: if contract A calls contract B's reverting function via low-level call/try-catch and ignores the failure, A's prior increments and emitted events persist identically on both chains; solang/pallet-contracts sub-call reverts are frame-isolated the same way as solc/anvil.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [],
+      "next_probe": "Deploy a helper contract with a failing increment function and a caller contract that (1) increments its own count and emits an event, (2) low-level-calls the helper's failing function, and (3) increments once more; assert both chains report success, caller count == 2, and the caller's event stream contains only its own two events \u2014 refutes if solang rolls back the whole caller transaction or leaks the callee's reverted events."
+    },
+    {
+      "id": "h10",
+      "statement": "solang rejects explicit non-zero Ethereum address literals (e.g. address(uint160(0x8000...0000))) at compile time on the Polkadot target ('ethereum address literal not supported on target Polkadot') while solc accepts them, so probes hardcoding address literals are invalid probes and will never execute. This asymmetry is at the compile level, not a runtime behavioral divergence.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "revert-custom-error-address-payload",
+          "verdict": "DIVERGENCE",
+          "note": "Compile asymmetry: solc compiled the probe fine; solang errored with 'ethereum address literal 0x8000000000000000000000000000000000000000 not supported on target Polkadot' (plus unused-parameter warnings treated as non-fatal). The probe was triaged invalid_probe; no runtime evidence about address payloads was collected."
+        },
+        {
+          "probe": "revert-custom-error-address-payload-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Compile asymmetry reproduced exactly as hypothesized: solc compiled the source; solang failed fatally with 'ethereum address literal 0x8000...0000 not supported on target Polkadot' at the failAddrHigh function. Unused-parameter warnings were non-fatal, confirming only the address literal is rejected. No runtime steps executed; the asymmetry is purely at compile level, and any probe containing a non-zero address literal will be invalid on solang regardless of how it is used (local variable, revert payload, etc.)."
+        },
+        {
+          "probe": "revert-custom-error-address-payload-p1",
+          "verdict": "DIVERGENCE",
+          "note": "Third reproduction of the h10 compile asymmetry: solc compiled; solang failed fatally with 'ethereum address literal 0x8000...0000 not supported on target Polkadot' at the same failAddrHigh pattern, despite the mutated spec's steps and oracle being runtime-focused. Only non-fatal unused-parameter warnings accompanied the error; no runtime steps executed, so h7 (address payload round-trip) remains without runtime evidence. Confirms the entire address-literal probe family is systematically invalid on solang and wastes executions."
+        }
+      ],
+      "next_probe": "Stop executing probes in this family (now reproduced 5x); instead change the generator so it is structurally impossible: add a source-lint invariant that rejects any revert-reason probe containing a non-zero address literal (or any literal divisor provably zero at compile time, per h11) before submission, tagging such candidates invalid_probe at generation time rather than wasting an execution. The only remaining useful check is the runtime-derived-address compile test already specified in h10's prior next_probe, run once on a fresh minimal source."
+    },
+    {
+      "id": "h11",
+      "statement": "solang performs compile-time constant propagation through local variables and rejects code where a literal-zero divisor can be proven at compile time ('error: divide by zero'), while solc compiles the same source and emits a runtime-checked division that reverts Panic(0x12). Probes that create a zero divisor via a literal initialization (uint256 z = 0; 1 / z) are invalid probes on solang; runtime panics from division by zero require a divisor not provably zero at compile time.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "revert-deep-frames-address-payload",
+          "verdict": "DIVERGENCE",
+          "note": "COMPILE_ASYMMETRY at compile step: solc accepted the source; solang errored fatally with 'divide by zero' at line 'return 1 / z' where z was a local initialized to literal 0. No runtime steps executed; triaged known_semantic. This is a second compile-level asymmetry class alongside address literals (h10): solang constant-folds and rejects provable-at-compile-time faults."
+        },
+        {
+          "probe": "runtime-uint160-cast-custom-revert",
+          "verdict": "PASS",
+          "note": "The probe compiled cleanly on solang with a zero divisor derived at runtime (uint160 x passed as argument 0, then uint256 z = uint256(x); return 1 / z), exactly the pattern h11 predicted solang would accept. At runtime both chains reverted Panic(0x12) identically with matching decoded reason, and the increment in outer was rolled back. This isolates the divide-by-zero asymmetry as purely compile-time constant folding of provably-zero literals, not a runtime semantic divergence."
+        }
+      ],
+      "next_probe": "Compile a minimal contract with both patterns on both toolchains: (a) literal zero divisor 'uint256 z = 0; return 1 / z;' and (b) runtime-derived zero 'uint256 z = count; return 1 / z;' (or msg.value). Confirm solang accepts (b) and both chains revert Panic(0x12) identically at runtime, isolating that the asymmetry is purely compile-time constant folding, not a runtime semantic divergence."
+    },
+    {
+      "id": "h12",
+      "statement": "solang emits spurious 'function parameter is unused' warnings for parameters whose only use is as arguments to a revert statement (e.g. revert BadValue(tag, msg.sender, expected) still leaves tag and expected flagged as unused), while solc compiles the same source without such warnings. This is a lint-level divergence only \u2014 warnings are non-fatal and there is no evidence yet of any runtime effect.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "revert-custom-error-address-payload-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Beyond the known address-literal rejection (h10), solang's diagnostic output flagged 'function parameter tag is unused' and 'function parameter expected is unused' for failAddr(), even though both are clearly passed to revert BadValue(tag, msg.sender, expected). The warnings are non-fatal; no runtime steps executed due to the fatal address-literal error. solc reported no diagnostics."
+        },
+        {
+          "probe": "revert-custom-error-address-payload-p2",
+          "verdict": "DIVERGENCE",
+          "note": "solang again emitted non-fatal 'function parameter tag is unused' and 'expected is unused' warnings for failAddr() even though both are passed to revert BadValue(tag, msg.sender, expected). Additionally, failAddrZero()'s 'tag' was flagged as unused despite being used in revert BadValue(tag, msg.sender, address(0)), showing the spurious warning triggers for any parameter whose sole use is inside a revert statement, not just multi-arg cases. solc reported no diagnostics. The fatal address-literal error (h10) prevented runtime steps, but the lint-level divergence reproduced identically, supporting h12."
+        }
+      ],
+      "next_probe": "Compile a minimal contract on both toolchains containing only 'function f(bytes32 tag, address expected) public { revert BadValue(tag, expected); }' plus a success path using both params (e.g. an event or return), and compare compiler diagnostics: refutes if solang's warning disappears when a non-revert use exists (i.e. the warning reflects a genuine solang analysis gap only for revert-only uses), or if solc also warns."
+    },
+    {
+      "id": "h13",
+      "statement": "Unsigned narrowing casts (uint256 -> uint8) behave identically at the boundary: an out-of-range value (256) reverts with the same panic code/decoded reason on both chains, and the in-range maximum (255) succeeds with the same truncated value, with emitted events and count state matching; solang's checked-cast semantics for unsigned-to-unsigned narrowing agree with solc.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "cast-boundary-signed-narrow-p0",
+          "verdict": "PASS",
+          "note": "doNarrow(256) (one above uint8 max) reverted identically on both chains; doNarrow(255) (uint8 max) succeeded with matching return value 255; count incremented consistently (reverted calls rolled back, successful calls counted) and CastResult event streams matched with oracle.events enabled."
+        }
+      ],
+      "next_probe": "Stress unsigned narrowing further: doNarrow(2**256-1) (absolute max uint256), doNarrow(2**8) (=256, boundary just above), and doNarrow(254) just below max; also test a same-width no-op cast uint8(uint256 100) and a multi-step narrowing uint16->uint8 with value 0x1FF; refutes if any boundary value produces a divergent panic or return value."
+    },
+    {
+      "id": "h14",
+      "statement": "solang accepts non-zero addresses in revert payloads whenever the 20-byte value is not a compile-time address literal: msg.sender, address(0), and externally-supplied runtime addresses ($bob account) all compile and round-trip identically to solc. Only constant Ethereum address literals trigger the h10 rejection, so the h10 restriction is narrowly about literal syntax, not address handling in general.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "revert-addr-custom-runtime-derived",
+          "verdict": "PASS",
+          "note": "failAddr('0x01', $bob) supplied bob's address as a runtime argument (not a literal) and reverted with it in the payload, decoded identically across chains; solang compiled the source cleanly, showing the h10 rejection does not extend to runtime address values."
+        },
+        {
+          "probe": "runtime-uint160-cast-custom-revert",
+          "verdict": "PASS",
+          "note": "Executed h14's proposed next_probe: outer(1, 12345) cast the runtime uint160 argument to address(uint160(x)) inside the inner frame and reverted BadAddr(tag, msg.sender, culprit) with culprit = 0x...3039 (a value that is neither zero nor a known account). solang compiled the runtime cast without complaint and the selector plus all three 20-byte address arguments decoded identically on solc/anvil and solang/pallet-contracts. The h10 rejection is confined to compile-time address literals; runtime-computed addresses round-trip through SCALE exactly."
+        }
+      ],
+      "next_probe": "Pass a uint160 as a function argument and cast it at runtime (address(uint160(x))) inside a revert BadValue(tag, msg.sender, address(uint160(x))) with x = 0x0123456789abcdef0123456789abcdef01234567 (a value that is neither zero nor an account); assert selector and all three addresses decode identically on both chains (oracle.revert_reasons). Refutes if solang rejects the cast at compile (extending h10 beyond literals) or mangles the computed address in the decoded payload."
+    }
+  ],
+  "updated_ts": 1794317219.2220163
+}

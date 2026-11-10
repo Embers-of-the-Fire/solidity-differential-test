@@ -1,0 +1,86 @@
+{
+  "name": "storage-packing-mixed-widths-p2",
+  "solidity": "pragma solidity >=0.8.0;\ncontract StoragePackingProbe {\n    uint8 public a;\n    bool public b;\n    int32 public c;\n    uint8 public d;\n    uint256 public wide;\n    string public text;\n    bytes public blob;\n    uint8[4] public arr;\n\n    event Packed(uint8 a, bool b, int32 c, uint8 d);\n\n    function setSmall(uint8 _a, bool _b, int32 _c, uint8 _d) public {\n        a = _a; b = _b; c = _c; d = _d;\n        emit Packed(_a, _b, _c, _d);\n    }\n    function setWide(uint256 w) public { wide = w; }\n    function setText(string memory t) public { text = t; }\n    function setBlob(bytes memory bl) public { blob = bl; }\n    function setArr(uint256 i, uint8 v) public { arr[i] = v; }\n    function clearA() public { delete a; }\n    function length() public view returns (uint256) { return bytes(text).length + blob.length; }\n}",
+  "contract": "StoragePackingProbe",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "setSmall",
+      "args": [
+        200,
+        true,
+        -123456,
+        77
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "setText",
+      "args": [
+        "abcdefghijklmnopqrstuvwxyz0123456789"
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "setArr",
+      "args": [
+        2,
+        255
+      ],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "setBlob",
+      "args": [
+        "0x0102030405060708090a"
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "clearA",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "a",
+      "args": []
+    },
+    {
+      "action": "query",
+      "function": "c",
+      "args": []
+    },
+    {
+      "action": "query",
+      "function": "length",
+      "args": []
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "7de584791301b34f",
+    "origin": "mutated_prog"
+  }
+}

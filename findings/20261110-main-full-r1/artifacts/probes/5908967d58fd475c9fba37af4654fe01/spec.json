@@ -1,0 +1,62 @@
+{
+  "name": "selfcall-single-order-swap-prefix-step-index",
+  "solidity": "pragma solidity >=0.8.0;\ncontract Single {\n    uint256 public result;\n    uint256 public direct;\n    function f(uint256 x) public returns (uint256) {\n        unchecked {\n            return x + 200;\n        }\n    }\n    function g(uint256 x) public returns (uint256) {\n        uint256 r = this.f(x);\n        result = r;\n        return r;\n    }\n    function h(uint256 x) public {\n        direct = this.f(x);\n    }\n}",
+  "contract": "Single",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "f",
+      "args": [
+        3
+      ],
+      "sender": "charlie",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "g",
+      "args": [
+        5
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "result"
+    },
+    {
+      "action": "call",
+      "function": "h",
+      "args": [
+        7
+      ],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "direct"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "6ecab62c99951207",
+    "origin": "mutated_llm"
+  }
+}

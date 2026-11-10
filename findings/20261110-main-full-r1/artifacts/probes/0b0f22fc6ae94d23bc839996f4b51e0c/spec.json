@@ -1,0 +1,53 @@
+{
+  "name": "string-bytes-indexed-event-empty-unicode-fixedbytes-cast",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract FixedBytesCastProbe {\n    bytes1 public lastB1;\n    bytes16 public lastB16;\n\n    function cast(bytes32 x) external returns (bytes1) {\n        lastB1 = bytes1(x);\n        lastB16 = bytes16(x);\n        return bytes1(x);\n    }\n\n    function widen(bytes16 v) external returns (bytes32) {\n        return bytes32(v);\n    }\n}",
+  "contract": "FixedBytesCastProbe",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "cast",
+      "args": [
+        "0x0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "lastB1"
+    },
+    {
+      "action": "query",
+      "function": "lastB16"
+    },
+    {
+      "action": "call",
+      "function": "widen",
+      "args": [
+        "0xdeadbeefcafebabe1234567890abcdef"
+      ],
+      "sender": "bob",
+      "value": 0
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "4e6ab21b967ad2fb",
+    "origin": "mutated_llm"
+  }
+}

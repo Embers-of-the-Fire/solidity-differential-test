@@ -1,0 +1,78 @@
+{
+  "name": "string-bytes-indexed-event-empty-unicode-stringarray-indexed",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract StringArrayIndexedEventProbe {\n    event Arr(string indexed marker, string[] items);\n    event ArrIdx(string[] indexed items);\n\n    uint256 public emitCount;\n\n    function log(string memory marker, string[] memory items) external {\n        emitCount += 1;\n        emit Arr(marker, items);\n    }\n\n    function logIdx(string[] memory items) external {\n        emitCount += 1;\n        emit ArrIdx(items);\n    }\n}",
+  "contract": "StringArrayIndexedEventProbe",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "log",
+      "args": [
+        "small",
+        [
+          "a",
+          "b"
+        ]
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "logIdx",
+      "args": [
+        [
+          "x",
+          "y"
+        ]
+      ],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "log",
+      "args": [
+        "emptyarr",
+        []
+      ],
+      "sender": "charlie",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "logIdx",
+      "args": [
+        [
+          "\u96ea\u96ea",
+          ""
+        ]
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "emitCount"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "4e6ab21b967ad2fb",
+    "origin": "mutated_llm"
+  }
+}

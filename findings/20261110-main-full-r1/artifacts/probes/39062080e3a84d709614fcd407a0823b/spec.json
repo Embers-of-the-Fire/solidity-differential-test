@@ -1,0 +1,90 @@
+{
+  "name": "strings-bytes-abi-boundaries",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract StringBytesProbe {\n    string public s;\n    bytes public b;\n    bytes32 public fixedB;\n    string[] public arr;\n\n    event Dyn(string indexed marker, string val, bytes data);\n\n    function setConcat(string memory a, string memory c) public returns (string memory) {\n        s = string.concat(a, c);\n        return s;\n    }\n\n    function setBytesConcat(bytes memory x, bytes memory y) public returns (uint256) {\n        b = bytes.concat(x, y);\n        return b.length;\n    }\n\n    function setFixed(bytes32 f) public returns (bytes1) {\n        fixedB = f;\n        return bytes1(f);\n    }\n\n    function pushArr(string memory item) public returns (uint256) {\n        arr.push(item);\n        return arr.length;\n    }\n\n    function getArr(uint256 i) public view returns (string memory) {\n        return arr[i];\n    }\n\n    function emitDyn(string memory v, bytes memory d) public {\n        emit Dyn(\"m\", v, d);\n    }\n}",
+  "contract": "StringBytesProbe",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "setConcat",
+      "args": [
+        "h\u00e9llo\ud83e\udd84",
+        ""
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "s"
+    },
+    {
+      "action": "call",
+      "function": "setBytesConcat",
+      "args": [
+        "0x00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff01",
+        "0x"
+      ],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "b"
+    },
+    {
+      "action": "call",
+      "function": "setFixed",
+      "args": [
+        "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff00"
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "pushArr",
+      "args": [
+        "\u65e5\u672c\u8a9e\u30c6\u30b9\u30c8"
+      ],
+      "sender": "charlie",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "getArr",
+      "args": [
+        0
+      ]
+    },
+    {
+      "action": "call",
+      "function": "emitDyn",
+      "args": [
+        "",
+        "0xdeadbeef"
+      ],
+      "sender": "alice",
+      "value": 0
+    }
+  ],
+  "meta": {
+    "parent_id": null,
+    "origin": "generated"
+  },
+  "execution": "on-chain"
+}

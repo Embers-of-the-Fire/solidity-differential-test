@@ -1,0 +1,286 @@
+{
+  "name": "value-payable-forward",
+  "contract": "ValueForward",
+  "tool_versions": {
+    "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+    "solang": "solang version v0.3.5",
+    "anvil": "anvil Version: 1.7.1-dev",
+    "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+  },
+  "oracle_config": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "execution": "on-chain",
+  "workdir": "/tmp/oracle-run-akgfjj56",
+  "timing": {
+    "started_at": "2026-11-10T03:03:52.777+00:00",
+    "started_epoch": 1794279832.7777424,
+    "total_ms": 2492.052124000111,
+    "nodes": {
+      "evm": {
+        "start_ms": 502.9121949992259,
+        "stop_ms": 3.148686999338679
+      },
+      "polkadot": {
+        "start_ms": 1122.6764459988772,
+        "stop_ms": 31.312962999436422
+      }
+    }
+  },
+  "compile": {
+    "solc": {
+      "compiler": "solc",
+      "ok": true,
+      "version": "Version: 0.8.33+commit.64118f21.Linux.g++",
+      "errors": null,
+      "warnings": [
+        "Warning: SPDX license identifier not provided in source file. Before publishing, consider adding a comment containing \"SPDX-License-Identifier: <SPDX-License>\" to each source file. Use \"SPDX-License-Identifier: UNLICENSED\" for non-open-source code. Please see https://spdx.org for more information.\n--> input.sol\n\n"
+      ],
+      "artifacts": {
+        "abi": true,
+        "bytecode_bytes": 568,
+        "wasm_bytes": 0,
+        "metadata": false
+      },
+      "elapsed_ms": 5.055288000221481
+    },
+    "solang": {
+      "compiler": "solang",
+      "ok": true,
+      "version": "solang version v0.3.5",
+      "errors": null,
+      "warnings": null,
+      "artifacts": {
+        "abi": false,
+        "bytecode_bytes": 0,
+        "wasm_bytes": 40670,
+        "metadata": true
+      },
+      "elapsed_ms": 270.478753000134
+    }
+  },
+  "deploy": {
+    "evm": {
+      "status": "success",
+      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "tx_hash": "90fbf01b523f462c3b410c709e834d00e172741a1335478f50f3ffb574d15fed",
+      "error": null,
+      "elapsed_ms": 8.112534998872434
+    },
+    "polkadot": {
+      "status": "success",
+      "address": "5HM2DJv7ZJ5LSTHxC7RzpCyhBH5mmAGYosp8tPx6SZ1vUMim",
+      "tx_hash": null,
+      "error": null,
+      "elapsed_ms": 486.42155500056106
+    }
+  },
+  "steps": [
+    {
+      "index": 0,
+      "action": "call",
+      "function": "deposit",
+      "args": [],
+      "sender": "bob",
+      "value": 2500,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 2.7268660014669877,
+          "tx_ms": 7.489650999559672,
+          "snapshot_ms": 2.0608209997590166
+        },
+        "evm_total_ms": 12.279917998966994,
+        "polkadot": {
+          "dry_run_ms": 1.5857990001677535,
+          "tx_ms": 46.26879599891254,
+          "snapshot_ms": 1.6781190006440738
+        },
+        "polkadot_total_ms": 49.5367539988365
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": 2500,
+          "revert_reason": null,
+          "return_data_raw": "0x00000000000000000000000000000000000000000000000000000000000009c4",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "819f2409ba7e1f41f0e430a0f99217d2984950e41d62682f3ab115bfa2adb9dd",
+          "block_hash": "db49a261c7548adb206ba245154c54aa52178323d17db42d26d38eb6b21aaf1c",
+          "gas_used": 45244,
+          "events": [
+            {
+              "name": "Received",
+              "args": [
+                {
+                  "name": "from",
+                  "value": "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc"
+                },
+                {
+                  "name": "value",
+                  "value": 2500
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "evm",
+          "block": {
+            "number": 2,
+            "hash": "0xdb49a261c7548adb206ba245154c54aa52178323d17db42d26d38eb6b21aaf1c",
+            "timestamp": 1794279835
+          },
+          "contract": {
+            "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+            "balance": "2500",
+            "nonce": 1
+          },
+          "storage": {
+            "0x0000000000000000000000000000000000000000000000000000000000000000": "0x00000000000000000000000000000000000000000000000000000000000009c4"
+          }
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": 2500,
+          "revert_reason": null,
+          "return_data_raw": "0xc409000000000000000000000000000000000000000000000000000000000000",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "0xeeacdc33212ea6b33168bccedeb6e6cbe0b4472191205845080f155135ceda7b",
+          "block_hash": "0x948caf77c80140b1a83f1d9d508c27e0a18d7d14b625c54ce42a36e921b5b597",
+          "gas_used": 1177879838,
+          "events": [
+            {
+              "name": "Received",
+              "args": [
+                {
+                  "name": "from",
+                  "value": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"
+                },
+                {
+                  "name": "value",
+                  "value": 2500
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "polkadot",
+          "block": {
+            "number": 2,
+            "hash": "0x948caf77c80140b1a83f1d9d508c27e0a18d7d14b625c54ce42a36e921b5b597",
+            "timestamp": 1794279835189
+          },
+          "contract": {
+            "address": "5HM2DJv7ZJ5LSTHxC7RzpCyhBH5mmAGYosp8tPx6SZ1vUMim",
+            "balance": "1000002500",
+            "nonce": 0
+          },
+          "storage": {
+            "0xff0f22492f44bac4c4b30ae58d0e8daa0000000000000000000000000000000000000000000000000000000000000000": "0xc409000000000000000000000000000000000000000000000000000000000000"
+          }
+        }
+      },
+      "divergences": [
+        {
+          "kind": "EVENT_MISMATCH",
+          "step": 0,
+          "detail": "emitted events differ",
+          "evm": [
+            {
+              "name": "Received",
+              "args": [
+                {
+                  "name": "from",
+                  "value": "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc"
+                },
+                {
+                  "name": "value",
+                  "value": 2500
+                }
+              ]
+            }
+          ],
+          "polkadot": [
+            {
+              "name": "Received",
+              "args": [
+                {
+                  "name": "from",
+                  "value": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"
+                },
+                {
+                  "name": "value",
+                  "value": 2500
+                }
+              ]
+            }
+          ],
+          "point": 0,
+          "signature": "EVENT_MISMATCH|0|deposit|args"
+        }
+      ]
+    }
+  ],
+  "divergences": [
+    {
+      "kind": "EVENT_MISMATCH",
+      "step": 0,
+      "detail": "emitted events differ",
+      "evm": [
+        {
+          "name": "Received",
+          "args": [
+            {
+              "name": "from",
+              "value": "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc"
+            },
+            {
+              "name": "value",
+              "value": 2500
+            }
+          ]
+        }
+      ],
+      "polkadot": [
+        {
+          "name": "Received",
+          "args": [
+            {
+              "name": "from",
+              "value": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"
+            },
+            {
+              "name": "value",
+              "value": 2500
+            }
+          ]
+        }
+      ],
+      "point": 0,
+      "signature": "EVENT_MISMATCH|0|deposit|args"
+    }
+  ],
+  "earliest_divergence": {
+    "point": 0,
+    "signature": "EVENT_MISMATCH|0|deposit|args"
+  },
+  "verdict": "DIVERGENCE"
+}

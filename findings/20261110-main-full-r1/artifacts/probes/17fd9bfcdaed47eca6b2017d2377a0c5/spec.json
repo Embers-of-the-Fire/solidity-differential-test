@@ -1,0 +1,44 @@
+{
+  "name": "overload-inherit-dispatch-typed-arity-selfcall",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract Child {\n    uint256 public wideHits;\n    uint256 public narrowHits;\n    uint256 public lastResult;\n\n    function f(uint256 x) public returns (uint256) {\n        wideHits = x + 1;\n        return 200 + x;\n    }\n\n    function f(uint8 x) public returns (uint256) {\n        narrowHits = uint256(x) + 1;\n        return 100 + x;\n    }\n\n    function g(uint256 x) public returns (uint256) {\n        lastResult = this.f(x);\n        return lastResult;\n    }\n}",
+  "contract": "Child",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "g",
+      "args": [
+        255
+      ],
+      "sender": "alice"
+    },
+    {
+      "action": "query",
+      "function": "lastResult"
+    },
+    {
+      "action": "query",
+      "function": "wideHits"
+    },
+    {
+      "action": "query",
+      "function": "narrowHits"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "317d3e15715b50c4",
+    "origin": "mutated_llm"
+  }
+}

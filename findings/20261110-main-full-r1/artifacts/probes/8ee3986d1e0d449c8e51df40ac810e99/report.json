@@ -1,0 +1,326 @@
+{
+  "name": "crypto-hash-packed-vs-encode-static-encode-length",
+  "contract": "CryptoEncodeLength",
+  "tool_versions": {
+    "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+    "solang": "solang version v0.3.5",
+    "anvil": "anvil Version: 1.7.1-dev",
+    "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+  },
+  "oracle_config": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "execution": "on-chain",
+  "workdir": "/tmp/oracle-run-vzwu5ob0",
+  "timing": {
+    "started_at": "2026-11-10T04:02:03.949+00:00",
+    "started_epoch": 1794283323.94957,
+    "total_ms": 4012.310203999732,
+    "nodes": {
+      "evm": {
+        "start_ms": 502.8621279998333,
+        "stop_ms": 1.098405999073293
+      },
+      "polkadot": {
+        "start_ms": 1380.8697610002127,
+        "stop_ms": 18.3860300003289
+      }
+    }
+  },
+  "compile": {
+    "solc": {
+      "compiler": "solc",
+      "ok": true,
+      "version": "Version: 0.8.33+commit.64118f21.Linux.g++",
+      "errors": null,
+      "warnings": [
+        "Warning: SPDX license identifier not provided in source file. Before publishing, consider adding a comment containing \"SPDX-License-Identifier: <SPDX-License>\" to each source file. Use \"SPDX-License-Identifier: UNLICENSED\" for non-open-source code. Please see https://spdx.org for more information.\n--> input.sol\n\n"
+      ],
+      "artifacts": {
+        "abi": true,
+        "bytecode_bytes": 2324,
+        "wasm_bytes": 0,
+        "metadata": false
+      },
+      "elapsed_ms": 8.974623999165487
+    },
+    "solang": {
+      "compiler": "solang",
+      "ok": true,
+      "version": "solang version v0.3.5",
+      "errors": null,
+      "warnings": null,
+      "artifacts": {
+        "abi": false,
+        "bytecode_bytes": 0,
+        "wasm_bytes": 44917,
+        "metadata": true
+      },
+      "elapsed_ms": 304.1232219984522
+    }
+  },
+  "deploy": {
+    "evm": {
+      "status": "success",
+      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "tx_hash": "596912a3dce51ab8f10bbfef21043734b873763ebd6778cedd6d77356cdf73e0",
+      "error": null,
+      "elapsed_ms": 9.534365999570582
+    },
+    "polkadot": {
+      "status": "success",
+      "address": "5DakRARh2bQZzX9K4UUxVH5gkHN868YwtJTif8r2W5fhu2Xv",
+      "tx_hash": null,
+      "error": null,
+      "elapsed_ms": 656.1909100000776
+    }
+  },
+  "steps": [
+    {
+      "index": 0,
+      "action": "query",
+      "function": "packedLen",
+      "args": [
+        170,
+        48879,
+        81985529216486895,
+        20000000000000000000
+      ],
+      "sender": "deployer",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 146.68439399974886,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "evm_total_ms": 146.68586399966443,
+        "polkadot": {
+          "dry_run_ms": 969.7128490006435,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "polkadot_total_ms": 969.7140389998822
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": 43,
+          "revert_reason": null,
+          "return_data_raw": "0x000000000000000000000000000000000000000000000000000000000000002b",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": 43,
+          "revert_reason": null,
+          "return_data_raw": "0x2b00000000000000000000000000000000000000000000000000000000000000",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "divergences": []
+    },
+    {
+      "index": 1,
+      "action": "query",
+      "function": "encodedLen",
+      "args": [
+        170,
+        48879,
+        81985529216486895,
+        20000000000000000000
+      ],
+      "sender": "deployer",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 3.466080001089722,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "evm_total_ms": 3.467110000201501,
+        "polkadot": {
+          "dry_run_ms": 2.5917559996742057,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "polkadot_total_ms": 2.592615999674308
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": 128,
+          "revert_reason": null,
+          "return_data_raw": "0x0000000000000000000000000000000000000000000000000000000000000080",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": 43,
+          "revert_reason": null,
+          "return_data_raw": "0x2b00000000000000000000000000000000000000000000000000000000000000",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "divergences": [
+        {
+          "kind": "RETURN_MISMATCH",
+          "step": 1,
+          "detail": "dry-run return values differ",
+          "evm": 128,
+          "polkadot": 43,
+          "point": 1,
+          "signature": "RETURN_MISMATCH|1|encodedLen|int\u2260int"
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "action": "query",
+      "function": "packedLenStr",
+      "args": [
+        170,
+        "hi",
+        "0x1234"
+      ],
+      "sender": "deployer",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 2.143912000974524,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "evm_total_ms": 2.1446219998324523,
+        "polkadot": {
+          "dry_run_ms": 1.8131200013158377,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "polkadot_total_ms": 1.8138499999622582
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": 5,
+          "revert_reason": null,
+          "return_data_raw": "0x0000000000000000000000000000000000000000000000000000000000000005",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": 5,
+          "revert_reason": null,
+          "return_data_raw": "0x0500000000000000000000000000000000000000000000000000000000000000",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "divergences": []
+    },
+    {
+      "index": 3,
+      "action": "query",
+      "function": "encodedLenStr",
+      "args": [
+        170,
+        "hi",
+        "0x1234"
+      ],
+      "sender": "deployer",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 2.005222000661888,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "evm_total_ms": 2.0059719990968006,
+        "polkadot": {
+          "dry_run_ms": 1.7170909995911643,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "polkadot_total_ms": 1.7178310008603148
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": 224,
+          "revert_reason": null,
+          "return_data_raw": "0x00000000000000000000000000000000000000000000000000000000000000e0",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": 7,
+          "revert_reason": null,
+          "return_data_raw": "0x0700000000000000000000000000000000000000000000000000000000000000",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "divergences": [
+        {
+          "kind": "RETURN_MISMATCH",
+          "step": 3,
+          "detail": "dry-run return values differ",
+          "evm": 224,
+          "polkadot": 7,
+          "point": 3,
+          "signature": "RETURN_MISMATCH|3|encodedLenStr|int\u2260int"
+        }
+      ]
+    }
+  ],
+  "divergences": [
+    {
+      "kind": "RETURN_MISMATCH",
+      "step": 1,
+      "detail": "dry-run return values differ",
+      "evm": 128,
+      "polkadot": 43,
+      "point": 1,
+      "signature": "RETURN_MISMATCH|1|encodedLen|int\u2260int"
+    },
+    {
+      "kind": "RETURN_MISMATCH",
+      "step": 3,
+      "detail": "dry-run return values differ",
+      "evm": 224,
+      "polkadot": 7,
+      "point": 3,
+      "signature": "RETURN_MISMATCH|3|encodedLenStr|int\u2260int"
+    }
+  ],
+  "earliest_divergence": {
+    "point": 1,
+    "signature": "RETURN_MISMATCH|1|encodedLen|int\u2260int"
+  },
+  "verdict": "DIVERGENCE"
+}

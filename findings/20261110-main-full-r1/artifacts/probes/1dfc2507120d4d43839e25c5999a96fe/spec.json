@@ -1,0 +1,68 @@
+{
+  "name": "intdiv-overflow-capture-before-count",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract IntDivCaptureBeforeCount {\n    int8 public min8;\n    int16 public min16;\n    int64 public min64;\n    int8 public r8;\n    int16 public r16;\n    int64 public r64;\n    uint256 public count;\n\n    constructor() {\n        min8 = type(int8).min;\n        min16 = type(int16).min;\n        min64 = type(int64).min;\n    }\n\n    function div8() public returns (int8) {\n        int8 r = min8 / int8(-1);\n        r8 = r;\n        count++;\n        return r;\n    }\n\n    function div16() public returns (int16) {\n        int16 r = min16 / int16(-1);\n        r16 = r;\n        count++;\n        return r;\n    }\n\n    function div64() public returns (int64) {\n        int64 r = min64 / int64(-1);\n        r64 = r;\n        count++;\n        return r;\n    }\n}",
+  "contract": "IntDivCaptureBeforeCount",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "execution": "on-chain",
+  "steps": [
+    {
+      "action": "call",
+      "function": "div8",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "div16",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "div64",
+      "args": [],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "r8",
+      "args": []
+    },
+    {
+      "action": "query",
+      "function": "r16",
+      "args": []
+    },
+    {
+      "action": "query",
+      "function": "r64",
+      "args": []
+    },
+    {
+      "action": "query",
+      "function": "count",
+      "args": []
+    }
+  ],
+  "meta": {
+    "parent_id": "ab3a51096efb1c6c",
+    "origin": "mutated_llm"
+  }
+}

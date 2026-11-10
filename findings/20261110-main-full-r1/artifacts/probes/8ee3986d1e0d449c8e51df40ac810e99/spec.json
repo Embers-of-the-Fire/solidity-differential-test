@@ -1,0 +1,62 @@
+{
+  "name": "crypto-hash-packed-vs-encode-static-encode-length",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract CryptoEncodeLength {\n    function packedLen(uint8 a, uint16 b, uint64 c, uint256 d) public pure returns (uint256) {\n        return abi.encodePacked(a, b, c, d).length;\n    }\n    function encodedLen(uint8 a, uint16 b, uint64 c, uint256 d) public pure returns (uint256) {\n        return abi.encode(a, b, c, d).length;\n    }\n    function packedLenStr(uint8 a, string memory b, bytes memory c) public pure returns (uint256) {\n        return abi.encodePacked(a, b, c).length;\n    }\n    function encodedLenStr(uint8 a, string memory b, bytes memory c) public pure returns (uint256) {\n        return abi.encode(a, b, c).length;\n    }\n}",
+  "contract": "CryptoEncodeLength",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "query",
+      "function": "packedLen",
+      "args": [
+        170,
+        48879,
+        81985529216486895,
+        20000000000000000000
+      ]
+    },
+    {
+      "action": "query",
+      "function": "encodedLen",
+      "args": [
+        170,
+        48879,
+        81985529216486895,
+        20000000000000000000
+      ]
+    },
+    {
+      "action": "query",
+      "function": "packedLenStr",
+      "args": [
+        170,
+        "hi",
+        "0x1234"
+      ]
+    },
+    {
+      "action": "query",
+      "function": "encodedLenStr",
+      "args": [
+        170,
+        "hi",
+        "0x1234"
+      ]
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "4a5f9af471760f8e",
+    "origin": "mutated_llm"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "name": "event-interleave-same-sig-scope-h11",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract EventInterleaveProbe {\n    event A(uint256 value);\n    event B(uint256 value);\n\n    uint256 public aLast;\n    uint256 public bLast;\n    uint256 public total;\n\n    function run() public {\n        emit A(1);\n        emit B(9);\n        emit A(2);\n        aLast = 2;\n        bLast = 9;\n        total = 3;\n    }\n\n    function snapshot() public view returns (uint256, uint256, uint256) {\n        return (aLast, bLast, total);\n    }\n}",
+  "contract": "EventInterleaveProbe",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "run",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "snapshot",
+      "args": []
+    },
+    {
+      "action": "query",
+      "function": "aLast",
+      "args": []
+    },
+    {
+      "action": "query",
+      "function": "bLast",
+      "args": []
+    }
+  ],
+  "meta": {
+    "parent_id": null,
+    "origin": "generated"
+  },
+  "execution": "on-chain"
+}

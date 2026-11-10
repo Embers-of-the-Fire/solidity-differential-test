@@ -1,0 +1,444 @@
+{
+  "seed_id": "env-vars",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "solang rejects any use of the global function blockhash() at compile time with 'unknown function or type blockhash', while solc compiles the same source; blockhash-based probes cannot be run on solang without a workaround (e.g., assembly) so any behavioral comparison here is blocked at the source level.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-vars-blockhash-asymmetry",
+          "verdict": "DIVERGENCE",
+          "note": "solc_ok=true, solang failed to compile with three 'unknown function or type blockhash' errors (lines 12, 21, 25). Triage: invalid_probe (compile asymmetry), so no on-chain behavior for block.number or blockhash was observable on solang."
+        },
+        {
+          "probe": "env-vars-blockhash-asymmetry-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Reproduced cleanly: solc compiled EnvProbe.sol without errors, while solang rejected it with exactly three 'unknown function or type blockhash' errors at the source locations of blockhash() calls (lines 12, 21, 25). The failure is unconditional and not probe-specific: any source referencing blockhash() as a Solidity builtin fails at compile time on solang, so blockhash cannot be observed on-chain via plain Solidity."
+        },
+        {
+          "probe": "env-vars-blockhash-asymmetry-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Reproduced cleanly: solc compiled EnvProbe.sol without errors, while solang rejected it with exactly three 'unknown function or type blockhash' errors at the source locations of blockhash() calls (lines 12, 21, 25). The failure is unconditional and not probe-specific: any source referencing blockhash() as a Solidity builtin fails at compile time on solang, so blockhash cannot be observed on-chain via plain Solidity."
+        }
+      ],
+      "next_probe": "Deprioritize blockhash entirely: the harness now triages solang's blockhash rejection as known_semantic (not invalid_probe), meaning the divergence is an accepted, permanent source-level semantic difference that no further blockhash probe will overturn. Do not author further blockhash-containing sources; instead redirect this area's budget to the still-untested env-var compile-acceptance probes: (1) a minimal tx.gasprice/tx.gasprice-vs-msg.value contract (assert 'blockhash' absent) to see whether solang compiles tx.gasprice at all and what value pallet-contracts returns (stubbed vs live), and (2) a block.coinbase / block.prevrandao probe for the same compile-acceptance question. If blockhash must be probed once for completeness, a single assembly { h := blockhash(n) } attempt on solang suffices to decide 'rejected at every level'."
+    },
+    {
+      "id": "h2",
+      "statement": "block.number's compile acceptance and runtime value semantics on solang remain entirely untested: every probe authored for this area so far (env-vars-blockhash-asymmetry, -p0, -p2) co-references blockhash() somewhere in the source, which aborts solang compilation wholesale and blocks all block.number observations on solang, even though block.number by itself is presumably compilable.",
+      "status": "refuted",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-vars-blockhash-asymmetry",
+          "verdict": "DIVERGENCE",
+          "note": "Unverified: the compile failure blocked all block.number observations on solang. Only blockhash rejection is confirmed; block.number agreement/divergence remains untested."
+        },
+        {
+          "probe": "env-vars-blockhash-asymmetry-p2",
+          "verdict": "DIVERGENCE",
+          "note": "Third consecutive probe where solang failed to compile with exactly three 'unknown function or type blockhash' errors (lines 12, 21, 25: assignment, return-with-expression, and pure-argument call sites), while solc compiled cleanly. The compile failure again masked any block.number behavior; notably the generator/mutator keeps re-introducing blockhash() despite h2's next_probe explicitly requesting a blockhash-free source."
+        },
+        {
+          "probe": "env-vars-blocknumber-timestamp-only",
+          "verdict": "DIVERGENCE",
+          "note": "The probe executed exactly the prescribed blockhash-free minimal design and solang compiled it successfully, falsifying the 'block.number entirely untested' claim. block.number was observed on both chains: getNumber, the stored numberSeen after snapshot(), and nextNumber (block.number + 1) ALL matched between anvil EVM and pallet-contracts \u2014 no RETURN_MISMATCH on any block.number observation. Only block.timestamp diverged (off-by-1s, chain clock offset). block.number compile acceptance and basic value agreement are now confirmed."
+        }
+      ],
+      "next_probe": "Hand-author (do not mutate from prior EnvProbe sources) a minimal probe: contract with ONLY 'uint256 public numberSeen', 'function getNumber() view returns (uint256) { return block.number; }', and 'function snapshot() { numberSeen = block.number; }'. Assert at spec-validation time that the string 'blockhash' does not appear anywhere in the source before execution. Steps: query getNumber, call snapshot from alice, query numberSeen. Compare EVM vs pallet values to test whether block.number maps to substrate block height vs. an EVM-style counter and whether it increments per tx."
+    },
+    {
+      "id": "h3",
+      "statement": "block.number is fully supported by solang and agrees with solc/anvil in value across view reads, stored snapshots written during a tx, and arithmetic (block.number + 1); solang's block.number mapping yields the same per-tx height counter as anvil's automine mode, so no divergence is detectable when both chains advance one block per transaction.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-vars-blocknumber-timestamp-only",
+          "verdict": "DIVERGENCE",
+          "note": "All three block.number observations (getNumber query, numberSeen storage after snapshot(), nextNumber arithmetic) returned matching values on EVM and Polkadot; the sole divergence was block.timestamp. Agreement holds only under the untested one-tx-per-block regime."
+        },
+        {
+          "probe": "env-vars-gasleft-arithmetic",
+          "verdict": "PASS",
+          "note": "numberSeen storage slot agreed exactly between chains after snapshot() (value 2 on both EVM and Polkadot, no STORAGE_MISMATCH flagged for that slot; only the gasSeen slot diverged due to gasleft scale). This is a third independent probe confirming block.number value agreement between anvil automine and pallet-contracts, strengthening the claim that solang maps block.number to a per-tx height counter matching anvil's one-block-per-transaction regime. Still untested: multiple txs within a single substrate block."
+        }
+      ],
+      "next_probe": "Break the one-block-per-tx symmetry: dispatch two snapshot() calls inside a single substrate block via a utility.batch extrinsic (or via a wrapper contract function that calls an inner snapshot twice in one tx) and compare numberSeen and the emitted Snapshot events across chains. If both inner calls report the same block.number on pallet while anvil shows N and N+1 for two separate txs, the per-tx equivalence breaks under batching; if both inner calls also agree cross-chain, instant-seal equivalence holds universally and block.number can be whitelisted as a non-divergence."
+    },
+    {
+      "id": "h4",
+      "statement": "block.timestamp is sourced from each host chain's own wall clock, so EVM and Polkadot values differ by the chains' independent clock offsets (observed exactly 1s apart); this is an environmental divergence, not a solang-vs-solc semantic difference, and timestamp should only be compared cross-chain as deltas or against chain-local expectations, never by absolute equality.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-vars-blocknumber-timestamp-only",
+          "verdict": "DIVERGENCE",
+          "note": "Step 1 getTime dry-run: evm=1794281071 vs polkadot=1794281072 (\u0394=1s), triaged known_semantic. Both values are plausible Unix wall-clock seconds, consistent with independent chain clocks rather than a stubbing or unit divergence; timeSeen stored during snapshot() was not flagged as divergent."
+        },
+        {
+          "probe": "env-vars-blockhash-asymmetry-m1-timestamp-pair",
+          "verdict": "DIVERGENCE",
+          "note": "Strong support for the environmental-clock hypothesis. Step 0 dry-run getNow differed by 3s (evm=1794293254, polkadot=1794293257), but every tx-executed observation matched exactly across chains: the Seen events at steps 1 and 3 both carried ts=1794293258 on EVM and Polkadot, and the stored firstSeen (step 2), secondSeen (step 4), and count (step 6) queries produced no STORAGE/RETURN mismatches. The final getNow query at step 7 was also not flagged, meaning the 3s offset had closed by then \u2014 the skew is time-varying chain-local wall-clock drift, not a fixed stubbing or unit bug. Both chains stamp consecutive in-quick-succession txs with the same wall-clock second, consistent with 1s resolution on both. block.timestamp is live and chain-local on both; only absolute cross-chain equality is meaningless, exactly as h4 predicted."
+        }
+      ],
+      "next_probe": "Call snapshot() twice on each chain separated by a known wall-clock sleep (e.g., 3s) and compare per-chain timestamp deltas: if both chains show ~3s deltas, granularity and monotonicity agree (1-second resolution on both) and only absolute origin differs. Also test block.timestamp inside view functions vs tx-executed functions to check pallet-contracts does not stub it to a constant within a block."
+    },
+    {
+      "id": "h5",
+      "statement": "gasleft() is compiled and executed by both solc and solang, but the returned value is in each host chain's native gas unit with wildly different scales and budgets: anvil/EVM returns ~3.0e7 (\u224830M block gas limit minus call overhead) while pallet-contracts/solang returns ~2.0e12 (substrate weight/ref-time budget). Any cross-chain comparison of gasleft() by absolute value is therefore guaranteed to diverge (known_semantic, not a stubbing bug); only relative properties (determinism across identical queries, monotonic decrease during execution, positive deltas) are meaningfully comparable.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-vars-gasleft-arithmetic",
+          "verdict": "DIVERGENCE",
+          "note": "gasleft() compiled on both chains (no source-level asymmetry). getGas() returned 29978798 on EVM vs 1999948281475 on Polkadot (\u224866,700x scale difference) at steps 0 and 5, with step 5 exactly repeating step 0 on each chain (deterministic at query position). gasDelta() (gasleft() before minus after a 5-iteration loop, plus loop sum) was positive on both: 2572 (EVM) vs 5889079 (Polkadot), showing gasleft decreases during execution on pallet-contracts, i.e., it is a live value, not a constant stub. Triage: known_semantic (different gas unit scales)."
+        },
+        {
+          "probe": "env-vars-blockhash-asymmetry-m2-gasleft-monotonic",
+          "verdict": "DIVERGENCE",
+          "note": "gasleft() is live and monotonically decreasing during execution on BOTH chains: snapshotGas() ran without reverting, so the require(x < e) monotonicity check passed on both anvil (entry=193552, exit=168596, consumed=24956 for a 100-iteration loop) and pallet-contracts (entry=899939093951, exit=899931050898, consumed=8043053). Stored entrySeen/exitSeen/consumed matched each chain's emitted GasSeen event args exactly, confirming internal consistency. The 100-iteration loop consumed ~322x more substrate gas units than EVM gas units, and the query-position scale gap was ~66700x, so not even a single fixed normalization ratio exists (see h7). Absolute cross-chain comparison remains meaningless; only per-chain monotonicity/determinism is comparable, exactly as h5 predicted. Triage: known_semantic."
+        }
+      ],
+      "next_probe": "Probe gasleft monotonicity and comparability: a view function that records gasleft() at entry and exit around a fixed loop (e.g., loop 100 iterations summing i) and returns (entry, exit, entry-exit) as a tuple; assert entry > exit > 0 on each chain separately, and compare the consumed delta across chains only as a ratio vs. the loop iteration count, not absolutely. Also call getGas() twice in one tx (nested via a wrapper) to verify gasleft decreases monotonically within a single execution on pallet-contracts, confirming it is live and not stubbed to a constant."
+    },
+    {
+      "id": "h6",
+      "statement": "Address values in event args (e.g., msg.sender) are reported in each chain's native encoding \u2014 hex 0x-prefixed on EVM, SS58 (5F...) on Polkadot \u2014 so any event containing an address field will produce an EVENT_MISMATCH cross-chain even when the underlying account is the identical designated sender and all non-address args match; this is a representation-level environmental divergence, not a semantic one, and the harness/oracle must normalize addresses before comparing event logs.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-vars-blockhash-asymmetry-m1-timestamp-pair",
+          "verdict": "DIVERGENCE",
+          "note": "The EVENT_MISMATCHs at steps 1 and 3 were entirely attributable to address encoding: at step 1 the ts arg matched exactly (1794293258) while 'by' was 0x70997970... (EVM alice) vs 5FHneW46... (Polkadot alice); step 3 showed the same pattern (ts matched, 'by' = 0x3c44cdd... vs 5FLSigC9...). Since idx and ts agreed in both events, the address string is the sole divergent component, isolating the encoding difference."
+        },
+        {
+          "probe": "env-vars-blockhash-asymmetry-m3-timestamp-width-boundary",
+          "verdict": "DIVERGENCE",
+          "note": "Second clean replication of the predicted pattern: in the Tagged event, the uint8 tag (255, boundary value) and uint64 seen (1794293258) args matched exactly cross-chain, while only the address arg 'by' diverged (0x70997970... EVM alice vs 5FHneW46... Polkadot alice). This is now the second probe where every non-address event arg matches and the address encoding is the sole mismatch, strongly supporting 'address encoding difference is representation-level, not semantic' and that numeric normalization (uint256(uint160(sender))) is the right oracle fix."
+        }
+      ],
+      "next_probe": "Emit an event containing both an address and a chain-independent uint256 (e.g., event Pair(uint256 seq, address who) with a monotonically incrementing counter), send from alice, and verify the uint256 arg matches while only the address arg mismatches. Then add a second variant that emits uint256(uint160(msg.sender)) instead of the raw address; if the numeric-cast event passes cross-chain, numeric normalization is a viable oracle fix and the divergence is confirmed to be purely string-encoding."
+    },
+    {
+      "id": "h7",
+      "statement": "pallet-contracts grants dry-run (RPC simulation) calls a LARGER gas budget than dispatched transactions: a view getGas() queried via dry-run returns ~2.0e12 (~1999952427691), while the gasleft() recorded at the very entry of a dispatched tx in the same session is only ~9.0e11 (~899939093951) \u2014 a ~2.2x budget gap between query and tx-execution contexts; on anvil/EVM both positions see the same ~3.0e7 block-gas scale (29978776 dry-run vs 193552 tx entry is explained by tx gas-limit headroom, not a separate budget pool). Consequently the EVM-vs-Polkadot gasleft scale RATIO is position-dependent (~66700x at query position vs ~4.65e6x at tx entry), so no single normalization constant can make gasleft() cross-chain comparable even relatively.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-gasleft-entry-vs-dryrun",
+          "verdict": "DIVERGENCE",
+          "note": "Direct confirmation of the dry-run-vs-tx budget gap with a single contract exposing both positions: getGas() dry-run on pallet-contracts returned 1999956847473 (~2.0e12) while gasleft() at the FIRST statement of a dispatched recordEntry() tx stored only 899948653153 (~9.0e11) in the same session \u2014 a ~2.22x budget gap between query and tx-execution contexts, exactly as h7 predicted. On anvil the dry-run getGas() returned 29978776 while tx entry stored 155966; this ~192x gap is tx-gas-limit headroom (the tx carries a gas limit near the block limit, and calldata+intrinsic costs are charged before the first statement), NOT a separate budget pool \u2014 dry-run gasleft on anvil matches the block-gas scale (h5). The EVM-vs-Polkadot scale ratio is therefore ~128300x at dry-run position (29978776 vs 1999956847473) vs ~5.77e6x at tx entry (155966 vs 899948653153); no single normalization constant exists. Additionally, entryGas (899948653153) > exitGas (899778971516) on pallet-contracts and 155966 > 123867 on anvil, so gasleft is live and decreasing within the dispatched tx on both chains, consistent with h5. Triage: known_semantic."
+        }
+      ],
+      "next_probe": "Author a probe with two entry points: (1) view getGas() queried via dry-run, and (2) a function recordEntry() that stores gasleft() at its first statement when dispatched as a real tx, plus recordEntryView() that stores gasleft() via an eth_call simulation of the same function. On pallet-contracts compare stored entry-tx vs stored entry-sim values: if sim > tx by ~2x, the dry-run-vs-tx budget gap is confirmed as a pallet-contracts property; on anvil the two should be within tx-headroom of each other. If confirmed, the oracle should only ever compare gasleft within a single call context (entry vs exit), never across contexts."
+    },
+    {
+      "id": "h8",
+      "statement": "solc/solang raw-slot divergence has two distinct causes: (1) for nonzero sub-word fields (uint8+uint64), solc packs into one slot while solang uses one slot each, so nonzero-entry counts differ; a sub-word field that remains zero contributes no nonzero slot on either chain and thus does not disturb count-mode comparison; (2) for full-width fields (uint256), slot counts and values agree exactly EXCEPT address-typed slots (EVM 20-byte right-aligned vs pallet-contracts 32-byte AccountId). Getter-level comparison is safe for all field widths: a uint8 public getter (marker) returned the identical value cross-chain (0 after snapshot(0)) even though raw-slot comparison of the same packed field would diverge once nonzero. Raw-slot comparison is therefore unsafe only in the presence of nonzero packed sub-word fields or address-typed fields; declared getters are the only reliable storage oracle.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-vars-blockhash-asymmetry-m3-timestamp-width-boundary",
+          "verdict": "DIVERGENCE",
+          "note": "STORAGE_MISMATCH at steps 1 and 4 in mode=count is fully explained by layout: EVM had 2 nonzero entries ['1','459339074303'] where 459339074303 = (1794293258<<8)+255 is exactly the solc-packed tag|lastSeen slot, while Polkadot had 3 separate nonzero entries ['-1','1','1794293258'] matching unpacked fields. All logical values (tag=255 from uint8 max boundary arg, seen=1794293258, count=1) agreed; only physical slot packing differed. Notably uint64 arithmetic (mask(4294967295) returning 4294967295) executed identically on both chains with no return mismatch."
+        },
+        {
+          "probe": "env-vars-blockhash-asymmetry-m4-sender-timestamp-touch",
+          "verdict": "DIVERGENCE",
+          "note": "STORAGE_MISMATCH at steps 1, 3, 4 in mode=count, but both chains report exactly 3 nonzero entries and the numeric slots (seen=1794293258, touches=1 then 2 then 3) appear identically in both multisets at every step; the sole divergent slot is lastBy. EVM stores it as the uint256 of the 20-byte hex address (step 1: 642829559...0536 = alice 0x70997970...), Polkadot as a 32-byte AccountId (327554851...6606). Step 3 (charlie touch) changed only the address slot on both chains. This cleanly separates cause (1) small-field packing from cause (2) address width/encoding, refining h8's original 'always diverges' claim: count mode only diverges in counts for packed small fields; address fields diverge in slot CONTENT even when counts match."
+        },
+        {
+          "probe": "env-vars-blockhash-asymmetry-m2-neq-branch",
+          "verdict": "DIVERGENCE",
+          "note": "TimestampPairProbe holds only uint256 fields (firstSeen, secondSeen, count). After branch-selected writes, steps 2, 4, and 5 storage comparisons in mode=count produced no STORAGE_MISMATCH on any chain, and the verdict's divergence list contains only the timestamp RETURN_MISMATCH and address-encoded EVENT_MISMATCHs. This is the clean-contract control case for h8: with no sub-word packing and no address state, raw nonzero-entry counts trivially agree, tightening h8's original framing from 'raw slots always diverge' to 'raw slots diverge only via packing or address width'."
+        },
+        {
+          "probe": "env-vars-blockhash-asymmetry-m5-layout-marksecond",
+          "verdict": "DIVERGENCE",
+          "note": "Contract holds count (uint256), marker (uint8), firstSeen/secondSeen (uint256) \u2014 a small-field-packing layout \u2014 yet the only divergences were the step-0 dry-run timestamp skew (\u0394=2s, h4 drift; step-1 event ts already matched at 1794300649 and step-7 getNow was not flagged) and the step-1 EVENT_MISMATCH whose sole divergent arg was the address encoding (h6). All storage queries passed: firstSeen after snapshot(0), secondSeen after markSecond(), count (1 then 3 after count+=1 and count+=2 agreed), and the uint8 marker getter (0 on both chains) produced no mismatch in count mode \u2014 because marker stayed zero and so contributed no nonzero packed slot on EVM. This is the boundary case for h8's cause (1): packing only breaks count mode when the packed field is nonzero; sub-word GETTERS agree regardless. It is also the third consecutive probe where the mutator re-instantiates the same TimestampPairProbe with arg-conditioned writes (idx==0 -> firstSeen) that agree cross-chain, further corroborating h10."
+        },
+        {
+          "probe": "layout-subword-packing-raw-slot-vs-getters",
+          "verdict": "DIVERGENCE",
+          "note": "This probe was exactly h8's prescribed minimal packing experiment and the prediction held perfectly. After setAll() (a=255, b=1794293258, c=0): EVM has 1 nonzero slot = 459339074303 = (1794293258<<8)+255 (solc packs uint8 a and uint64 b into one slot, c=0 contributes nothing), while Polkadot has 2 separate nonzero slots ['-1','1794293258'] (solang one slot per field; -1 is the uint8 255 encoding). All getter queries (a and b at steps 0-1 and 3-4, and a after setA(0) at step 6) produced NO RETURN_MISMATCH \u2014 declared getters agree cross-chain while raw slots diverge, confirming 'getters are the only reliable storage oracle'. One boundary refinement beyond h8's original statement: after setA(0) at step 5, EVM still shows 1 nonzero slot but with content 459339074048 = 1794293258<<8 (b packed with the now-zero a), so a zero-valued sub-word field does NOT make the raw-slot comparison safe whenever its packed neighbor is nonzero \u2014 packing contamination persists in slot CONTENT even when counts happen to match (step 5: both chains report exactly 1 nonzero entry yet values diverge). Packing only becomes invisible when ALL co-packed fields are zero. Triage: oracle_artifact."
+        }
+      ],
+      "next_probe": "H8's core claim is now confirmed; remaining open question is whether oracle_artifact triage can be automated. Author a probe mixing all three hazard classes in one contract (uint8 a; uint64 b; address owner; uint256 big) and compare both count and values modes after known writes: verify the divergence signatures are always explainable by (packed-slot content, address width) so the harness can whitelist STORAGE_MISMATCH when the multiset difference reduces to exactly those transforms, and flag anything else as a real bug."
+    },
+    {
+      "id": "h9",
+      "statement": "Address-typed values returned from public getters (e.g., `address public lastBy`) produce a guaranteed RETURN_MISMATCH cross-chain purely from representation: the EVM side returns 0x-hex while pallet-contracts returns SS58, even though the underlying designated sender role is identical (step 6: EVM returned bob's 0x3c44cdd... after bob's tx, Polkadot returned bob's 5FLSigC9... after the same step). Since designated senders map to different keys per chain, no raw, hex, SS58, or even uint160-numeric comparison can match; the oracle must canonicalize addresses via sender-role identity (alice/bob/charlie mapping) before comparison.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-vars-blockhash-asymmetry-m4-sender-timestamp-touch",
+          "verdict": "DIVERGENCE",
+          "note": "Step 6 RETURN_MISMATCH on lastBy: evm=0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc vs polkadot=5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y, typed bytes\u2260string, after bob's snapshot at step 4 on both chains. Logical role agreement is confirmed by the event args at steps 1 and 4 (touches counter 1 then 3 matched exactly; only 'by' diverged). This extends the confirmed event-arg encoding divergence (h6) to getter return values, and shows it is unavoidable: the two encodings denote chain-specific keys, so only role-level canonicalization can compare them."
+        },
+        {
+          "probe": "env-vars-blocknumber-timestamp-only-m3-sender-uint160",
+          "verdict": "DIVERGENCE",
+          "note": "h9's prescribed decisive test ran and confirmed the hypothesis: the raw address getter lastBy mismatched as encoding-only (step 1: evm=0x70997970... vs polkadot=5FHneW46...; step 4: bob 0x3c44cdd... vs 5FLSigC9...), AND the uint160-cast variants ALSO mismatched numerically \u2014 lastById returned 642829559307850963015472508762062935916233390536 (EVM) vs 720179945075308843393850841857214082311498394184 (Polkadot) for alice, and the Snapshot event's senderId arg (uint256(uint160(msg.sender))) diverged identically at steps 0 and 3 while number (2, 3) and timestamp (1794310341) matched exactly. Numeric normalization is therefore provably insufficient; only role-based sender canonicalization can compare address-derived values cross-chain. Note also the storage count mode agreed 3-vs-3 at both steps with the address slot as the sole divergent content (full 32-byte AccountId on pallet vs 20-byte hex on EVM), consistent with h8 cause (2)."
+        }
+      ],
+      "next_probe": "Extend the event-normalization probe (h6's next_probe) to return values: add a getter `function lastById() view returns (uint256) { return uint256(uint160(lastBy)); }` and also emit an event carrying uint256(uint160(msg.sender)). Verify (a) the raw address getter still mismatches (encoding only), and (b) the uint160-cast getter/event ALSO mismatches numerically across chains, proving numeric normalization is insufficient and role-based canonicalization is the only viable oracle fix. If the cast somehow matched, numeric normalization would suffice instead."
+    },
+    {
+      "id": "h10",
+      "statement": "Control-flow branch selection driven by a scalar tx argument executes identically on solc/anvil and solang/pallet-contracts: an if/else keyed on idx != 0 routed writes to different storage targets (snapshot(0) -> secondSeen, snapshot(1) -> firstSeen) with identical resulting state on both chains, and the count += 1 accumulator agreed under count-mode storage comparison (steps 2, 4, 5 produced no STORAGE_MISMATCH). Argument-conditioned branching is therefore not a divergence source; the only open risk is branches conditioned on env vars (block.timestamp), whose chain-local clock skew could flip a branch decision even when semantics are identical.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-vars-blockhash-asymmetry-m2-neq-branch",
+          "verdict": "DIVERGENCE",
+          "note": "The only divergences were the step-0 dry-run timestamp (evm=1794300642 vs polkadot=1794300646, \u0394=4s, consistent with h4 time-varying drift) and the two EVENT_MISMATCHs whose sole divergent arg was the address encoding (idx and ts matched exactly at both steps). All branch-dependent state agreed: snapshot(0) wrote secondSeen, snapshot(1) wrote firstSeen, count incremented identically, and steps 2/4/5 storage queries plus step-6 getNow produced no mismatch. if/else slot targeting via argument is confirmed identical cross-chain."
+        },
+        {
+          "probe": "env-vars-blockhash-asymmetry-m3-dup-second-snapshot",
+          "verdict": "DIVERGENCE",
+          "note": "Second clean replication of argument-conditioned branching: idx=0 wrote firstSeen (step 2 query, no mismatch), idx=1 wrote secondSeen twice (steps 4 and 5, duplicate same-branch write, no mismatch), and count accumulated identically (3 tx calls -> count=3, step 6 query not flagged, no STORAGE_MISMATCH in count mode). The sole divergences were the step-0 dry-run timestamp skew (evm=1794300642 vs polkadot=1794300646, \u0394=4s, h4 drift) and three EVENT_MISMATCHs whose only divergent arg was the address encoding (idx and ts=1794300646 matched exactly at steps 1, 3, 5). The env-var-branching risk flagged in h10 remains the only untested corner; the scalar-argument branch claim itself is now confirmed twice, including under repeated-write conditions."
+        }
+      ],
+      "next_probe": "Superseded by h18: the parity-branch probe env-vars-blocknumber-timestamp-only-m4-timestamp-parity-branch has now run and shown branch agreement under an even-valued \u0394=2s skew. The remaining decisive test is the controlled-sleep variant in h18's next_probe: force an odd-valued skew so exactly one chain flips block.timestamp % 2 parity and confirm writes land on different targets (numberSeen = n vs n+1) while each chain stays internally consistent; then validate the skew-invariant anchored-predicate fix."
+    },
+    {
+      "id": "h11",
+      "statement": "The pallet-contracts dry-run-vs-tx gas budget ratio is a stable constant of ~2.2222 (\u224820/9) independent of session or workload: this probe measured 1999956847473/899948653153 \u2248 2.2223, and the two prior probes' pairs (1999948281475/899939093951 and 1999952427691/899939093951) give the same ~2.222x. This strongly suggests pallet-contracts computes the RPC dry-run gas budget as a fixed multiple of the dispatch tx weight budget (likely a weight-to-gas/ref-time conversion factor of 20/9), NOT a workload-dependent allocation. On anvil the analog ratio is NOT constant: dry-run getGas() was identical (29978776) across probes while tx-entry gasleft varied (193552 in env-vars-blockhash-asymmetry-m2-gasleft-monotonic vs 155966 here) because tx entry reflects the caller-supplied tx gas limit minus intrinsic cost.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-gasleft-entry-vs-dryrun-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Perfect cross-session replication of h7's exact numbers: dry-run getGas() returned 1999956847473 on pallet (identical to env-gasleft-entry-vs-dryrun's 1999956847473) and tx-entry stored 899948653153 (identical again), giving the same 2.2223 ratio in a completely separate session. Additionally, tx-entry gasleft was byte-identical across BOTH dispatched recordEntry() txs in this session (899948653153 at steps 1 and 2) while anvil's tx-entry varied (155966 then 121766), showing pallet-contracts' tx budget is a fixed host constant independent of workload/session, not caller- or history-dependent like EVM's. h11's structural-constant claim is confirmed."
+        }
+      ],
+      "next_probe": "Same-limit invariance is now established (entry identical across two txs and two sessions). Decisive remaining test: dispatch recordEntry() on pallet-contracts with two deliberately different caller-supplied gas limits (e.g., 2x apart). If stored entryGas is identical regardless of limit, pallet clamps tx gas to a fixed weight budget and the 20/9 ratio is fully structural; if entryGas scales with the limit, pallet honors caller gas like EVM and the constant ratio only holds at default limits."
+    },
+    {
+      "id": "h12",
+      "statement": "Repeated identical state-writing txs show near-constant gasleft consumption on pallet-contracts but sharply decreasing consumption on anvil: the two recordEntry() calls consumed 169681637 then 169682885 substrate gas units on pallet (\u0394\u22481248, ~0.0007%) versus 32099 then 14999 EVM gas units on anvil (\u224853% drop), consistent with EVM's SSTORE cold-vs-warm slot pricing (first write to a zero slot costs more; rewrite of a nonzero slot is cheaper) having no analog in pallet-contracts weight charging. Consequently per-tx gasleft-consumed deltas are only chain-locally interpretable: on anvil the Nth-call delta depends on prior slot state, while on pallet it is essentially a fixed execution cost; cross-call gas consumption comparisons must control for first-write vs rewrite on EVM and are meaningless cross-chain.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-gasleft-entry-vs-dryrun-m1-zero-loop",
+          "verdict": "DIVERGENCE",
+          "note": "Exact predicted pattern with a zero-iteration loop control: the two recordEntry() calls consumed 168904135 then 168905383 substrate gas units on pallet (\u0394\u22481248, ~0.0007%) versus 22158 then 5058 EVM gas units on anvil (~77% drop). The zero-loop body removes loop cost, so EVM's first-vs-second delta (22158 vs 5058) is attributable to SSTORE cold-slot-first-write vs warm-rewrite pricing, which pallet's weight charging lacks. Additionally pallet's tx-entry gasleft was byte-identical across both txs (899948921439) while anvil's varied (146025 vs 111825), re-confirming h11's fixed-budget claim. Per-tx gasleft-consumed deltas are chain-locally interpretable only, as h12 stated."
+        }
+      ],
+      "next_probe": "Add a function reset() that sets entryGas/exitGas back to 0, then on each chain call recordEntry(), reset(), recordEntry(): if anvil's consumed delta returns to the high first-write value (32099) after reset while pallet's stays ~1.698e8 regardless, the SSTORE-state dependence is confirmed as EVM-specific; also record a gasleft() read immediately before and after the SSTORE write inside recordEntry to isolate write cost from loop cost on both chains."
+    },
+    {
+      "id": "h13",
+      "statement": "gasleft-consumed on pallet-contracts decomposes additively into a large fixed per-tx overhead (~1.689e8 substrate units for dispatch + two SSTOREs) plus a small, smooth per-instruction weight charge on the order of ~39k\u201380k units per simple loop iteration (i.e., only ~0.02\u20130.05% of the fixed base per iteration \u2014 correcting the earlier ~79M/iteration figure, which overstated per-iteration cost by ~1000x): the 20-iteration 's += i*3' loop consumed 169681637 total, only 777502 units above the zero-iteration control's 168904135, while the earlier 100-iteration sum loop consumed ~8.04e6. Per-iteration weight depends on the instruction mix (multiply-accumulate \u224839k/iter vs plain sum \u224880k/iter measured), so the additive model holds but the slope is code-specific. On anvil per-tx cost is storage-dominated (SSTORE cold/rewrite pricing), so the EVM:pallet consumption ratio remains workload-dependent and no chain-independent normalization exists.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-gasleft-entry-vs-dryrun-m1-zero-loop",
+          "verdict": "DIVERGENCE",
+          "note": "Zero-loop control isolated pallet's fixed per-tx overhead: entry=899948921439, exit=899780017304, consumed=168904135 with an empty loop body \u2014 nearly identical to the 100-iteration probe's per-call consumption pattern (h5/h7 evidence showed ~8.04e9 for 100 iterations), implying ~79M substrate gas units per iteration against a ~1.689e8 fixed base. On anvil the zero-loop tx consumed only 22158 (first write) / 5058 (rewrite) EVM gas, so EVM per-tx cost is storage-dominated while pallet's is overhead-dominated; any cross-chain gas normalization factor necessarily depends on workload mix. Triage: known_semantic."
+        },
+        {
+          "probe": "env-gasleft-entry-vs-dryrun-m3-second-fn-touch",
+          "verdict": "DIVERGENCE",
+          "note": "20-iteration loop control: recordEntry consumed 899946014657-899776333020 = 169681637 substrate units, vs 168904135 for the zero-iteration control (env-gasleft-entry-vs-dryrun-m1-zero-loop) \u2014 \u0394=777502 for 20 iterations, \u224838.9k units/iteration, confirming smooth additive weight metering with a dominant fixed intercept and also correcting h13's earlier per-iteration magnitude (~79M was a ~1000x overstatement of the 100-iter loop's 8.04e6 total). EVM consumed only 32099 gas for the same tx, again showing EVM cost is storage-dominated while pallet's is overhead-dominated. Triage: known_semantic."
+        },
+        {
+          "probe": "env-gasleft-entry-vs-dryrun-m4-arg-boundary-loop",
+          "verdict": "DIVERGENCE",
+          "note": "Third data point for the additive model with the same 's += i*3' loop body at a new n: pallet-consumed for n=0 was 168941273 and for n=64 was 171472697, giving \u0394=2531424/64 \u2248 39.6k substrate units per iteration \u2014 within 2% of the 20-iteration measurement (38.9k/iter) and confirming a stable, code-specific slope with a shared fixed intercept (~1.689e8) across n\u2208{0,20,64}. Linearity holds as predicted. EVM consumed 22159 (n=0) vs 36867 (n=64), i.e. a small per-iteration slope of ~230 gas against a ~22k storage-dominated base \u2014 near-linear with a small slope exactly as h13's next_probe predicted. The EVM:pallet consumption ratio therefore spans from ~172x (loop-heavy code) to ~5.8e6x (fixed-overhead tx entry), fully quantifying the workload-dependence that defeats any chain-independent gas normalization. Storage count mode agreed in counts (2 then 3 nonzero entries) and the lastN=64 slot value matched exactly cross-chain, consistent with h8 for an all-uint256 layout. Triage: known_semantic."
+        }
+      ],
+      "next_probe": "In one contract, add functions loopN(uint256 n) for n in {0, 10, 100} that record gasleft() before and after an n-iteration loop writing only to memory, dispatched as separate txs on each chain. Verify on pallet that consumed deltas are approximately linear in n with a shared intercept (~1.689e8), and on anvil that deltas are small and roughly linear with a near-zero intercept (no SSTORE inside the loop); if linearity holds on pallet with the predicted intercept, the additive-overhead model is confirmed and the EVM:pallet ratio's workload-dependence is quantified."
+    },
+    {
+      "id": "h14",
+      "statement": "block.number shows NO dry-run-vs-tx context asymmetry on pallet-contracts, unlike gasleft() (h7): across FOUR independent sessions (env-vars-blocknumber-timestamp-only, -p1, -p2, and -m1-boundary-next), all block.number observations (dry-run getNumber, tx-context numberSeen, nextNumber arithmetic with both +1 and +255 constants) matched cross-chain, confirming solang's block.number mapping is stable even for large-offset arithmetic on the height value. Meanwhile block.timestamp shows a transient dry-run skew whose magnitude is bounded in the observed range 1s-4s across sessions (new data point: \u0394=4s, evm=1794310337 vs polkadot=1794310341) and always closes by tx-execution time (tx-context timeSeen matched exactly again), so the dry-run-vs-tx context split on pallet is specific to budget-like values (gasleft) and transiently to wall-clock timestamps, never to block height. Sequential snapshot() txs stamp identical block.number AND matching tx-context timestamps cross-chain. Still untested: whether a post-tx dry-run getNumber advances by exactly +1 like anvil's automine, and behavior under multiple txs in one substrate block (batching).",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-vars-blocknumber-timestamp-only-p1",
+          "verdict": "DIVERGENCE",
+          "note": "Only divergence was the step-1 dry-run getTime skew (evm=1794310334 vs polkadot=1794310336, \u0394=2s, triaged known_semantic, h4 transient drift). Every block.number observation matched cross-chain despite this session containing TWO sequential snapshot() txs: step 0 dry-run getNumber, numberSeen after two tx writes (step 5 query), and nextNumber (step 7) produced no RETURN_MISMATCH, and timeSeen (tx-executed timestamp written by the second snapshot, step 6) also matched \u2014 the transient dry-run timestamp skew did not propagate into tx-context values. This replicates the original probe's pattern and is mild independent support for h14's 'block context is shared between dry-run and tx' claim; the decisive +1-advancement and batching tests remain open."
+        },
+        {
+          "probe": "env-vars-blocknumber-timestamp-only-p2",
+          "verdict": "DIVERGENCE",
+          "note": "Third consecutive replication of the exact h14 pattern with an essentially identical spec to -p1: the ONLY divergence was the step-1 dry-run getTime skew (evm=1794310333 vs polkadot=1794310336, \u0394=3s, triaged known_semantic) \u2014 a new magnitude data point (1s, 2s, 4s seen previously), reinforcing that the skew is time-varying wall-clock drift (h4), not a fixed offset. All block.number observations matched cross-chain despite two sequential snapshot() txs: step 0 dry-run getNumber, numberSeen after two tx writes (step 4), timeSeen (tx-context timestamp, step 5), and nextNumber (step 6) produced no RETURN_MISMATCH. Notably the tx-context timeSeen agreed cross-chain even though the immediately preceding dry-run getTime differed by 3s, again proving the dry-run timestamp skew never propagates into tx-executed values. block.number context sharing between dry-run and tx is now supported by three independent sessions; only the +1-advancement and batching tests remain open."
+        },
+        {
+          "probe": "env-vars-blocknumber-timestamp-only-m1-boundary-next",
+          "verdict": "DIVERGENCE",
+          "note": "Fourth consecutive replication of the exact h14 pattern with a mutated nextNumber constant (+255 instead of +1): the ONLY divergence was the step-1 dry-run getTime skew (evm=1794310337 vs polkadot=1794310341, \u0394=4s, triaged known_semantic) \u2014 a magnitude data point at the observed upper bound (1s, 2s, 3s, 4s all seen), consistent with bounded time-varying wall-clock drift (h4). All block.number observations matched cross-chain: step 0 dry-run getNumber, numberSeen after snapshot() (step 3), and nextNumber with the +255 arithmetic constant (step 5) produced no RETURN_MISMATCH, and the tx-context timeSeen (step 4) also agreed exactly despite the 4s dry-run skew \u2014 the dry-run timestamp skew never propagates into tx-executed values. Large-constant arithmetic on block.number (+255) is safe cross-chain, extending h3's per-tx-height agreement beyond +1."
+        },
+        {
+          "probe": "env-vars-blocknumber-timestamp-only-m2-packed-subword-mark",
+          "verdict": "DIVERGENCE",
+          "note": "Fifth consecutive session replicating the h14 pattern: every env-var-derived logical value matched cross-chain \u2014 mark (block.number & 255 = 2) and flag (block.timestamp & 1 = 1) via public getters with no RETURN_MISMATCH, numberSeen = 2 on both chains, and tx-context timeSeen = 1794310341 exactly equal on EVM and Polkadot (no timestamp divergence was even flagged this session). The single STORAGE_MISMATCH (count mode, step 2) was purely solc sub-word packing: EVM stores mark+flag in one slot (258 = mark | flag<<8) alongside numberSeen and timeSeen (3 nonzero entries) while Polkadot stores all four fields unpacked (4 nonzero entries); all logical values identical. Triaged oracle_artifact per h8, confirming block context (height and tx-executed wall clock) is shared between dry-run and tx contexts on pallet. The +1-advancement and batching corners are the only residuals and are carried into the new h15."
+        }
+      ],
+      "next_probe": "In one session on each chain: dry-run getNumber, dispatch a tx that emits block.number, then dry-run getNumber again immediately. Compare the three values per chain: on anvil the post-tx dry-run should read one higher than the pre-tx dry-run (automine advanced). If pallet's post-tx dry-run also advances by exactly one while both tx-time reads matched the pre-tx dry-run, block context is consistently shared between dry-run and tx on pallet; a +1 offset between dry-run and tx on either chain would reveal a pending-vs-sealed block evaluation difference."
+    },
+    {
+      "id": "h15",
+      "statement": "solang maps block.number to the substrate block height, which advances once per sealed block; anvil automine advances once per tx, so under the harness's one-tx-per-block regime they agree \u2014 but two snapshot() reads inside a SINGLE substrate block (via utility.batch, or an inner contract called twice from one wrapper tx) should report the SAME block.number on pallet while two separate anvil txs report N and N+1. If both inner reads agree cross-chain when issued as one wrapper tx on each side, per-tx height equivalence is universal (instant-seal stamps the whole tx at one height); if the pallet wrapper's second read differs from anvil's second read, intra-block reads expose the height-vs-counter semantic gap that the current harness cannot see.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-vars-blocknumber-timestamp-only-m2-packed-subword-mark",
+          "verdict": "DIVERGENCE",
+          "note": "This session again showed numberSeen=2 on both chains after exactly one snapshot() tx, giving a fifth identical per-tx height data point but adding no information about intra-block or multi-tx-per-block reads; the batching corner remains untested, hence this hypothesis is added rather than resolved."
+        },
+        {
+          "probe": "env-vars-blocknumber-timestamp-only-m3-sender-uint160",
+          "verdict": "DIVERGENCE",
+          "note": "Incidental support: two sequential snapshot() txs produced numberSeen=2 (alice) then 3 (bob) on BOTH chains with per-tx height advancing by exactly 1 on pallet as well \u2014 a sixth identical per-tx-height data point; the intra-block/batching corner remains untested."
+        }
+      ],
+      "next_probe": "Keep the batching test but make it cheap and unblocked: first author the wrapper/inner doubleSnap() single-tx probe (both inner snapshot() reads in ONE tx on each chain) since it needs no utility.batch support \u2014 on anvil both reads trivially equal, so this only establishes the pallet baseline. Then attempt the utility.batch two-tx-in-one-block dispatch on pallet vs two separate anvil txs as the decisive step; if the harness cannot batch, fall back to submitting two rapid-fire snapshot() txs on pallet via the same nonce-free path and checking whether both tx-context numberSeen reads are equal (same height) vs anvil's N/N+1. Assert 'blockhash' absent from source."
+    },
+    {
+      "id": "h16",
+      "statement": "When several nonzero sub-word fields are co-located, the solc packed-slot content is exactly reconstructible as the ordered little-endian byte-concatenation of the logical field values \u2014 observed directly: EVM stored 258 = mark | (flag << 8) for declaration order (uint8 mark, uint8 flag) with mark=2, flag=1, while Polkadot stored the same two values as separate slots. Therefore a STORAGE_MISMATCH in count mode can be automatically whitelisted by recomputing the expected packed slot from the unpacked per-field values instead of requiring manual triage; packing divergence is fully deterministic given the layout and field values, not merely 'expected'.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-vars-blocknumber-timestamp-only-m2-packed-subword-mark",
+          "verdict": "DIVERGENCE",
+          "note": "STORAGE_MISMATCH at step 2 was fully explained by reconstructible packing: EVM values [1794310341 (timeSeen), 2 (numberSeen), 258 (= mark | flag<<8 = 2 | 1<<8)] vs Polkadot [1 (flag), 1794310341, 2 (numberSeen), 2 (mark)]. Counts 3 vs 4, but every logical field value agreed and the packed slot content matched the little-endian concat of the two uint8s exactly, going beyond h8's qualitative 'packing diverges' to a quantitative reconstruction rule. Triage: oracle_artifact."
+        },
+        {
+          "probe": "env-gasleft-entry-vs-dryrun-m3-packed-layout-stamp",
+          "verdict": "DIVERGENCE",
+          "note": "h16's prescribed reconstruction experiment effectively ran with a new width combination (uint8 marker, uint64 stamp adjacent): after recordEntry() set marker=1, stamp=uint64(block.number)=2, the EVM nonzero-entry multiset contained 513 = 1 + (2<<8) exactly \u2014 the little-endian packed content of the two sub-word fields \u2014 while Polkadot stored them as separate slots (values '1','2' alongside the two gas slots), giving counts 3 vs 4. The reconstruction rule held exactly across sessions and for mixed widths (uint8+uint64), so a count-mode STORAGE_MISMATCH from sub-word packing is deterministically recomputable from layout + logical field values and can be auto-whitelisted without manual triage; all getter queries (marker=1, stamp=2) agreed cross-chain per h8. Triage: oracle_artifact."
+        }
+      ],
+      "next_probe": "Author a probe with adjacent sub-word fields of different widths (uint8 a; uint16 b; uint32 c) written to known nonzero values (e.g., 255, 65535, 4294967295), then in count mode verify the EVM nonzero-entry multiset contains exactly one entry equal to a + (b<<8) + (c<<24) while Polkadot contains the three values separately, and check the oracle can reconstruct-and-match automatically. If reconstruction succeeds for mixed widths, extend the whitelister to arbitrary field widths and offsets; if a width breaks it (e.g., solc ordering surprises), document the exception."
+    },
+    {
+      "id": "h17",
+      "statement": "solang's uint160(address) cast is NOT a truncating 160-bit conversion of the underlying 32-byte AccountId: for alice the pallet event arg senderId = 720179945075308843393850841857214082311498394184 (~7.2e50) EXCEEDS 2^160 (~1.46e48), which is impossible under solc semantics where uint160(x) < 2^160 always, and it also does not equal (stored AccountId mod 2^160) nor (stored >> 96) for the observed stored slot 327554851...86606. This is a genuine compiler semantic divergence in the address->uint160 conversion on solang (an address truncation/derivation rule differing from EVM's low-160-bit take), distinct from the representation-level encoding divergence of h6/h9: even a chain-local comparison of the cast value against the stored AccountId slot would reveal it. Untested corner: whether the rule is stable per-account (deterministic) and what derivation solang actually applies (e.g., truncation of a hash, byte-range take, or scale/truncate of the ss58-decoded key).",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-vars-blocknumber-timestamp-only-m3-sender-uint160",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0 event: senderId polkadot=720179945075308843393850841857214082311498394184 > 2^160 (~1.458e48), impossible for a true uint160 truncation; the stored lastBy slot (32755485107096887593508828502283399972595822571454870173030530435142669086606) mod 2^160 cannot equal it, so solang's cast is neither low-160-bit truncation nor high-bits take of the AccountId. Step 3 (bob) replicates: senderId=779417160196304792750502153569568951723952045602, again >2^160 and different in magnitude from alice's, so the rule is at least account-dependent. Meanwhile block.number (2, 3), block.timestamp (1794310341), and numberSeen/timeSeen all matched cross-chain, isolating the anomaly to the address cast."
+        }
+      ],
+      "next_probe": "Hand-author a probe exposing the derivation: store lastBy = msg.sender and emit uint256(uint160(msg.sender)) in the same tx from alice and bob; then in a view return candidate transforms of the stored address slot value \u2014 (a) uint256(uint160(lastBy)), (b) the raw 32-byte AccountId as uint256 via assembly-free means is unavailable, so instead compare on-chain: require(uint256(uint160(msg.sender)) < (1<<160)) inside a try/catch-style branch that records true/false. If the require fails on pallet but passes on anvil, the >2^160 cast is confirmed as a solang semantic bug (not just a different-but-valid truncation); additionally test determinism by casting the same address twice and casting address(0) and the contract's own address to see boundary behavior. Assert 'blockhash' absent from source per h1/h2."
+    },
+    {
+      "id": "h18",
+      "statement": "Control-flow branches conditioned directly on an env var (block.timestamp % 2 parity) executed identically cross-chain in this session: both chains evaluated the predicate the same way and took the same branch (even -> timeSeen = live timestamp, numberSeen = block.number), with the Snapshot event args (number, timestamp) matching exactly at steps 1 and 4 and no EVENT_MISMATCH. However, parity-branch agreement is fragile rather than semantic: the dry-run skew observed across sessions spans 1s-4s, and an ODD-valued skew (e.g., the \u0394=1s seen in env-vars-blocknumber-timestamp-only) straddling a second boundary flips % 2 parity on exactly one chain, which would route the writes to different targets (numberSeen = n vs n+1) \u2014 a genuine behavioral divergence where each chain is internally consistent and only the branch outcome comparison reveals the flip. Env-var-conditioned branching is divergence-prone in proportion to predicate sensitivity to the bounded 1-4s clock skew; skew-invariant predicates (comparisons against chain-local anchors) are safe.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-vars-blocknumber-timestamp-only-m4-timestamp-parity-branch",
+          "verdict": "DIVERGENCE",
+          "note": "The only divergence was the step-0 dry-run getTime skew (evm=1794310338 vs polkadot=1794310340, \u0394=2s, both even, triaged known_semantic per h4). Both chains took the identical parity branch: after snapshot() from alice and bob, numberSeen and timeSeen queries (steps 2-3, 5-6) and nextNumber (step 7) produced no RETURN_MISMATCH, and the two Snapshot events carried matching (number, timestamp) args with no EVENT_MISMATCH. This is the first direct test of h10's flagged env-var-branching risk: agreement held, but only because \u0394 was even-valued; the \u0394=1s skew from the original probe would have flipped parity on one chain, producing numberSeen = n on one side and n+1 on the other with each chain internally consistent. Also a seventh consecutive session confirming h14 (block.number observations all matched; dry-run timestamp skew never propagated into tx-context timeSeen)."
+        }
+      ],
+      "next_probe": "Author a probe whose if/else writes to two distinct storage slots keyed on block.timestamp % 2 (as this probe did) plus a second function keyed on a skew-invariant predicate (block.timestamp > deploymentTime). Dispatch the parity variant on each chain with a controlled 1s wall-clock sleep inserted so the two chains land on opposite parity; if numberSeen differs cross-chain (n vs n+1) while each chain is internally consistent, env-var branch flipping is confirmed as a real behavioral divergence class; then show the anchored predicate variant agrees despite the same skew, demonstrating the fix. Assert 'blockhash' absent from source."
+    },
+    {
+      "id": "h19",
+      "statement": "Repeated identical gas-recording txs converge to distinct stable regimes per chain, and these regimes are bit-exact reproducible across independent sessions for identical source and optimizer settings: on pallet-contracts the tx-entry gasleft is identical across ALL repeats in every session (899948653153 four times now spanning two sessions) with per-call consumption near-constant after the first call (169681637 first, then 169682885; \u0394=1248), while on anvil the entry gas stabilizes after the first call (155966 then 121766) but per-call consumption drifts downward (32099 \u2192 14999, exactly reproducing the previous session's values) without settling at a warm-slot constant within two-to-three calls. Because a re-run of the same mutated source in a new session reproduces every gas number exactly on BOTH chains (anvil entry/exit/consumed all match the prior session digit-for-digit; pallet entry likewise), gasleft-based measurement is session-independent deterministic \u2014 a function of source and prior slot state only \u2014 so oracles need only control for anvil's warm-up drift, never run-to-run noise. Still open: whether anvil's per-call consumption asymptotes to a fixed warm value within 6-8 calls, which sets the canonical warm-rewrite cost for the h13 workload-ratio derivation.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-gasleft-entry-vs-dryrun-p0-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Three identical recordEntry() txs: pallet entry gasleft identical across all three (899948653153) with consumption 169681637 / 169682885 / 169682885 (constant after first call, \u0394\u22481248, replicating h12); anvil entry 155966 / 121766 / 121766 (stabilized after call 1) but consumption 32099 / 14999 / 12199 \u2014 a third data point showing continued downward drift past the warm-rewrite stage, so EVM repeat cost has not converged within three calls. All mismatches triaged known_semantic; the all-uint256 layout kept storage count mode symmetric (2 nonzero entries each side) with only gas-scale content differing, consistent with h8."
+        },
+        {
+          "probe": "env-gasleft-entry-vs-dryrun-p0-p1",
+          "verdict": "DIVERGENCE",
+          "note": "Second session with the (mutated but source-identical) GasProbe contract reproducing every gas number from env-gasleft-entry-vs-dryrun-p0-p0 digit-for-digit: anvil tx1 entry/exit=155966/123867 (consumed 32099), tx2 entry/exit=121766/106767 (consumed 14999); pallet tx entry=899948653153 for BOTH txs with exit=899778971516/899778970268 (consumed 169681637/169682885, \u0394=1248). All divergences (dry-run getGas 29978776 vs 1999956847473; event/storage gas-slot content) triaged known_semantic per h5/h7/h13; storage count mode symmetric at 2 nonzero entries per side, consistent with h8. This adds cross-session bit-exact determinism to h19's within-session convergence claim: gasleft on both chains is a pure function of source + prior state, no session noise. Still no third repeat here, so the anvil drift asymptote (h19 next_probe) remains untested."
+        },
+        {
+          "probe": "env-gasleft-entry-vs-dryrun-p0-p2",
+          "verdict": "DIVERGENCE",
+          "note": "Four sequential recordEntry() txs finally resolved h19's open asymptote question: anvil per-call consumption went 32099 (call 1, cold SSTORE) -> 14999 (call 2) -> 12199 (call 3) -> 12199 (call 4, byte-identical repeat), so EVM repeat cost DOES converge to a fixed warm-rewrite constant (12199 gas for this workload) within 3 calls, and entry gasleft stabilizes at 121766 from call 2 onward. Pallet remained perfectly stable as before: entry=899948653153 on all four calls, exit/consumed=899778971516/169681637 then 899778970268/169682885 twice (\u0394=1248 after first call), matching the prior three sessions digit-for-digit. Cross-session bit-exact determinism on both chains is now a fourth-session replication. All divergences (dry-run getGas 29978776 vs 1999956847473; gas-slot content in events/storage) triaged known_semantic per h5/h7/h13; storage count mode symmetric at 2 nonzero entries per side, consistent with h8. h19's remaining corner is closed: canonical anvil warm-rewrite cost for the h13 loop workload is 12199 gas."
+        }
+      ],
+      "next_probe": "Extend the repeat series to 6-8 identical recordEntry() calls on each chain and check whether anvil's per-call consumption asymptotes to a fixed warm value (and whether entry gas stays pinned at 121766 or tracks the block gas limit), while pallet entry stays byte-identical; if anvil's consumption asymptotes, record the asymptote as the canonical warm-rewrite cost and re-derive the workload-dependent EVM:pallet ratio at the asymptote for h13."
+    },
+    {
+      "id": "h20",
+      "statement": "Pallet-contracts per-iteration gasleft consumption for a fixed loop body is not perfectly constant but declines mildly with trip count (~38.9k units/iter at n=20, ~39.6k at n=64, ~37.3k at n=255, a ~5-6% downward drift at large n), so the additive fixed-intercept-plus-linear-slope model (h13) slightly overestimates large-n consumption; the drift likely reflects loop-setup amortization or metering granularity. Sharpened corollary on budget source dependence: the pallet tx-ENTRY budget can shift by ~0.38% between sources (899605921179 here vs 899948653153 for the n=20/100 sibling, \u0394\u22483.43e8) \u2014 roughly 500x larger than the earlier sub-ppm shifts (h20/h21 data points) \u2014 while the dry-RUN budget stays stable to ~0.00025% (1999951870883 vs 1999956847473, \u0394\u22485e6). Consequently the h11 dry-run/tx ratio of ~2.2222 is only a 3-4 significant-digit approximation (measured 2.2234 here), not an exact structural constant; 'fixed budget' claims hold for the dry-run side far more tightly than for the tx-entry side. Measurement-position caveat: this probe read entryGas AFTER two SSTOREs (marker, stamp), so its consumed delta (169581005 pallet / 23720 EVM) covers only loop + one SSTORE and is NOT comparable to prior probes' first-statement entry readings.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-gasleft-entry-vs-dryrun-m1-loop-bound-diff",
+          "verdict": "DIVERGENCE",
+          "note": "n=255 loop: pallet entry=899942569405, exit=899764160338, consumed=178409067 (event args and stored slots internally consistent, gasUsed slot matches event exactly on both chains). Consumed minus the ~168904135 zero-loop intercept gives 9504932 incremental units / 255 = ~37.3k units/iter, versus 38.9k (n=20) and 39.6k (n=64) from prior probes \u2014 a ~5-6% per-iteration decline at large trip count, the first data point breaking h13's 'stable slope within 2%' pattern. EVM consumed 87949 (267/iter marginal between n=64 and n=255), still storage-dominated with a small noisy slope. Tx-entry budget differs from prior sessions by ~6e6 (~0.0007%) and dry-run budget by ~4e6, both source-dependent shifts. All divergences triaged known_semantic (h5/h7/h13); storage count mode symmetric 3-vs-3 nonzero entries with only gas-slot content differing, consistent with h8."
+        },
+        {
+          "probe": "env-gasleft-entry-vs-dryrun-m3-packed-layout-stamp",
+          "verdict": "DIVERGENCE",
+          "note": "New tx-entry budget data point 899605921179 (exit 899436340174, consumed 169581005 \u2014 but entry read after two SSTOREs, so loop-only-plus-one-store scope), dry-run 1999951870883, giving ratio 2.2234 vs the canonical 2.2223 \u2014 the largest tx-entry source shift yet (~0.38%) against a nearly stable dry-run budget (~0.00025%), quantifying the asymmetry in h20's corollary. Gas scale divergences (29978754 dry-run EVM vs ~2.0e12 pallet; 147588/123868 vs ~9.0e11 event args) triaged known_semantic per h5/h7/h13; storage count-mode mismatch fully explained by h16 packing reconstruction."
+        },
+        {
+          "probe": "env-gasleft-entry-vs-dryrun-m4-normalized-scale",
+          "verdict": "DIVERGENCE",
+          "note": "Fourth distinct tx-entry budget reading for sibling GasProbe-derived sources: 899938696481 (\u0394~1.0e7 \u2248 0.0011% from 899948653153), while the dry-run budget moved only ~0.0004% (1999949125056), again confirming the dry-run/tx stability asymmetry at the corollary's predicted magnitudes. The 16-iteration loop's incremental cost above a zero-iter baseline is consistent with the ~38-40k/iter slope family; ratio 2.2223 matches the canonical 20/9 constant to 4 significant digits. All divergences triaged known_semantic."
+        }
+      ],
+      "next_probe": "In ONE session, add loopN functions with n in {0, 64, 255, 1024} sharing the identical 's += (i << 3)' body and dispatch all four as separate txs: compute per-iteration cost from within-session n=0 intercept and check whether it keeps declining toward an asymptote (e.g., <36k/iter at n=1024) or stabilizes near 37-39k. If it asymptotes, the additive model gains a correction term (setup amortization); if it stabilizes, the n=255 reading was noise. Also compare pallet tx-entry gasleft across the four calls to quantify the entry-budget source dependence to sub-ppm precision."
+    },
+    {
+      "id": "h21",
+      "statement": "pallet-contracts' tx-entry gasleft budget is independent of caller, session, and workload (alice/bob identical entry, h21) but the per-tx fixed consumption overhead is NOT steeply SSTORE-count dependent as originally conjectured: a 4-SSTORE workload (entryGas, exitGas, entryNorm, exitNorm) consumed 401102356 substrate units vs 401256770 for h21's 3-SSTORE workload (\u0394~0.04%, entry read at first statement in both) \u2014 statistically indistinguishable. The earlier 1.697e8 (GasProbe-p0, 2 slots) vs 4.01e8 gap is therefore attributable to SOURCE/code-size dependence (h20's corollary), not slot count; per-SSTORE marginal cost on pallet is small compared to the source-dependent fixed intercept. On anvil the warm-rewrite asymptote DOES scale with slot count (12199 for 2 slots, 18950 for 3 slots), so EVM storage pricing and pallet weight charging differ structurally in their sensitivity to slot count. Pallet tx-entry budget shows a fourth source-dependence data point (899938696481 vs 899948653153, \u0394~1.0e7 \u2248 0.0011%) with the dry-run budget again far tighter (1999949125056 vs 1999956847473, ~0.0004%), reinforcing h20's asymmetry.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-gasleft-entry-vs-dryrun-m2-repeat-warm-sender",
+          "verdict": "DIVERGENCE",
+          "note": "Two recordEntry() txs from different senders: pallet tx-entry gasleft byte-identical for alice and bob (899941601497), consumed 401256770 then 401278562 (\u0394=21792, near-constant) \u2014 caller-independent fixed budget; anvil entry 177017 (alice) / 125717 (bob), consumed 53150 then 18950 (~64% drop, warm asymptote by call 2). Dry-run getGas: 29978754 vs 1999952805193 (h5/h7 scale gap). All mismatches triaged known_semantic; storage count mode symmetric 3-vs-3 with only gas-slot content differing (h8). Pallet entry budget differs from prior sessions' 899948653153 by ~7.05e6 (~0.0008%), a second source-dependence data point for h20's corollary."
+        },
+        {
+          "probe": "env-gasleft-entry-vs-dryrun-m4-normalized-scale",
+          "verdict": "DIVERGENCE",
+          "note": "recordEntry() here writes 4 storage slots (entryGas, exitGas, entryNorm, exitNorm) with gasleft() read as the FIRST statement \u2014 exactly h21's prescribed controlled measurement position \u2014 and consumed 899938696481-899537594125 = 401102356 substrate units, within 0.04% of h21's 3-SSTORE 401256770. Since h21's steep-scaling claim compared across different entry positions, the 1.697e8-vs-4.01e8 gap is now best explained by source/code-size (h20), not SSTORE count. EVM consumed 55606 on the cold first write (4 slots), consistent with storage-dominated EVM pricing. Tx-entry budget 899938696481 is a new source-dependent data point; dry-run/tx ratio 1999949125056/899938696481 \u2248 2.2223 (canonical). All mismatches triaged known_semantic; storage count mode symmetric 4-vs-4, h8."
+        }
+      ],
+      "next_probe": "Before any more gas-consumption comparisons, fix the measurement protocol: hand-author a probe whose recordEntry() reads gasleft() as its VERY FIRST statement (before any SSTORE) and then again at exit, with a fixed N-SSTORE layout (e.g., 3 counter slots) and the same 20-iteration loop; dispatch it from alice, bob, AND charlie. This makes per-tx totals comparable across probes (the m3-packed-layout-stamp probe read entry after two SSTOREs, so its 169.58e6 consumed figure cannot be compared against h21's 401e6 three-SSTORE figure \u2014 the apparent contradiction in SSTORE scaling may be purely a measurement-position artifact). Verify (a) pallet entry gasleft byte-identical across the three senders (caller-independence third data point), (b) whether pallet fixed overhead really scales steeply with SSTORE count once entry position is controlled, and (c) whether anvil's warm asymptote scales ~linearly with slot count. Re-query dry-run getGas() in the same session to re-pin the ~2.22x ratio at the corrected entry position. Assert 'blockhash' absent from source."
+    },
+    {
+      "id": "h22",
+      "statement": "Constant-factor normalization of gasleft() (e.g., gasleft()/16) is provably incapable of aligning EVM and pallet-contracts gas scales cross-chain: dividing both chains' values by the same k preserves the mismatch ratio bit-for-bit (entryNorm ratio evm=12616 vs polkadot=56246168530 is ~4.46e6x, identical to the unnormalized entryGas ratio 201865 vs 899938696481), because the divergence is a position- and source-dependent budget-scale difference (h7/h11/h20), not a fixed unit conversion. However, arithmetic ON gasleft values is semantically identical per chain: entryNorm == entryGas/16 exactly on both chains (floor division), exitGas < entryGas on both, and stored/event-embedded values are internally consistent, so within-context relative computations (deltas, ratios, normalization) are the only meaningful cross-chain gas comparisons. Any oracle 'fix' based on a single normalization constant is mathematically doomed; only dimensionless within-tx quantities (consumed/entry ratios) are candidates.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "env-gasleft-entry-vs-dryrun-m4-normalized-scale",
+          "verdict": "DIVERGENCE",
+          "note": "The /16 normalization ran exactly as written on BOTH chains (entryNorm 12616 = 201865//16 on EVM, 56246168530 = 899938696481//16 on pallet, floor division semantics identical), yet every normalized comparison still mismatched with the SAME ratio class as raw values (dry-run getGas ratio ~66700x, tx-entry ratio ~4.46e6x). Triage known_semantic. This is the first direct demonstration that constant-factor normalization cannot bridge the budget-scale gap because the ratio itself is position-dependent (h7/h11), not a unit conversion. Storage count mode symmetric 4-vs-4 nonzero entries with only gas-scale content differing (h8); event args matched stored slots exactly on each chain (internal consistency, h5)."
+        }
+      ],
+      "next_probe": "Author a probe that stores gasleft()-derived dimensionless ratios rather than raw values: recordEntry() computes and stores r = (entryGas - exitGas) * 1000000 / entryGas (ppm consumption) plus a dry-run view returning the same ratio formula for a simulated execution; compare the ppm values cross-chain. If the per-chain ppm is stable across sessions for identical source while raw values shift (h20/h21), the ratio is a chain-local fingerprint usable for structural comparison; cross-chain ppm equality is NOT expected (workload mix differs, h13) but per-chain stability would confirm dimensionless comparison as the only safe oracle mode. Assert 'blockhash' absent from source."
+    }
+  ],
+  "updated_ts": 1794321288.200692
+}

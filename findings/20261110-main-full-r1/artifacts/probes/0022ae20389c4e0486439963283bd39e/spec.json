@@ -1,0 +1,61 @@
+{
+  "name": "int-sar256-count-mask-neighbor-p3",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract SarCountMask {\n    uint256 public count;\n    int256 public r1;\n    int256 public r2;\n    int256 public r3;\n\n    function sarMin257() external returns (int256) {\n        int256 x = type(int256).min >> 257;\n        r1 = x;\n        count += 1;\n        return x;\n    }\n\n    function sarMin192() external returns (int256) {\n        int256 x = type(int256).min >> 192;\n        r2 = x;\n        count += 1;\n        return x;\n    }\n\n    function sarPos65() external returns (int256) {\n        int256 x = int256(0x4000000000000000000000000000000000000000000000000000000000000000) >> 65;\n        r3 = x;\n        count += 1;\n        return x;\n    }\n}",
+  "contract": "SarCountMask",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "sarMin257",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "sarMin192",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "sarPos65",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "r1"
+    },
+    {
+      "action": "query",
+      "function": "r2"
+    },
+    {
+      "action": "query",
+      "function": "r3"
+    },
+    {
+      "action": "query",
+      "function": "count"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "0645822dd4f228a0",
+    "origin": "mutated_llm"
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "name": "int-sdiv-smod-minus-one-widths-p0-p0",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract IntDivOverflowWidths {\n    uint256 public count;\n\n    function okDiv16() external returns (int16) {\n        int16 x = type(int16).min / int16(2);\n        count += 1;\n        return x;\n    }\n\n    function boomDiv16() external returns (int16) {\n        int16 x = type(int16).min / int16(-1);\n        count += 1;\n        return x;\n    }\n\n    function boomDiv64() external returns (int64) {\n        int64 x = type(int64).min / int64(-1);\n        count += 1;\n        return x;\n    }\n\n    function boomDiv128() external returns (int128) {\n        int128 x = type(int128).min / int128(-1);\n        count += 1;\n        return x;\n    }\n\n    function boomDiv256() external returns (int256) {\n        int256 x = type(int256).min / int256(-1);\n        count += 1;\n        return x;\n    }\n\n    function mod256MinusOne() external returns (int256) {\n        int256 x = type(int256).min % int256(-1);\n        count += 1;\n        return x;\n    }\n}",
+  "contract": "IntDivOverflowWidths",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "okDiv16",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "boomDiv16",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "boomDiv64",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "boomDiv256"
+    },
+    {
+      "action": "call",
+      "function": "boomDiv128",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "boomDiv256",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "mod256MinusOne",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "count"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "0645822dd4f228a0",
+    "origin": "mutated_prog"
+  }
+}

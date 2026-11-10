@@ -1,0 +1,83 @@
+{
+  "name": "strings-bytes-abi-boundaries-m2-concat",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract ConcatProbe {\n    string public s;\n    bytes public b;\n\n    function setConcat(string memory a, string memory c) public returns (string memory) {\n        s = string.concat(a, c);\n        return s;\n    }\n\n    function setBytesConcat(bytes memory x, bytes memory y) public returns (uint256) {\n        b = bytes.concat(x, y);\n        return b.length;\n    }\n}",
+  "contract": "ConcatProbe",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "setConcat",
+      "args": [
+        "abcdefghijklmnopqrstuvwxyzabcde",
+        "Z"
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "s"
+    },
+    {
+      "action": "call",
+      "function": "setConcat",
+      "args": [
+        "abcdefghijklmnopqrstuvwxyzabcdef",
+        "\u00e9"
+      ],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "s"
+    },
+    {
+      "action": "call",
+      "function": "setBytesConcat",
+      "args": [
+        "0x00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
+        "0x01"
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "b"
+    },
+    {
+      "action": "call",
+      "function": "setBytesConcat",
+      "args": [
+        "0x",
+        "0x"
+      ],
+      "sender": "charlie",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "b"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "25daa81852ec3c09",
+    "origin": "mutated_llm"
+  }
+}

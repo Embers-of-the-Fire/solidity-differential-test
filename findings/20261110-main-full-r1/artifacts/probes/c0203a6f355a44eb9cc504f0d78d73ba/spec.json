@@ -1,0 +1,62 @@
+{
+  "name": "strings-bytes-abi-boundaries-m3-arrevent-mut2-uarr-only",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract ArrayEventProbe {\n    uint256[] public vals;\n\n    event Arr(uint256[] vals);\n    event Tup(uint256 a, string b, bytes c);\n\n    function push(uint256 v) public returns (uint256) {\n        vals.push(v);\n        return vals.length;\n    }\n\n    function emitArr() public {\n        emit Arr(vals);\n    }\n\n    function emitTup(string memory sv, bytes memory d) public {\n        emit Tup(42, sv, d);\n    }\n}",
+  "contract": "ArrayEventProbe",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "push",
+      "args": [
+        1
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "push",
+      "args": [
+        2
+      ],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "emitArr",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "emitTup",
+      "args": [
+        "x",
+        "0x"
+      ],
+      "sender": "charlie",
+      "value": 0
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "f24501c2a98c2897",
+    "origin": "mutated_llm"
+  }
+}

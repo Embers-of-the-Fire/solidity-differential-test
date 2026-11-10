@@ -1,0 +1,43 @@
+{
+  "name": "events-indexed-vs-unindexed-dyn-pack-dup-order-pureliteral-p2",
+  "solidity": "pragma solidity >=0.8.0;\ncontract EventOrderPack {\n    event Mark(uint8 indexed tag, string indexed s, bytes b);\n    uint8 public flag;\n    string public s2;\n    bytes public b1;\n    string public s1;\n    function mix() external {\n        flag = 1;\n        s1 = \"a\";\n        b1 = hex\"01\";\n        emit Mark(1, \"a\", hex\"01\");\n        emit Mark(1, \"a\", hex\"02\");\n    }\n    function getAll() external view returns (uint8, string memory, bytes memory, string memory) {\n        return (flag, s1, b1, s2);\n    }\n}",
+  "contract": "EventOrderPack",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "mix",
+      "args": [],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "mix",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "getAll",
+      "args": []
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "0be2dcfeab5ef303",
+    "origin": "mutated_llm"
+  }
+}

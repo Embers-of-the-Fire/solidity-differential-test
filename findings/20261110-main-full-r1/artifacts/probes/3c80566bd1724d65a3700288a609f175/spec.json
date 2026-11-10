@@ -1,0 +1,51 @@
+{
+  "name": "overload-override-selfcall-dispatch",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract Base {\n    uint256 public result;\n    event BaseCalled(uint256 v);\n    function f(uint256 x) public virtual returns (uint256) {\n        result = x + 1;\n        emit BaseCalled(x);\n        return result;\n    }\n}\n\ncontract Child is Base {\n    event OverrideCalled(uint256 v);\n    event OverloadCalled(uint256 a, uint256 b);\n    function f(uint256 x) public override returns (uint256) {\n        result = x + 100;\n        emit OverrideCalled(x);\n        return result;\n    }\n    function f(uint256 x, uint256 y) public returns (uint256) {\n        result = x + y;\n        emit OverloadCalled(x, y);\n        return result;\n    }\n    function callSelf1(uint256 x) public returns (uint256) {\n        return this.f(x);\n    }\n    function callSelf2(uint256 x, uint256 y) public returns (uint256) {\n        return this.f(x, y);\n    }\n}",
+  "contract": "Child",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "callSelf1",
+      "args": [
+        5
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "result"
+    },
+    {
+      "action": "call",
+      "function": "callSelf2",
+      "args": [
+        5,
+        7
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "result"
+    }
+  ],
+  "meta": {
+    "parent_id": null,
+    "origin": "generated"
+  },
+  "execution": "on-chain"
+}

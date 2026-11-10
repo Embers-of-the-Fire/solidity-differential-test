@@ -1,0 +1,338 @@
+{
+  "seed_id": "int-semantics",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "solang and solc agree on core int8/uint8 integer semantics: arithmetic right shift of negatives (sign extension), logical shift of uints, signed division truncating toward zero (-7/2 == -3), signed modulo taking the dividend's sign (-7%2 == -1), explicit narrowing casts truncating two's-complement bits (uint8(int16(-257)) == 0xFF), byte indexing returning the most-significant byte first (bytes2 0x1234 -> word[0] == 0x12), and unchecked wraparound (int8 max + 1 == min).",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "int-semantics-shift-cast-div",
+          "verdict": "PASS",
+          "note": "compute(), packCore(), packCasts(), and wide() all returned identical values on EVM/anvil (solc) and pallet-contracts (solang), covering sar=-4, shr=124, sdiv=-3, smod=-1, castChain=212 (0xD4 from -300 truncated to uint8), trunc=255, byteAccess=0x12, wrapped=-128."
+        }
+      ],
+      "next_probe": "Extend the same pattern to int128/int256 widths: sar/shr/sdiv/smod on int128(-2**127) and int256 values, and uint64->int64 sign-extension casts, checking packCore/packCasts packing outputs for bitwise equality."
+    },
+    {
+      "id": "h2",
+      "statement": "solang and solc both revert at runtime on signed division overflow (type(int8).min / -1) with a matching revert reason, and leave state unchanged (boomResult stays 0) \u2014 for operands that are not compile-time constants. When the overflowing division is a literal constant expression, the toolchains diverge at compile time: solc accepts and emits a runtime revert, solang rejects with a 'value does not fit' error (see the new compile-asymmetry hypothesis).",
+      "status": "refuted",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "int-semantics-shift-cast-div",
+          "verdict": "PASS",
+          "note": "boom() reverted on both chains with the same revert reason captured by the oracle, and the final query of boomResult agreed, so both reject int8 min/-1 identically."
+        },
+        {
+          "probe": "intdiv-overflow-runtime-width-sweep",
+          "verdict": "DIVERGENCE",
+          "note": "With the dividend as a runtime state variable (constructor-set type(intN).min), solc reverted at runtime for div16/div64/div128/div256 (min / -1) on every width, but solang succeeded on all of them and incremented count each time (EVM count=1 after mod256 vs polkadot count=5 after mod256, final 2 vs 6). The earlier int8-only agreement does not generalize: solang does not perform a signed-division overflow check at widths 16/64/128/256, while solc reverts per the 0.8.x panic semantics."
+        }
+      ],
+      "next_probe": "Re-run the width sweep (int16/int64/int128/int256 min / -1, plus int256 min % -1 which should yield 0 per Solidity spec) but make the dividend a runtime value (store type(intN).min in a state variable in the constructor, then divide the loaded value by -1) so solang cannot constant-fold it into a compile error; verify both chains revert with matching revert reasons and that count increments only for the non-overflowing okDiv16 case."
+    },
+    {
+      "id": "h3",
+      "statement": "solang and solc agree on in-range and boundary-adjacent shifts (int8 >> 7, uint256 >> 255, and int8 >> 8 which reverts identically on both chains), but diverge at uint256 >> 256: solc reverts per 0.8.x panic semantics (dry-run returns 0), while solang silently succeeds and returns the dividend unchanged (255), consistent with the shift count being masked to 0 rather than bounds-checked. This mirrors the h5/h7 pattern of solang omitting a 0.8.x runtime check, but only for the wide (multi-i64) shift lowering; narrow int8 shifts are bounds-checked in solang.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "int-semantics-shift-cast-div",
+          "verdict": "PASS",
+          "note": "Only shift-by-1 was covered here, and both used literal constant folding; boundary/beyond-width and runtime-variable shift counts remain untested, so this stays open rather than confirmed."
+        },
+        {
+          "probe": "intdiv-shift-boundary-counts",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0 sar8(-8,7)=-1 agreed; step 1 sar8(-8,8) produced NO mismatch (both chains reverted identically, so solang does bounds-check int8 shift counts); step 2 shr256(255,255)=0 agreed; step 3 shr256(255,256) DIVERGED: EVM reverted (dry-run return 0) while polkadot returned 255, i.e. the dividend unchanged, consistent with masking n mod 64 (256 & 63 = 0) in WASM i64-based lowering rather than reverting. Downstream count would drift (EVM 2 vs polkadot 3) from the single successful solang call."
+        },
+        {
+          "probe": "int-sdiv-smod-minus-one-widths-p0-shr256-mask",
+          "verdict": "DIVERGENCE",
+          "note": "Reproduced the core h3 claim with runtime calldata counts: uint256 >> 256 reverts on solc/EVM (dry-run 0) but silently returns the dividend 255 on solang/polkadot, with downstream count storage drifting as a consequence. Combined with the earlier evidence that narrow int8 shifts (>> 8) revert identically on both chains, the wide-vs-narrow isolation in h3 stands confirmed."
+        }
+      ],
+      "next_probe": "Probe runtime shifts with count equal to and one past the bit width for int8/uint256 (e.g., variable shift amounts x >> 8, x >> 9, x >> 256 computed from calldata, not literals) and check both chains revert identically; also compare constant-folded literal shifts against runtime-variable shifts of the same values."
+    },
+    {
+      "id": "h4",
+      "statement": "solang's constant evaluator rejects literal constant expressions type(intN).min / -1 (for N = 16, 64, 128, 256, and presumably all widths) as a compile-time error ('value does not fit into type intN'), because it constant-folds the division to the out-of-range positive result; solc accepts the same source and instead emits code that reverts at runtime. This is a compile-time vs runtime handling divergence for provably-overflowing signed division, distinct from the runtime-revert agreement seen for non-constant operands (h2).",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "int-sdiv-smod-minus-one-widths-p0",
+          "verdict": "DIVERGENCE",
+          "note": "COMPILE_ASYMMETRY: solc compiled the source fine (it folds min/-1 into a runtime revert), but solang rejected it with four errors \u2014 'value 32768 does not fit into type int16', 'value 9223372036854775808 does not fit into type int64', the int128 equivalent, and the int256 equivalent \u2014 all pointing at the constant expressions type(intN).min / intN(-1). solang constant-folds the division to the out-of-range positive value instead of treating it as a runtime panic."
+        },
+        {
+          "probe": "int-sdiv-smod-minus-one-widths-p0-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Exact reproduction of the compile asymmetry: solc accepted the source (constant expressions type(intN).min / intN(-1) folded to runtime reverts), while solang rejected it with four 'value does not fit into type intN' errors at lines 13/19/25/31 for int16 (32768), int64 (9223372036854775808), int128, and int256 (2**255). Since literal-constant operands can never reach runtime in solang, this pins the earlier boom() both-revert agreement (h7) as compile-time fold behavior, and confirms solang's constant evaluator deterministically rejects provably-overflowing signed division constants at all four probed widths."
+        }
+      ],
+      "next_probe": "Compile a contract in both toolchains where the constant division type(int16).min / int16(-1) is wrapped in an unchecked block (unchecked { x = type(int16).min / int16(-1); }): solc should compile it and fold to the wrapped value 32768 (or -32768 truncated) without a revert, while if solang's constant evaluator still rejects with 'value does not fit' its compile-time check is independent of the 0.8.x checked/unchecked semantics."
+    },
+    {
+      "id": "h5",
+      "statement": "solang silently wraps runtime signed division overflow type(intN).min / -1 at widths 16/64/128/256 (likely lowering narrow divides to wider WASM division without a narrow-type overflow check, so minN / -1 yields minN via two's-complement wraparound), whereas solc reverts. mod256 (type(int256).min % -1) agreed: both succeeded with result 0 and no revert, so the divergence is specific to division, not the INT_MIN/-1 operand pair. The prior int8 boom() agreement (both reverted) is unexplained by this hypothesis and may reflect a different solang code path for byte-width types or an artifact of the earlier probe.",
+      "status": "confirmed",
+      "confidence": "high",
+      "evidence": [
+        {
+          "probe": "intdiv-overflow-runtime-width-sweep",
+          "verdict": "DIVERGENCE",
+          "note": "STATUS/TX_STATUS mismatches at steps 0-3: EVM revert vs polkadot success for runtime min16/min64/min128/min256 divided by -1; count diverged (EVM 2 vs polkadot 6) purely from solang executing the four overflowing divides. Step 4 mod256 succeeded on both chains (no status mismatch), matching the spec result 0."
+        },
+        {
+          "probe": "intdiv-overflow-runtime-width-sweep-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Re-run reproduces the divergence exactly: EVM reverted on runtime min16/min64/min128/min256 / -1 (steps 0-3, both dry-run and committed status), while polkadot succeeded and incremented count each time (EVM count=3 vs polkadot count=7 after the two okDiv16 calls). Step 4 mod256 produced NO status mismatch on either chain (both succeeded, result 0 per spec), so the modulo path genuinely agrees and the divergence is specific to division. The polkadot storage dump at every step already shows min16=-32768, min64=-9223372036854775808, min128=-170141183460469231731687303715884105728, and min256=-2**255 stored intact, but the quotient r is return-only and not captured, so the exact wrapped value (presumed minN) remains unverified. int8 runtime-dividend behavior also remains untested."
+        }
+      ],
+      "next_probe": "Capture the actual return value of the wrapped division: store the result of min16 / -1 into a state variable assigned BEFORE the count++ (or read the return data via dry-run) to verify solang returns exactly type(int16).min (-32768) while solc reverts; in the same contract re-test int8 with a runtime dividend (constructor-set type(int8).min) to determine whether int8 wraps like the wider widths or genuinely reverts as observed earlier."
+    },
+    {
+      "id": "h6",
+      "statement": "solang's silent success on runtime type(intN).min / -1 (N = 16/64/128/256) produces a deterministic, stateless wrapped quotient (repeated calls keep succeeding), and the modulo path (min256 % -1 == 0) and ordinary division (min16 / 2) still agree exactly with solc \u2014 steps 4 and 5 showed no status mismatch on either chain, only downstream count storage drift. Whether the wrapped quotient is exactly type(intN).min (two's-complement truncation of +2^(N-1)) remains unverified after four reproductions because the result is return-only and the oracle never captured call return data; the int8 width with a runtime dividend is also still untested.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "intdiv-overflow-runtime-width-sweep-p1",
+          "verdict": "DIVERGENCE",
+          "note": "Third reproduction of the h5 divergence with a mutated step order (div64 called twice, div256 before div128): solc reverted at runtime on all four minN / -1 calls (steps 0-4) while solang succeeded and incremented count each time, reaching count=7 vs EVM count=2 after mod256 and okDiv16. Crucially, steps 5 (mod256) and 6 (okDiv16) produced NO status or TX_STATUS mismatch on either chain \u2014 only downstream STORAGE mismatches from accumulated count \u2014 so modulo and non-overflowing division still agree exactly, and solang's overflowing-division wrap is deterministic across repeated invocations (count went 1->2->3 for two div64 calls). The wrapped quotient value itself remains uncaptured (return-only)."
+        },
+        {
+          "probe": "intdiv-overflow-runtime-width-sweep-p2",
+          "verdict": "DIVERGENCE",
+          "note": "Fourth reproduction with the original step order: solc reverted on runtime min16/min64/min128/min256 / -1 (steps 0-3, dry-run and committed status), solang succeeded each time and count climbed 1->4; step 4 mod256 and step 5 okDiv16 had NO status mismatch (both succeeded), only count storage drift (EVM 5/6 vs polkadot 5/6 offset by the four wrapped divides). The wrapped quotient values remain uncaptured \u2014 the only RETURN_MISMATCH is the step-6 count query (2 vs 6). The new polkadot storage dump additionally shows all four minN values stored intact, ruling out dividend corruption as a cause."
+        },
+        {
+          "probe": "intdiv-overflow-capture-before-count",
+          "verdict": "DIVERGENCE",
+          "note": "The wrapped quotients are now captured in state: after div8/div16/div64, polkadot holds r8=-128, r16=-32768, r64=-9223372036854775808 \u2014 exactly type(intN).min for each width (two's-complement truncation of +2^(N-1)), while solc reverted and left them 0 (queries returned 0 on EVM). count reached 3 on polkadot vs 0 increments surviving on EVM. Additionally, int8 with a runtime (constructor-stored) dividend WRAPS just like the wider widths (r8=-128), resolving h5's open int8 question: the earlier boom() agreement where both reverted was anomalous, not a genuine byte-width check in solang."
+        }
+      ],
+      "next_probe": "Store the division result into a public state variable assigned BEFORE count++ in div16/div64/div128/div256 (e.g., 'int16 public r16; r16 = min16 / int16(-1);'), then query r16..r256 after each call on polkadot to verify they equal exactly type(intN).min (-32768, -2^63, -2^127, -2^255), while solc reverts and leaves them 0."
+    },
+    {
+      "id": "h7",
+      "statement": "solang performs no runtime signed-division overflow check at any width (int8 through int256) and the silent wrap does not depend on operand provenance: type(intN).min / -1 wraps identically whether the dividend is a constructor-stored state variable, a loaded storage value, or a pure calldata argument. This probe passed -32768 and -1 as calldata parameters with no storage involvement at all: solc reverted on both calls while solang succeeded, stored last = -32768 (exactly type(int16).min), and incremented count to 2, with the wrapped quotient captured directly in state (step-3 query last: EVM 0 vs polkadot -32768). The divergence is robust to layout/codegen variations and operand sources. The original int-semantics-shift-cast-div boom() observation (both chains reverted on int8 min/-1) is now even more clearly an artifact of that probe's specific constant-foldable operand construction (cf. h4) rather than any real check in solang.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "intdiv-overflow-capture-before-count",
+          "verdict": "DIVERGENCE",
+          "note": "Runtime-storage dividends min8/min16/min64 divided by -1: solc reverted at steps 0-2 (dry-run and committed status), solang succeeded and stored r8=-128, r16=-32768, r64=-2^63 exactly (type(intN).min), with count climbing 1->3. This extends the confirmed h5 wrap to int8 and contradicts the earlier boom() both-revert observation, implying that earlier agreement was operand-provenance-dependent."
+        },
+        {
+          "probe": "int-sdiv-smod-minus-one-widths-p0-runtime-capture16",
+          "verdict": "DIVERGENCE",
+          "note": "Pure calldata operands (-32768, -1) at int16: steps 0-1 show EVM revert vs polkadot success (dry-run and committed status), polkadot storage holds last=-32768 and count=1 then 2 across the two calls, and the step-3 query of last returned -32768 on polkadot vs 0 on EVM. The wrap reproduces with no storage operand whatsoever, so h7's no-check behavior is operand-provenance-independent; the wrapped quotient type(int16).min is confirmed via a state capture, matching h5/h6."
+        },
+        {
+          "probe": "int-sdiv-smod-minus-one-widths-p0-int8-provenance",
+          "verdict": "DIVERGENCE",
+          "note": "int8 provenance sweep: divStored (constructor-stored type(int8).min / -1) and divCalldata (pure calldata -128 / -1) both reverted on solc/EVM (dry-run and committed status) but succeeded on solang/polkadot, which stored last = -128 (exactly type(int8).min, the wrapped quotient) and incremented count to 1 then 2. The wrapped quotient is now captured in state via the step-3 query (EVM 0 vs polkadot -128). Combined with the earlier h5/h6 captures at int16/int64, solang's missing signed-division overflow check spans int8 through int256 and is fully independent of operand provenance; the original boom() both-revert observation is definitively a constant-fold artifact (cf. h4), not a real solang check."
+        }
+      ],
+      "next_probe": "Recreate the original boom() from int-semantics-shift-cast-div as literally as possible (same operand expressions, e.g. a function computing type(int8).min / -1 from inline literals) and instrument variants where the dividend is (a) the exact original inline-literal expression, (b) a calldata parameter fed -128, (c) a constructor-stored type(int8).min; check which variants solang compiles (constant-fold rejection per h4) vs wraps at runtime, to fully close the loop on why the first probe appeared to agree."
+    },
+    {
+      "id": "h8",
+      "statement": "solang lowers wide (uint256/int256) shifts to WASM i64 shift pairs and masks the runtime shift count modulo 64 instead of reverting on count >= 256, so x >> 256 returns x, and x >> (64k + m) behaves as x >> m; narrow-width shifts (int8/uint8) are properly bounds-checked and revert identically to solc. If true, shr256(255, 257) should return 127 (255 >> 1) and shr256(255, 320) should return 255, whereas a count-clamping scheme would return 0 for both, and a value-agnostic revert would match solc.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "intdiv-shift-boundary-counts",
+          "verdict": "DIVERGENCE",
+          "note": "Single data point shr256(255,256)->255 on polkadot vs revert on EVM; return of exactly the dividend is consistent with (but does not yet prove) mod-64 count masking, since 256 mod 64 == 256 mod 256 == 0. Step 1 (sar8 >> 8, both revert) shows narrow shifts are checked, isolating the bug to wide-shift lowering."
+        },
+        {
+          "probe": "int-sdiv-smod-minus-one-widths-p0-shr256-mask",
+          "verdict": "DIVERGENCE",
+          "note": "Decisive confirmation of mod-64 count masking in solang's wide-shift lowering: shr256(255, 256) returned 255 on polkadot vs dry-run 0 (revert) on EVM, and shr256(255, 257) returned 127 on polkadot vs revert on EVM. 257 mod 64 = 1 and 255 >> 1 = 127 exactly matches the WASM i64 shift-pair masking prediction, ruling out clamping (which would give 0) and value-agnostic revert (which would match solc). solc reverted on every count >= 256 as expected per 0.8.x panic semantics."
+        }
+      ],
+      "next_probe": "Call shr256 with (255, 64), (255, 65), (255, 127), (255, 128), (255, 257), (255, 320) and an int256 sar with (-2**255, 256): mod-64 masking predicts 255,127,255,255,127,255 and sar returning -2**255; also query count after each to confirm solc reverts on every count >= 256 while solang increments. Distinguishes mod-64 masking from mod-256 masking (255>>256 would then be 255 too, but 255>>257 would be 0 vs 127) and from clamping."
+    },
+    {
+      "id": "h9",
+      "statement": "For literal constant expressions, solang's constant evaluator rejects only the provably-overflowing signed DIVISION (type(intN).min / -1) with 'value does not fit', while the constant MODULO counterpart type(intN).min % -1 folds to 0 (which fits) and should compile on both toolchains; likewise the int8-width constant division should be rejected by solang like the wider widths. If instead solang also rejects min % -1, its constant evaluator is treating the whole INT_MIN/-1 operand pair as an error rather than checking the folded result's range.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "int-sdiv-smod-minus-one-widths-p0-p0",
+          "verdict": "DIVERGENCE",
+          "note": "The probe's mod256MinusOne function used runtime-independent literal constants too, but compilation failed before it could be exercised because solang rejected the contract over the four division expressions; so the constant-modulo path remains untested and is the cheapest open question in this area."
+        },
+        {
+          "probe": "int-constant-min-modulo-only",
+          "verdict": "PASS",
+          "note": "The modulo-only constant contract compiled on BOTH toolchains (solang did not reject it, so the h4-style 'value does not fit' errors were specific to the division expressions that were absent here), deployed on-chain, and all five getter queries (m256, m128, m64, m16, m8) returned identical values on EVM and polkadot with zero divergences \u2014 consistent with min % -1 folding to 0 on both chains. This confirms h9's first branch: solang's constant evaluator range-checks the folded result (0 fits), so its rejection of the INT_MIN/-1 pair is specific to the overflowing DIVISION, not the operand pair itself; the constant-modulo path was the last untested leg and it agrees."
+        }
+      ],
+      "next_probe": "Compile a MINIMAL contract containing ONLY the modulo constant expressions (int256 public m = type(int256).min % int256(-1); int8 public m8 = type(int8).min % int8(-1);) and NO division expressions, so solang cannot reject the contract over the div functions and the constant-modulo path actually gets exercised. If solang compiles it, deploy and call getters to check both chains fold min % -1 to 0 identically; if solang rejects it with 'value does not fit', its constant evaluator errors on the whole INT_MIN/-1 operand pair rather than on the out-of-range folded result."
+    },
+    {
+      "id": "h10",
+      "statement": "solang masks runtime int256 sar shift counts mod 64 in its WASM i64 lowering (type(int256).min >> 256 -> min, min >> 257 -> -2**254, -1 >> 320 -> -1), while solc computes the correct saturating sar without a bounds check for signed right shifts (negative operands give -1 for any count >= 256), so out-of-range sar diverges in value with both chains succeeding, unlike logical shr where solc reverts (h3/h8). However, literal constant shift counts >= the width are rejected at solang compile time ('right shift by 257 is not possible', new compile asymmetry), so the masking characterization can only be exercised with runtime-variable counts. Whether solang's literal check fires at count 256 or only >256, and whether solc's sar is exact-sar vs count-clamping for positive operands, remain untested.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "int-sdiv-smod-minus-one-widths-p0-shr256-mask",
+          "verdict": "DIVERGENCE",
+          "note": "Only logical uint256 shr was tested; the int256 sar counterpart is the natural extension. Since solang's wide shifts lower to the same WASM i64 shift-pair machinery regardless of signedness, masking the count mod 64 is expected to be shared, but the sign-extension half of the pair could conceivably carry a separate bounds check."
+        },
+        {
+          "probe": "int-semantics-sar256-mask-count",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0 (min, 256): solang returned/stored/emit -2**255 (count masked to 0) while EVM succeeded returning -1 (full sign extension) \u2014 NOT a revert, contradicting h10's solc-reverts prediction; EVM storage shows last=-1, count=1, so the solc call committed. Step 2 (min, 257): solang returned -2**254 (257 mod 64 = 1) vs EVM -1 (saturation), again both succeeding, count=2 on both. Step 4 (-1, 320): NO mismatch \u2014 solang gives -1 (320 mod 64 = 0) and solc saturates to -1, the one case where masking and saturation coincide. The mod-64 sar-masking half of h10 is confirmed; the solc half is refuted in favor of correct/clamped saturation without revert."
+        },
+        {
+          "probe": "int-sar256-count-mask-neighbor-p3",
+          "verdict": "DIVERGENCE",
+          "note": "The probe implementing h10's next_probe failed at compile: solang rejected the literal shift 'type(int256).min >> 257' with 'right shift by 257 is not possible' (solc accepted), so no runtime sar data was produced. This establishes that h10's masking characterization requires runtime shift counts, and reveals a new literal-shift compile asymmetry (spun out as a new hypothesis). The prior runtime evidence (min>>256 -> min on solang vs -1 on EVM; min>>257 -> -2**254 vs -1) stands unchanged."
+        }
+      ],
+      "next_probe": "Re-run the sar count-mask characterization avoiding ** on signed types (the cause of the int-sar256-count-mask-char compile failure): compute the positive operand as int256(1) << 254 or the literal 0x4000000000000000000000000000000000000000000000000000000000000000 instead of int256(2) ** 254. Test sar256(-2**255, 192) predicting solang -2**255 (192 mod 64 = 0) vs solc exact -2**63; sar256(-2**255, 319) predicting solang -2**254 (319 mod 64 = 63) vs solc -1; and sar256(2**254, 65) predicting solang 2**254 (65 mod 64 = 1) vs solc 2**189, confirming solang's sar masking is mod-64 and solc saturates without reverting."
+    },
+    {
+      "id": "h11",
+      "statement": "Negative narrow-signed state variables (int8 confirmed, int16/int32/int64/int128 presumably) occupy raw storage slots in a sign-canonical form on pallet-contracts (solang) but a zero-extended form on EVM (solc), as seen by the oracle's raw storage dump: after storing int8(-3), polkadot's raw dump reads '-3' while EVM's reads '253' (0xFD). ABI-level getters agree (-3 on both chains, no RETURN_MISMATCH on the last8 query), so this is an invisible raw storage-encoding divergence, not a value-semantics divergence. If true, the same raw-dump asymmetry appears for every negative intN (e.g., int16 -3: EVM raw 65533 vs polkadot -3) while all getter outputs continue to match.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "int-sdiv-smod-minus-one-widths-p3-int8calldata",
+          "verdict": "DIVERGENCE",
+          "note": "Step 2 (okDiv8, int8(-7)/int8(2) = -3) produced NO status/TX_STATUS mismatch \u2014 ordinary signed division agrees logically on both chains \u2014 yet the raw storage dump differs: EVM shows last8 slot = '253' (zero-extended 0xFD) while polkadot shows '-3' (sign-canonical). The step-3 last8 getter query matched (-3 on both), confirming the logical value is identical and only the raw slot encoding differs. Also a fourth reproduction of the int8 wrap: steps 0-1 (calldata -128 / -1) reverted on solc but succeeded on solang, storing last8 = -128, count reaching 2."
+        },
+        {
+          "probe": "int-sdiv-minus-one-runtime-args-p2",
+          "verdict": "DIVERGENCE",
+          "note": "safeDiv(-32768, 2) = -16384 succeeded identically on both chains (no status mismatch), yet the raw storage dump (mode=count) shows the last slot as '49152' (0xC000, zero-extended) on EVM vs '-16384' (sign-canonical) on polkadot. The step-5 lastMod query matched (0 on both), and the only last-return mismatch (step 4: EVM -16384 vs polkadot -32768) is downstream drift from solang's successful divArgs call, not an encoding difference. This extends h11 from int8 to int16: negative signed values occupy raw storage zero-extended on EVM but sign-canonical on pallet-contracts, while ABI-level getters agree."
+        }
+      ],
+      "next_probe": "Store negative constants of several signed widths (int8(-3), int16(-3), int64(-3), int128(-3), int256(-3)) via state-variable assignment functions, then compare the oracle's raw storage dump mode against the getter returns for each width on both chains; also test a negative value stored at a packed offset (two int8s in one slot) to see whether the encoding difference survives packing."
+    },
+    {
+      "id": "h12",
+      "statement": "solang rejects the exponentiation operator (**) at compile time when the base or result type is signed ('exponentiation (**) is not allowed with signed types'), while solc accepts signed ** under 0.8.x semantics and compiles it (e.g., int256(2) ** 254). This is a pure compile-time asymmetry: any contract using ** with a signed type cannot even be built for pallet-contracts, so no runtime behavior is reachable. It is currently untested whether solang permits ** with an unsigned base and unsigned exponent (the expected-accepted case), or whether signedness of the exponent alone (e.g., 2 ** int256(2)) also triggers the rejection.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "int-sar256-count-mask-char",
+          "verdict": "DIVERGENCE",
+          "note": "COMPILE_ASYMMETRY at compile step: solc accepted the source, solang rejected it with 'exponation (**) is not allowed with signed types' pointing at the expression (int256(2) ** 254) on line 13. The contract never deployed, so all sarMin/sarPos runtime steps were void; the probe verdict was DIVERGENCE with triage category invalid_probe."
+        }
+      ],
+      "next_probe": "Compile a minimal matrix in both toolchains: (a) uint256(2) ** 254 (unsigned base/exponent \u2014 expect both accept); (b) int256(2) ** 254 (signed base \u2014 solang rejects per this probe); (c) uint256(2) ** int256(254) cast back to uint256, and 2 ** 3 with literal exponent on signed base. Determine whether solang's ban is keyed on the result type's signedness or any operand's signedness, and whether literal constant ** with signed types is also rejected (constant-folding path)."
+    },
+    {
+      "id": "h13",
+      "statement": "solang's constant-evaluator rejection of literal type(intN).min / -1 is a pure compile-time range check on the folded result, is deterministic across repeated compilations and step-order mutations of the same source (now reproduced at default settings on p0, p0-p1, and p0-p2), and is not merely a flaky diagnostic. It remains untested whether the rejection is suppressed by Solidity 0.8.x unchecked blocks or solang optimizer settings; solc accepts the same source and folds the expression to a runtime revert (h4). If unchecked/aggressive variants still fail compilation, the rejection is unconditional at solang's constant-folding layer; if solang accepts under unchecked, the divergence is gated on checked-arithmetic semantics that solang only partially models.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "int-sdiv-smod-minus-one-widths-p0-p1",
+          "verdict": "DIVERGENCE",
+          "note": "Third exact reproduction of the h4 compile asymmetry on the same source (mutated step order, parent 0645822dd4f228a0): solc accepted IntDivOverflowWidths while solang rejected it with identical 'value does not fit into type intN' errors at lines 13/19/25/31 for int16 (32768), int64 (9223372036854775808), int128 (170141183460469231731687303715884105728), and int256. The contract never deployed so the constant modulo path (h9) remains untested; the only residual unknowns are whether unchecked/optimizer variants alter solang's constant evaluator."
+        },
+        {
+          "probe": "int-sdiv-smod-minus-one-widths-p0-p2",
+          "verdict": "DIVERGENCE",
+          "note": "Fourth reproduction of the identical COMPILE_ASYMMETRY on source derived from parent 0645822dd4f228a0 (step order mutated: two okDiv16 calls first): solc accepted IntDivOverflowWidths; solang rejected it with the same four 'value does not fit into type intN' errors at lines 13/19/25/31 (int16: 32768; int64: 9223372036854775808; int128: 170141183460469231731687303715884105728; int256: 2**255). The contract never deployed so no runtime step ran; the constant-modulo path (h9) also remains untested since the contract is rejected wholesale."
+        },
+        {
+          "probe": "int-sdiv-smod-minus-one-widths-p0-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Fifth exact reproduction of the compile asymmetry on a mutated-order child of parent 0645822dd4f228a0 (step order: okDiv16, boomDiv16, boomDiv128, boomDiv64, boomDiv256, mod256MinusOne): solc accepted IntDivOverflowWidths and solang rejected it with the identical four 'value does not fit into type intN' errors at lines 13/19/25/31 \u2014 int16 (32768), int64 (9223372036854775808), int128 (170141183460469231731687303715884105728), int256 (57896044618658097711785492504343953926634992332820282019728792003956564819968 = 2**255). The contract never deployed, so no runtime step ran and the constant-modulo path (h9) is still untested through this source. With five identical reproductions across default and mutated step orders, the rejection is conclusively deterministic and not a flaky diagnostic; the only residual question \u2014 unchecked/optimizer gating \u2014 is spun out into a new hypothesis."
+        }
+      ],
+      "next_probe": "Probe whether solang's constant-fold rejection is reachability-independent: compile 'contract C { function f() public pure returns (int16) { if (false) { return type(int16).min / int16(-1); } return 0; } }' plus a variant with the division as a bare discarded expression statement. Since the unchecked/optimizer discriminator is already spun out into h14, this reachability axis is the remaining unexplored dimension of h13's claim that the rejection is a pure frontend range check on the folded result."
+    },
+    {
+      "id": "h14",
+      "statement": "solang's constant-evaluator rejection of literal type(int16).min / int16(-1) ('value does not fit') is either unconditional at its constant-folding layer, or it is gated on 0.8.x checked-arithmetic semantics that solang only partially models; the decisive discriminator is an unchecked block. If solang still rejects unchecked { return type(int16).min / int16(-1); }, the rejection is unconditional and independent of Solidity 0.8.x checked/unchecked semantics (solang's constant evaluator range-checks the folded result before any checked-arithmetic pass); if solang accepts and compiles under unchecked, then the rejection models checked division but misplaces it at compile time, since solc under unchecked folds the same expression to the wrapped value 32768 (== -32768 as int16) with no revert.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "int-sdiv-minus-one-unchecked-const-p1",
+          "verdict": "DIVERGENCE",
+          "note": "Direct test of the unchecked discriminator: solc accepted UncheckedConstDiv (in which type(int16).min / int16(-1) sits inside unchecked { ... }), while solang rejected it with the identical 'value 32768 does not fit into type int16' error at line 9 pointing at the constant expression. The unchecked block does NOT suppress solang's constant-evaluator range check, confirming h14's first branch: the rejection is unconditional at solang's constant-folding layer, independent of Solidity 0.8.x checked/unchecked semantics. solc compiles the same source and would fold the division to the wrapped value -32768 at runtime without reverting (per unchecked semantics), but solang never reaches that semantics because it rejects the folded result's range before codegen."
+        }
+      ],
+      "next_probe": "Compile in both toolchains a minimal contract 'contract C { function f() public pure returns (int16) { unchecked { return type(int16).min / int16(-1); } } }' plus a variant with the expression as an initializer 'int16 public x = type(int16).min / int16(-1);' and a third variant compiled with solang opt_level 'aggressive'. Compare accept/reject: solc should accept all and, for the unchecked variant, fold to -32768 (query the getter on EVM to verify). If solang rejects the unchecked variant too, the constant-evaluator check is unconditional; if solang accepts, deploy and call f()/x on pallet-contracts to see whether it returns -32768 (correct unchecked wrap) or reverts (misplaced runtime check)."
+    },
+    {
+      "id": "h15",
+      "statement": "solang's constant-evaluator rejection of literal type(intN).min / -1 ('value does not fit') fires at frontend constant folding, before any reachability analysis, so it should reject even provably-dead occurrences of the expression (e.g., inside 'if (false) { ... }' or a never-taken branch), just as it rejects live ones; solc accepts the same dead code everywhere and simply never executes the folded runtime revert. If solang instead accepts dead occurrences, its check is gated on the expression being reachable/executed rather than on the folded result's range.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "int-sdiv-smod-minus-one-widths-p0-p2",
+          "verdict": "DIVERGENCE",
+          "note": "Sixth identical reproduction of the h4/h13 compile asymmetry, now with the constant divisions as local variable initializers inside external functions and a mutated step order (okDiv16 first, mod256MinusOne queried mid-sequence): solc accepted IntDivOverflowWidths while solang rejected it with the same four 'value does not fit into type intN' errors at lines 13/19/25/31 (int16: 32768; int64: 9223372036854775808; int128: 170141183460469231731687303715884105728; int256: 2**255). Because compilation fails before any step executes, the step-order mutation was degenerate \u2014 it exercised nothing new about runtime behavior. All reproductions so far place the expression in live local-initializer positions; dead-code and discarded-expression contexts remain untested."
+        }
+      ],
+      "next_probe": "Compile in both toolchains a contract with type(int16).min / int16(-1) appearing in three contexts: (a) inside 'if (false) { int16 x = type(int16).min / int16(-1); }', (b) inside a branch guarded by 'if (count == 12345)' (unreachable at runtime but not provably at compile time), and (c) as a discarded expression statement. If solang rejects all three, the check is context- and reachability-independent at constant folding; if it accepts (a) or (c), the rejection only applies when the result is assigned in reachable-looking code."
+    },
+    {
+      "id": "h16",
+      "statement": "The int16 min/-1 division divergence is independent of msg.sender and of function layout: divArgs(-32768, -1) sent by alice (step 0) and by bob (step 3) both reverted on solc while solang succeeded and stored last=-32768 both times, with count climbing 1 then 4. The modulo path also holds under pure calldata operands: modArgs(-32768, -1) succeeded on both chains with no status mismatch and lastMod=0 on both (step 5 query agreed), so the INT_MIN/-1 modulo agreement (h6, mod256) extends to int16 with runtime calldata arguments and is not sensitive to which external function performs it.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "int-sdiv-minus-one-runtime-args-p2",
+          "verdict": "DIVERGENCE",
+          "note": "Steps 0 and 3 (divArgs(-32768,-1) from alice and bob): EVM reverted (dry-run and committed status) both times while polkadot succeeded, storing last=-32768 and incrementing count to 1 and then 4 \u2014 divergence is sender-independent. Step 1 (modArgs(-32768,-1)) had NO status mismatch on either chain, and the step-5 lastMod query returned 0 on both, confirming the modulo INT_MIN/-1 agreement at int16 with pure calldata operands. Step 2 (safeDiv(-32768,2)) succeeded on both; its only mismatch was the raw storage encoding (49152 vs -16384), now attributed to h11."
+        }
+      ],
+      "next_probe": "Call modArgs and a division with non-INT_MIN negative operands across widths (e.g., modArgs(-7, 2) and divArgs(-7, 2) at int16) to verify the ordinary signed div/mod paths agree bit-for-bit on return values via the getter queries, isolating the modulo agreement from any raw-storage encoding noise; also send the min/-1 division from a third distinct sender to fully close the sender-independence axis."
+    },
+    {
+      "id": "h17",
+      "statement": "solang's constant evaluator rejects literal constant shift expressions whose count meets/exceeds the bit width ('right shift by 257 is not possible') at compile time, while solc accepts the same source and folds per 0.8.x semantics. This is a second, shift-specific compile-time asymmetry distinct from h4's signed-division rejection: the earlier runtime mod-64 masking divergences (h3/h8/h10) all used runtime-variable shift counts, so literal out-of-range shift counts can never reach runtime in solang. It is untested whether the boundary is count > 256 vs count >= 256, whether uint256 literals (e.g., uint256 >> 256) are rejected the same way, and whether narrow literals (int8 >> 8) are also rejected or constant-folded.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "int-sar256-count-mask-neighbor-p3",
+          "verdict": "DIVERGENCE",
+          "note": "COMPILE_ASYMMETRY: solc accepted SarCountMask, but solang rejected it with four identical errors 'right shift by 257 is not possible' pointing at the literal expression type(int256).min >> 257 on line 10 (repeated per codegen pass). The contract never deployed, so the sarMin192/sarPos65 runtime predictions (h10's next_probe) were void; the probe verdict was DIVERGENCE with triage bug_candidate. Notably the count-256 literal case did not error here (only 257 was flagged), but since the contract was rejected wholesale, the count==256 literal boundary remains untested."
+        }
+      ],
+      "next_probe": "Compile-only matrix in both toolchains with literal shift counts around the boundary: int256 x = type(int256).min >> 255; >> 256; >> 257; uint256 y = 255 >> 256; and int8 z = int8(-8) >> 8; as separate minimal contracts so one rejection doesn't mask the others. solc should accept all; check which counts solang rejects (predicting >=256 or >256 for the 256-bit cases) and whether narrow-type out-of-range literals are also compile errors."
+    },
+    {
+      "id": "h18",
+      "statement": "solang's constant-evaluator rejection of literal type(intN).min / -1 ('value does not fit into type intN') is invariant to solang build configuration (opt_level 'aggressive' still rejects with the identical four errors at the same source lines) and to contract storage layout (an extra leading uint8 state variable before count does not change the error set). Combined with h13/h14, the rejection is deterministic across step-order mutations, unchecked blocks, optimizer level, and layout; the only untested axis remaining is syntactic/reachability context (dead code, discarded expressions \u2014 cf. h15).",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "int-sdiv-minus-one-layout-aggr-dup-p4",
+          "verdict": "DIVERGENCE",
+          "note": "COMPILE_ASYMMETRY identical to h4/h13 reproductions despite two new mutations: solc (optimizer off) accepted IntDivOverflowWidthsLayout with a leading 'uint8 tag = 1' slot and a duplicated boomDiv16 step, while solang at opt_level 'aggressive' rejected it with the same four 'value does not fit into type intN' errors at lines 14/20/26/32 (int16: 32768; int64: 9223372036854775808; int128: 170141183460469231731687303715884105728; int256: 2**255). Contract never deployed; aggressive optimization does not suppress the constant-fold range check, and the error set is layout-independent."
+        }
+      ],
+      "next_probe": "Run the h15 dead-context matrix (if(false){...}, runtime-guarded branch, discarded expression statement) under solang opt_level 'aggressive' in the same probe, so build-config invariance and reachability-context dependence are tested together in one compilation."
+    }
+  ],
+  "updated_ts": 1794315120.0291896
+}

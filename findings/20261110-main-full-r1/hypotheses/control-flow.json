@@ -1,0 +1,265 @@
+{
+  "seed_id": "control-flow",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "solc (EVM/anvil) and solang (pallet-contracts) agree on storage-visible results for bounded nested loops with continue/break and an accumulation-based early exit, at n up to 100000 iterations.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "control-flow-loop-metering",
+          "verdict": "PASS",
+          "note": "runNested(1000) and runNested(100000) produced identical total/iterations storage on both chains; no divergence."
+        },
+        {
+          "probe": "metering-unbounded-loop-recursion-p1",
+          "verdict": "PASS",
+          "note": "runNested(2000), runLoop(1000000) (flat loop with continue/sum-accumulation), and recurse(2000) all produced identical lastResult/callCount storage and matching Done events on both chains. The agreement boundary for bounded/nested loops now extends to at least 1M iterations; no metering asymmetry at default gas budgets."
+        }
+      ],
+      "next_probe": "Call runNested with a much larger n (e.g. 10_000_000) with a high-but-finite gas limit on EVM, checking whether EVM runs out of gas while pallet-contracts completes or fails differently."
+    },
+    {
+      "id": "h2",
+      "statement": "Moderate-depth self recursion (depth ~60, including a depth%11==5 branch that skips levels) behaves identically on both chains, with identical return values and no stack/depth failures.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "control-flow-loop-metering",
+          "verdict": "PASS",
+          "note": "recurseSum(60) returned the same value on both chains with no divergence."
+        },
+        {
+          "probe": "recursion-depth-metering-asymmetry",
+          "verdict": "PASS",
+          "note": "runRecursion agreed exactly on both chains at depths 100, 500, 1023 (at the EVM 1024 call-stack boundary), 2048, and 10000: identical lastResult/lastDepth/callCount, matching events, no revert or stack-exhaustion divergence. Solidity internal recursion compiles to jumps and is not subject to EVM call-depth limits, so depth was never the binding constraint here."
+        }
+      ],
+      "next_probe": "Probe recursion near the limits: recurseSum with depth near 1024 (EVM stack limit) and much larger depths, comparing revert reasons/stack-exhaustion behavior across chains."
+    },
+    {
+      "id": "h3",
+      "statement": "Metering-model divergence requires an explicit asymmetric gas cap: at default budgets both chains agree on success up to at least 1,000,000 iterations AND fail identically at n=1_500_000, now reconfirmed by an independent layout-perturbed re-run (slotperturb-p0, storage-only oracle) where the post-1.5M snapshot equals post-step-0 on both chains (count=1, lastResult=7837) with no revert-reason divergence. A status asymmetry can only be produced by deliberately setting an EVM gas cap between the two chains' limits. The div/mod dry-run null artifact still blocks return-value comparison for the div/mod loop family (as a recorded, non-fatal divergence) but not for div/mod-free bodies.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "control-flow-loop-metering",
+          "verdict": "PASS",
+          "note": "All calls well within gas budgets on both chains agreed exactly; no evidence of metering mismatch yet, so the divergence boundary is untested."
+        },
+        {
+          "probe": "recursion-depth-metering-asymmetry",
+          "verdict": "PASS",
+          "note": "Deep recursion alone (to depth 10000) caused no asymmetry, so the h3 metering-divergence boundary must be located with an explicit gas cap rather than by increasing recursion depth."
+        },
+        {
+          "probe": "metering-unbounded-loop-recursion-p1",
+          "verdict": "PASS",
+          "note": "runLoop(1000000) \u2014 an order of magnitude beyond prior tests \u2014 passed identically with no out-of-gas on either chain, pushing the known-agreement envelope far above the earlier 100k bound; divergence via natural exhaustion is not reachable at practical scales on this setup."
+        },
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary",
+          "verdict": "DIVERGENCE",
+          "note": "The 1.5M-iteration boundary test was blocked at step 0 by a Polkadot dry-run null return at n=1000, providing no new information about the real >1M metering boundary; the artifact must be excluded before the gas-cap asymmetry can be observed."
+        },
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary-slotperturb",
+          "verdict": "DIVERGENCE",
+          "note": "Step 4 storage snapshot is identical to post-step-0 on BOTH chains (count=1, lastResult=7837 unchanged after runLoop(1500000) from bob), and no REVERT_REASON divergence was reported \u2014 so the 1.5M call failed identically on both chains at default budgets, refuting the notion that pallet-contracts would naturally succeed where EVM exhausts gas. Only the known null-return and uint8-signedness artifacts diverged."
+        },
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary-slotperturb-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Step-4 storage snapshot is identical to step-0 on both chains ([1,157,7837] EVM / [-99,1,7837] polkadot, differing only by the known uint8 signedness artifact on flag) after runLoop(1500000) from bob: the 1.5M call failed identically (storage untouched) at default budgets on both chains, with no revert-reason divergence. Only the known null-return and int8-signedness artifacts diverged; the identical-failure claim survives an independent re-run with a storage-only oracle."
+        },
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary-slotperturb-p1",
+          "verdict": "DIVERGENCE",
+          "note": "With an n=512 baseline call instead of n=1000, runLoop(1500000) from bob left storage identical to post-step-0 on both chains ([1,148,3988] EVM / [-108,1,3988] polkadot, differing only by the known int8 signedness artifact on flag = 3988 mod 256 = 148): count stayed 1 and lastResult stayed 3988, so the 1.5M call failed identically at default budgets on both chains with no revert-reason divergence. This is the second independent confirmation that no natural metering asymmetry exists at this boundary."
+        }
+      ],
+      "next_probe": "Run a new spec 'gas-meter-loop-boundary-storageonly' with an oracle that compares only post-call count/lastResult storage, Looped events, and revert_reasons (no call return comparison at any step), sweeping runLoop n in {1_100_000, 1_250_000, 1_500_000} at default budgets on both chains; check whether the previously observed identical failure at 1.5M holds across the sweep or a natural asymmetry emerges."
+    },
+    {
+      "id": "h4",
+      "statement": "Deep Solidity internal recursion (depth up to at least 10000, including the depth%11==5 skip pattern) is not limited by the EVM 1024 call-depth cap on either toolchain (internal calls are plain jumps/gas cost only), so both chains agree on return values and storage as long as gas budgets are met; divergence from metering should only appear once an explicit gas cap makes EVM exhaust gas while pallet-contracts weight metering permits completion.",
+      "status": "open",
+      "confidence": "high",
+      "evidence": [
+        {
+          "probe": "recursion-depth-metering-asymmetry",
+          "verdict": "PASS",
+          "note": "Depths 2048 and 10000 passed identically, showing internal recursion depth itself never triggers a divergence; the only remaining axis for asymmetry is gas/weight exhaustion."
+        }
+      ],
+      "next_probe": "Since 'execution': 'on-chain' does not bypass the dry-run return check (gas-meter-loop-1p5m-cross-boundary-p1 aborted at step 0 anyway), instead deploy the add/mul/shift-only loop variant and compare it under an explicit EVM gas cap near 95% of the measured requirement using a storage/events-only oracle (count, lastResult, LoopResult events, revert_reasons) so no return value is ever compared; that isolates gas-cap metering asymmetry from the div/mod null artifact."
+    },
+    {
+      "id": "h5",
+      "statement": "Pallet-contracts returns null (instead of the correct value) for runLoop calls whose loop body contains div/mod arithmetic, even at n=1000 and even when the spec requests on-chain execution; EVM returns the correct value (7837). Since the identical loop family agreed exactly up to 1M iterations in prior on-chain probes, this null return is a call-return/estimation artifact tied to this contract shape, not a semantic divergence, and agreement must be judged from post-call storage (count/lastResult) and events rather than return values.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0 dry-run: EVM returned 7837, Polkadot returned null at only n=1000, triaged as known_semantic. Since the same loop family agreed exactly up to 1M iterations in metering-unbounded-loop-recursion-p1, a null Polkadot return at n=1000 cannot be a real metering/semantic failure; it is a dry-run simulation artifact."
+        },
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary-p2",
+          "verdict": "DIVERGENCE",
+          "note": "Re-run of the boundary test still blocked at step 0: RETURN_MISMATCH with evm=7837 vs polkadot=null for runLoop(1000), despite the spec specifying on-chain execution. The artifact is reproducible and independent of the dry-run vs on-chain distinction, so it must be neutralized (or return values ignored) before any >1M metering-boundary test can complete."
+        },
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary-mask8191",
+          "verdict": "DIVERGENCE",
+          "note": "Third independent reproduction: even with a spec explicitly requesting on-chain execution and a mutated loop body (added (i & 8191)==4 continue mask), Polkadot returned null for runLoop(1000) while EVM returned 7820 (the value differs from the prior 7837 only because the body changed, confirming the EVM side tracks the mutation). The null is pinned to the div/mod-containing body shape and is a harness/estimation artifact, not a semantic divergence; the >1.5M metering boundary remains untested because step 0 blocks the spec."
+        }
+      ],
+      "next_probe": "Re-run this exact spec with on-chain execution only (no dry-run) or ignore the dry-run return and compare post-call count/lastResult storage on both chains at n=1000 and n=1500000; if storage agrees, the null dry-run is confirmed as a harness artifact."
+    },
+    {
+      "id": "h6",
+      "statement": "The Polkadot null-return artifact is triggered by the div/mod-heavy loop body of the GasMeterLoop family and is robust to storage-layout perturbation: a mutated contract with a reordered layout and an added public uint8 flag slot still returns null at n=1000 while EVM returns 7837. The artifact is independent of iteration count, call size, branch/continue structure, and storage layout; add/mul/shift-only bodies at the same n are expected to return normally, and agreement must be judged from post-call storage and events (which confirm the call actually executes on polkadot).",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary-p2",
+          "verdict": "DIVERGENCE",
+          "note": "The null return recurs deterministically at the trivially small n=1000 for the div/mod-heavy body, while other contracts with add/mul-only loop bodies (runNested, runLoop variants in metering-unbounded-loop-recursion-p1 used div/mod too but returned correctly on-chain) returned correct values \u2014 pointing at body-shape dependence rather than gas estimation."
+        },
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary-mask8191",
+          "verdict": "DIVERGENCE",
+          "note": "Mutating the loop body (continue on (i&8191)==4, different EVM result 7820 vs 7837) did not change the null Polkadot return at n=1000, ruling out branch-structure or result-magnitude triggers and isolating div/mod presence as the remaining suspect feature of the body."
+        },
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary-slotperturb",
+          "verdict": "DIVERGENCE",
+          "note": "A layout-perturbed variant (new flag slot, same div/mod body) reproduced RETURN_MISMATCH evm=7837 vs polkadot=null at n=1000, while polkadot storage shows lastResult=7837 was actually written \u2014 proving the call executes and only the return value is nulled, and that layout mutation does not clear the artifact."
+        },
+        {
+          "probe": "control-flow-add-shift-loop-nondiv-p0",
+          "verdict": "PASS",
+          "note": "A GasMeterLoop variant whose body replaces div/mod with add/mul/shift/xor/and arithmetic plus an early break (acc == 0 after &15) passed cleanly at n=1000: identical return value, count, lastResult, and matching LoopResult events on both chains, with a non-null Polkadot return. This is exactly the prediction in h6's next_probe \u2014 the null-return artifact is triggered specifically by the div/mod-containing body shape, not by loop structure, iteration count, or result magnitude."
+        }
+      ],
+      "next_probe": "Deploy a variant of GasMeterLoopBoundary whose loop body replaces 'acc/5' and '%17' with add/mul/shift-only arithmetic (e.g. acc = acc + ((i*3) ^ (acc>>2)) & 15), call it at n=1000 on both chains, and check whether the Polkadot return is non-null while storage/events still agree."
+    },
+    {
+      "id": "h7",
+      "statement": "The storage oracle reports the uint8 flag slot with a signedness asymmetry: pallet-contracts decodes flag as a signed int8 (-99) where EVM reports the unsigned value 157 (= 7837 mod 256 = 0x9d, and -99 = 157 - 256). count and lastResult agree exactly (1 and 7837), so the on-chain bytes are almost certainly identical and this is a signedness decoding artifact on the pallet reporting path, not a storage-write divergence; flag uint8 values >= 128 will all appear as negative on polkadot.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary-slotperturb",
+          "verdict": "DIVERGENCE",
+          "note": "STORAGE_MISMATCH (mode=count) at steps 0 and 4: EVM multiset ['1','157','7837'] vs polkadot ['-99','1','7837']; the -99 vs 157 pair differs by exactly 256, i.e. int8 vs uint8 decoding of the same byte 0x9d. count and lastResult match, so the write itself agreed."
+        },
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary-mut-u8flag",
+          "verdict": "DIVERGENCE",
+          "note": "h7's exact proposed boundary-value probe was executed on-chain: setFlag(128) was read as 128 on EVM but -128 on pallet-contracts, and setFlag(255) as 255 vs -1. Step 0's runLoop(1000) again showed 157 vs -99 (0x9d int8-decoded). count and lastResult agreed exactly at every step (1 and 7837), proving identical on-chain bytes and pinning the divergence to int8 signedness on the pallet storage-reporting path for every uint8 value >= 128, exactly as h7 predicted."
+        }
+      ],
+      "next_probe": "Write known uint8 boundary values (0, 1, 127, 128, 255) into a public uint8 slot via a setter, then compare (a) the auto-generated getter's return and (b) the raw slot bytes read from each chain, checking that EVM reports 128..255 unsigned while polkadot reports them as -128..-1."
+    },
+    {
+      "id": "h8",
+      "statement": "The harness runs an unconditional dry-run return comparison for every call step regardless of oracle config and regardless of 'execution': 'on-chain'; when the dry-run itself succeeds the check passes silently (slotperturb-p1 at n=512 produced no RETURN_MISMATCH at all and the spec ran to completion), and when the dry-run null artifact fires the resulting RETURN_MISMATCH is recorded but non-fatal: slotperturb-p0/p1 show later steps (including the 1.5M call) still execute and their storage is compared. The dry-run return check therefore only produces visible divergences above the artifact's iteration threshold; the earlier 'step 0 aborts the spec' framing was a misinterpretation.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary-p1",
+          "verdict": "DIVERGENCE",
+          "note": "Despite 'execution': 'on-chain' in the spec, step 0 was aborted by RETURN_MISMATCH evm=7837 vs polkadot=null at n=1000 (dry-run return comparison), preventing the intended 1.5M on-chain boundary test from running at all. This is the fourth spec (with -p2, -mask8191, -slotperturb) killed at step 0 by the same artifact, and the first to show definitively that on-chain execution does not skip the dry-run return check."
+        },
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary-slotperturb-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Oracle configured with storage:'count', events:true, revert_reasons:true (no return comparison) and execution:'on-chain', yet step 0 still produced RETURN_MISMATCH evm=7837 vs polkadot=null \u2014 confirming the dry-run return check is unconditional. Crucially, step-4 STORAGE_MISMATCH was also reported, meaning the spec continued past step 0 and the 1.5M call's effects were compared; RETURN_MISMATCH is recorded but non-fatal, contradicting the 'aborted at step 0' interpretation in earlier evidence."
+        },
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary-slotperturb-p1",
+          "verdict": "DIVERGENCE",
+          "note": "With the same oracle config (storage:'count', events, revert_reasons, no return comparison) and execution:'on-chain' as slotperturb-p0, but n=512 at step 0, no RETURN_MISMATCH was reported and all steps including the 1.5M call ran; the only divergences were the known signedness STORAGE_MISMATCHes. This shows the dry-run return check passes silently below the null-artifact threshold, complementing p0's demonstration that the mismatch is non-fatal above it."
+        },
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary-slotperturb-p2",
+          "verdict": "DIVERGENCE",
+          "note": "Exact replication of slotperturb-p0 (n=1000 at step 0, storage/events/revert_reasons oracle, execution 'on-chain'): RETURN_MISMATCH at step 0 was recorded yet the spec continued \u2014 step-4 STORAGE_MISMATCH was also reported, proving the 1.5M call executed and its effects were compared. The dry-run return check is unconditional and non-fatal; the earlier 'aborted at step 0' framing is definitively refuted."
+        }
+      ],
+      "next_probe": "Re-run gas-meter-loop-1p5m-cross-boundary-p1 with the oracle stripped of any return-value comparison (storage: [count, lastResult], events: true, revert_reasons: true) and identical steps; if the spec now completes all 6 steps and storage agrees at n=1000 and n=1500000, the abort mechanism is confirmed to be the dry-run return check, not on-chain semantics."
+    },
+    {
+      "id": "h9",
+      "statement": "The Polkadot dry-run null-return artifact for the div/mod loop body is iteration-count dependent, not purely body-shape dependent: at n=512 the same GasMeterLoopBoundaryLayout body returns the correct value (3988) on polkadot with no RETURN_MISMATCH, while every run at n=1000 returned null. The artifact therefore has a threshold between 512 and 1000 iterations for this contract (plausibly a dry-run gas-estimation or block-limit cutoff rather than a semantic failure), so null-return triage must record the call's n and body gas cost rather than assuming body-shape alone determines the artifact.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary-slotperturb-p1",
+          "verdict": "DIVERGENCE",
+          "note": "Unlike all prior runs of this family (n=1000 at step 0, always RETURN_MISMATCH evm vs null), the n=512 step-0 call produced no RETURN_MISMATCH at all: only the two known signedness STORAGE_MISMATCHes were reported, and the correct value 3988 was written by both chains. Since the div/mod body is unchanged, the null artifact must switch on between 512 and 1000 iterations, contradicting the 'independent of iteration count/call size' clause recorded in h5/h6."
+        },
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary-slotperturb-p2",
+          "verdict": "DIVERGENCE",
+          "note": "Controlled A/B with slotperturb-p1: identical spec, same div/mod body, only step-0 n differs (512 in p1 \u2192 no RETURN_MISMATCH, correct value 3988 on both chains; 1000 in p2 \u2192 RETURN_MISMATCH evm=7837 vs polkadot=null). This pins the null-artifact threshold for this contract strictly between 512 and 1000 iterations, confirming the artifact is iteration-count dependent and triage must record n and body gas cost."
+        }
+      ],
+      "next_probe": "Bisect the threshold with dry-run calls at n in {640, 704, 768, 832} on polkadot for this contract, recording at each n whether the return is null or the correct acc value plus the reported dry-run gas estimate; two or three bisection rounds should pin the switch point within ~64 iterations."
+    },
+    {
+      "id": "h10",
+      "statement": "The Polkadot dry-run null-return artifact for the div/mod loop body switches on at a gas-estimation/block-limit cutoff, not at a fixed iteration count per se: the threshold is narrowed to 512 < iterations <= 896 for this contract family, and the lower bound is reconfirmed under an independent off-by-one mutation (an i<=n bound running exactly 512 iterations at n=511 returned the correct value with no RETURN_MISMATCH). A more expensive body should null at a lower iteration count and a cheaper body at a higher one; if the threshold scales inversely with per-iteration gas cost and correlates with the reported dry-run gas estimate, the artifact is a dry-run resource limit rather than a semantic or shape-dependent bug.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary-slotperturb-p2",
+          "verdict": "DIVERGENCE",
+          "note": "Step-4 storage identical to step-0 on both chains after runLoop(1500000) (count=1, lastResult=7837 unchanged) with no revert-reason divergence \u2014 a fourth independent replication that the 1.5M call fails identically at default budgets, so no natural metering asymmetry exists at this boundary. Together with p1/p2's A/B, the only open question left in this family is the mechanism (gas-limit cutoff) behind the null artifact."
+        },
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary-slotperturb-n896",
+          "verdict": "DIVERGENCE",
+          "note": "At n=896 the div/mod body produced RETURN_MISMATCH evm=7005 vs polkadot=null at step 0 (recorded but non-fatal; the spec continued and no storage/event/revert divergence was reported, since flag = 7005 mod 256 = 93 has no int8 signedness ambiguity). Combined with slotperturb-p1 (n=512, correct return 3988, no mismatch), the null-artifact threshold is narrowed from (512,1000] to (512,896]."
+        },
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary-slotperturb-leq-pow2",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0 ran 512 iterations via the mutated i<=n bound at n=511 and produced no RETURN_MISMATCH (correct acc=4038 written and returned on both chains), independently reconfirming the 512-iteration lower edge of the null-artifact threshold under a different loop-bound shape; the only divergences were the two known int8-signedness STORAGE_MISMATCHes (198 vs -58 = 4038 mod 256)."
+        }
+      ],
+      "next_probe": "Finish the bisection with dry-run calls at iterations {640, 768, 832} on polkadot for the div/mod body, recording null-vs-correct return plus the reported dry-run gas estimate at each point; then run the add/mul/shift-only body at iterations {1024, 1536, 2048} and check whether its null threshold sits at proportionally higher iteration counts, tying the cutoff to body gas cost."
+    },
+    {
+      "id": "h11",
+      "statement": "The identical-failure regime at default budgets extends across the power-of-two boundary: with an i<=n loop bound (so iterations = n+1), runLoop(1048576) = 1,048,577 iterations left storage untouched on both chains (step-4 snapshot identical to post-step-0: count=1, lastResult=4038, flag 198 vs -58 being only the known int8 signedness artifact), with no revert-reason divergence and no RETURN_MISMATCH at the 512-iteration step 0. Both chains pass at 1,000,000 iterations and fail identically by 1,048,577, narrowing the previously untested window (1M, 1.5M) to (1,000,000, 1,048,577] iterations; even/odd n and 2^k boundary alignment are both ruled out as relevant structure.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary-slotperturb-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Step-4 storage snapshot after runLoop(1500001) from bob is identical to post-step-0 on both chains ([1,157,7837] EVM / [-99,1,7837] polkadot, differing only by the known int8 signedness artifact on flag = 7837 mod 256): count stayed 1 and lastResult stayed 7837, so the 1.5M+1 call failed identically at default budgets with no revert-reason divergence. Only the known null-return (step 0, n=1000) and int8-signedness artifacts diverged; this is a fifth independent confirmation of identical natural failure, now at an odd n ruling out modulo-structure coincidence."
+        },
+        {
+          "probe": "gas-meter-loop-1p5m-cross-boundary-slotperturb-leq-pow2",
+          "verdict": "DIVERGENCE",
+          "note": "The <=-mutated bound (i<=n) ran 512 iterations at step 0 (returned correctly on both chains, no RETURN_MISMATCH, acc=4038) and 1,048,577 iterations at step 4; the step-4 storage snapshot is identical to post-step-0 on both chains ([1,198,4038] EVM / [-58,1,4038] polkadot, -58 = 198-256 being the known int8 signedness artifact), so the ~1.05M-iteration call failed identically at default budgets with no revert-reason divergence. Only the two known signedness STORAGE_MISMATCHes were reported. This is a sixth independent confirmation of identical natural failure and the first data point inside the old (1M, 1.5M) window, shifting the upper edge of the pass regime down from 1.5M to <=1,048,577 iterations."
+        }
+      ],
+      "next_probe": "Bisect the pass/fail transition with the i<=n contract at default budgets using a storage/events/revert_reasons-only oracle: runLoop n in {1_020_000, 1_040_000, 1_048_000} (i.e. 1,020,001..1,048,001 iterations), checking post-call count/lastResult storage to find the smallest n where both chains begin to fail identically, and whether any n in the window shows one chain succeeding while the other fails."
+    }
+  ],
+  "updated_ts": 1794318293.3019974
+}

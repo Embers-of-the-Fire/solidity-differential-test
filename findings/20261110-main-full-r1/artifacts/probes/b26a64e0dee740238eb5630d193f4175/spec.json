@@ -1,0 +1,59 @@
+{
+  "name": "int-sdiv-smod-minus-one-widths-p3-int8calldata",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract IntDivOverflowWidths {\n    uint256 public count;\n    int8 public last8;\n\n    function div8(int8 x, int8 y) external returns (int8) {\n        int8 r = x / y;\n        count += 1;\n        last8 = r;\n        return r;\n    }\n\n    function okDiv8() external returns (int8) {\n        int8 r = int8(-7) / int8(2);\n        count += 1;\n        last8 = r;\n        return r;\n    }\n}",
+  "contract": "IntDivOverflowWidths",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "div8",
+      "args": [
+        -128,
+        -1
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "div8",
+      "args": [
+        -128,
+        -1
+      ],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "okDiv8",
+      "args": [],
+      "sender": "charlie",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "last8"
+    },
+    {
+      "action": "query",
+      "function": "count"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "0645822dd4f228a0",
+    "origin": "mutated_llm"
+  }
+}

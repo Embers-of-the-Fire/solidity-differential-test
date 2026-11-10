@@ -1,0 +1,55 @@
+{
+  "name": "crypto-hash-ecrecover-mixed",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract CryptoBuiltinsProbe {\n    bytes32 public kPacked;\n    bytes32 public kEncoded;\n    bytes32 public sPacked;\n    bytes20 public rPacked;\n    address public rec27;\n    address public rec0;\n\n    event Ran(bytes20 ripe, address rec27, address rec0);\n\n    function run() public {\n        kPacked = keccak256(abi.encodePacked(uint8(255), uint16(513), uint64(0xdeadbeef), uint256(1)));\n        kEncoded = keccak256(abi.encode(uint8(255), uint16(513), uint64(0xdeadbeef), uint256(1)));\n        sPacked = sha256(abi.encodePacked(uint8(255), uint16(513), uint64(0xdeadbeef), uint256(1)));\n        rPacked = ripemd160(abi.encodePacked(uint8(255), uint16(513), uint64(0xdeadbeef), uint256(1)));\n        rec27 = ecrecover(kEncoded, 27, bytes32(uint256(1)), bytes32(uint256(1)));\n        rec0 = ecrecover(kEncoded, 0, bytes32(uint256(1)), bytes32(uint256(1)));\n        emit Ran(rPacked, rec27, rec0);\n    }\n}",
+  "contract": "CryptoBuiltinsProbe",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "run",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "kPacked"
+    },
+    {
+      "action": "query",
+      "function": "kEncoded"
+    },
+    {
+      "action": "query",
+      "function": "sPacked"
+    },
+    {
+      "action": "query",
+      "function": "rPacked"
+    },
+    {
+      "action": "query",
+      "function": "rec27"
+    },
+    {
+      "action": "query",
+      "function": "rec0"
+    }
+  ],
+  "meta": {
+    "parent_id": null,
+    "origin": "generated"
+  },
+  "execution": "on-chain"
+}

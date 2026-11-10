@@ -1,0 +1,63 @@
+{
+  "name": "env-vars-blocknumber-timestamp-only-m3-sender-uint160",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract EnvProbe {\n    uint256 public numberSeen;\n    uint256 public timeSeen;\n    address public lastBy;\n\n    event Snapshot(uint256 number, uint256 timestamp, uint256 senderId);\n\n    function snapshot() public {\n        uint256 n = block.number;\n        numberSeen = n;\n        timeSeen = block.timestamp;\n        lastBy = msg.sender;\n        emit Snapshot(n, block.timestamp, uint256(uint160(msg.sender)));\n    }\n\n    function getNumber() public view returns (uint256) {\n        return block.number;\n    }\n\n    function getTime() public view returns (uint256) {\n        return block.timestamp;\n    }\n\n    function nextNumber() public view returns (uint256) {\n        return block.number + 1;\n    }\n\n    function lastById() public view returns (uint256) {\n        return uint256(uint160(lastBy));\n    }\n}",
+  "contract": "EnvProbe",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "snapshot",
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "lastBy"
+    },
+    {
+      "action": "query",
+      "function": "lastById"
+    },
+    {
+      "action": "call",
+      "function": "snapshot",
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "lastBy"
+    },
+    {
+      "action": "query",
+      "function": "lastById"
+    },
+    {
+      "action": "query",
+      "function": "numberSeen"
+    },
+    {
+      "action": "query",
+      "function": "timeSeen"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "c288d09e58e91f19",
+    "origin": "mutated_llm"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "int-sdiv-minus-one-unchecked-const-p1",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract UncheckedConstDiv {\n    int16 public folded;\n    uint256 public count;\n\n    function uncheckedDiv() external returns (int16) {\n        unchecked {\n            int16 x = type(int16).min / int16(-1);\n            folded = x;\n            count += 1;\n            return x;\n        }\n    }\n}",
+  "contract": "UncheckedConstDiv",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "uncheckedDiv",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "folded"
+    },
+    {
+      "action": "query",
+      "function": "count"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "0645822dd4f228a0",
+    "origin": "mutated_llm"
+  }
+}

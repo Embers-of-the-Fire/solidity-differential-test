@@ -1,0 +1,524 @@
+{
+  "seed_id": "events",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "Indexed dynamic-type event arguments (string, bytes) are Keccak-256 hashed in EVM logs (solang reports the 32-byte hash) but returned verbatim as inline values by pallet-contracts. This applies to empty values too: EVM reports keccak256('')=0xc5d246..., Polkadot reports ''.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-multi-dyn",
+          "verdict": "DIVERGENCE",
+          "note": "tag 'alpha' -> 0x6dfc21ac... on EVM vs 'alpha' on Polkadot; blob 0xdeadbeef -> 0xd4fd4e18... vs 0xdeadbeef; empty blob -> keccak256('') vs ''."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn",
+          "verdict": "DIVERGENCE",
+          "note": "All predictions verified: 'hello'->0x1c8aff95... on EVM vs 'hello' inline on Polkadot; 32-byte blob -> 0x52b3f53f... vs raw; empty string/bytes -> keccak256('')=0xc5d246... vs ''; 43-byte string (>32) hashed on EVM confirming hashing is not length-dependent. Crucially, the unindexed siblings in the SAME event (sVal, bVal) matched across chains ('hello'='hello', 0xdeadbeef=0xdeadbeef), so only the indexed position diverges, exactly as hash-vs-raw."
+        }
+      ],
+      "next_probe": "Emit an event with the same string/bytes values as both indexed and unindexed args in one event; verify the unindexed (data-field) values match across chains while indexed ones diverge exactly as hash-vs-raw, and test a >32-byte string to confirm hashing is not length-dependent."
+    },
+    {
+      "id": "h2",
+      "statement": "Event emission order within a single call is preserved identically across solc/EVM and solang/pallet-contracts, including repeated emits of the same event interleaved with other events.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-multi-dyn",
+          "verdict": "DIVERGENCE",
+          "note": "Despite arg mismatches, the sequence Single, Multi, WithBytes, Single was identical on both chains at both steps; unindexed uint256 'plain' and 'value' args matched everywhere."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-count123-order",
+          "verdict": "PASS",
+          "note": "All three steps emitted a 5-event burst (One, Two, Three, One, Two) and the decoded sequence was identical on both chains at every step, including repeated emissions of the same event with identical args (One and Two each appear twice). No dedup/coalescing of identical consecutive events on either side. Combined with the earlier probes this is a third independent replication: within-call emission order (including interleaved repeats) is fully preserved across solc/EVM and solang/pallet-contracts."
+        }
+      ],
+      "next_probe": "Have the probe contract call an external helper contract that also emits events, and check cross-contract emission ordering (parent-emitted-then-child vs child-then-parent) in the decoded event stream."
+    },
+    {
+      "id": "h3",
+      "statement": "Address-typed indexed event args are rendered in different encodings: EVM reports 0x-prefixed 20-byte hex, pallet-contracts reports SS58 (base58) format of the mapped account. This may be a pure oracle normalization artifact rather than a semantic divergence, since both correspond to the same sender.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-multi-dyn",
+          "verdict": "DIVERGENCE",
+          "note": "alice reported as 0x70997970c51812dc3a010c7d01b50e0d17dc79c8 (EVM) vs 5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty (Polkadot); bob similarly. Same accounts, different textual encoding."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-addridx-fixed",
+          "verdict": "DIVERGENCE",
+          "note": "Exactly as predicted by h3's next_probe: hardcoded address literal address(uint160(0x1234)) rendered as 0x0000000000000000000000000000000000001234 on EVM but as SS58 5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuywopL4 on Polkadot. The SS58 value is byte-consistent across all 3 steps (deterministic H160->SS58 mapping), and msg.sender addresses (alice/bob/charlie) similarly rendered as hex vs SS58 each time. Triage category oracle_artifact: both encodings correspond to the same H160, no semantic divergence. getN returned 3 on both chains with no RETURN_MISMATCH. This confirms the address-indexed-arg rendering difference is a pure oracle normalization artifact, not value-dependent."
+        }
+      ],
+      "next_probe": "Emit an event with a hardcoded address literal constant (e.g., address(0x1234...)) as an indexed arg so both chains must report a fixed H160; check whether Polkadot renders it as the same hex H160, an SS58 translation, or a truncated form."
+    },
+    {
+      "id": "h4",
+      "statement": "The oracle renders bytes values differently per chain: the EVM oracle always renders bytes as 0x-hex, while the Polkadot oracle renders bytes as a decoded UTF-8 string when the content is valid UTF-8 (e.g., 0x01..0x20 became control-char string \"\\u0001...\\u0020\") and falls back to hex when not valid UTF-8 (0xdeadbeef stayed hex on both). This is an oracle normalization artifact, not a semantic divergence, since the underlying bytes are identical (getLast returned the same logical value on both chains).",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-vs-unindexed-dyn",
+          "verdict": "DIVERGENCE",
+          "note": "Step 2: bVal 0x0102...1f20 rendered as control-char string on Polkadot vs hex on EVM (RETURN_MISMATCH on getLast despite identical logical value). Step 0: 0xdeadbeef (invalid UTF-8) rendered identically as hex on both. Boundary appears to be UTF-8 validity, not length."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Step1: both the indexed bIdx AND the unindexed bVal bytes (0x01..0x20) rendered as the same control-char string on Polkadot vs hex on EVM, showing the UTF-8-decode rendering is positional-independent (applies to event data field, not just one arg slot). Step0 0xdeadbeef stayed hex on both, reconfirming the UTF-8-validity boundary."
+        }
+      ],
+      "next_probe": "Have contract A call an external contract B passing bytes args (0x68656c6c6f and 0xff00ff) and return them; check whether the Polkadot oracle renders the UTF-8-valid call arg/return as 'hello' and the non-UTF-8 one as hex, completing coverage of all bytes decode surfaces (event args both positions, returns, call args)."
+    },
+    {
+      "id": "h5",
+      "statement": "Storage physical encoding for string/bytes state diverges between chains, but the observable nonzero-entry COUNT divergence is value-size dependent, not constant: for small short-string-packed values ('hello' / 0xdeadbeef) EVM and Polkadot both show 2 nonzero entries (values differ but counts match); divergence appears once values exceed the 31-byte short-string threshold (43-byte string + 32-byte bytes: EVM=5 vs Polkadot=2) or when a previously-long value is overwritten with empty (EVM keeps 2 stale slots, Polkadot compacts to 0). EVM's nonzero-entry count is write-history-dependent (monotonic within a variable's lifetime); Polkadot's reflects only the current logical value.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-vs-unindexed-dyn",
+          "verdict": "DIVERGENCE",
+          "note": "Storage count mode: step 1 (empty values written) EVM=2 nonzero entries vs Polkadot=0; step 2 (43-byte string + 32-byte bytes) EVM=5 vs Polkadot=2. Same logical state, different physical slot encoding \u2014 consistent with EVM length-prefixed short-string packing plus keccak-based spill slots vs compact Polkadot encoding."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Sequence hello/0xdeadbeef (step0) -> 43-char string+32-byte blob (step1: EVM=5, Polkadot=2) -> empty/empty (step2: EVM still 5 with byte-identical values to step1, Polkadot=0). The empty write left EVM's old spill slots and length words untouched; Polkadot compacted to zero entries. EVM nonzero-entry count is write-history-dependent (monotonic within a variable's lifetime), Polkadot reflects only current logical value."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-p1",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0 (hello/0xdeadbeef): STORAGE_MISMATCH with equal counts (EVM=2, Polkadot=2) but different slot values \u2014 proving count parity holds for short-string-packed data and that a count-only oracle can miss encodings. Step 1 (empty/empty overwrite): EVM still 2 nonzero entries (stale length/spill slots), Polkadot=0. Step 2 (43-char string + 32-byte blob): EVM=5 vs Polkadot=2, matching prior probes. Sequence confirms EVM count never shrinks after large writes while Polkadot tracks current value."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-p3",
+          "verdict": "DIVERGENCE",
+          "note": "Third independent replication of the storage-count pattern: step 0 (hello/0xdeadbeef) EVM=2 vs Polkadot=2 (counts match, slot values differ); step 2 (empty/empty overwrite of small values) EVM still 2 nonzero entries with values BYTE-IDENTICAL to step 0 (stale short-string/length slots untouched by the empty write) vs Polkadot=0 (compacted away); step 3 (43-byte string + 32-byte blob) EVM=5 vs Polkadot=2. The monotonic-write-history claim is directly visible: EVM's multiset after step 2 equals its step-0 multiset exactly, proving empty writes do not clear previously-written small-value slots, while Polkadot's count tracks only the current logical value."
+        }
+      ],
+      "next_probe": "Store fixed 1-byte, 31-byte, and 32-byte strings in separate variables, then read raw storage per slot via a debug getter (or compare nonzero-entry counts after each write) to map EVM's short-string packing vs Polkadot's layout at the 32-byte boundary."
+    },
+    {
+      "id": "h6",
+      "statement": "The oracle renders EMPTY bytes values differently: EVM renders bytes() as '0x' while the Polkadot oracle renders it as '' (empty string), in both event args and function return values. This affects divergence detection: an empty-bytes write produces a spurious mismatch (RETURN_MISMATCH / EVENT_MISMATCH) even though the logical value is identical.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Step2 event: EVM bIdx/bVal = '0x' vs Polkadot '' (empty string sIdx/sVal matched as '' on both, so it is specifically empty bytes, not empty string). Step3 getLast return: EVM ['', '0x'] vs Polkadot ['', '']; the tuple diverged solely on empty-bytes encoding while empty string matched."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-p1",
+          "verdict": "DIVERGENCE",
+          "note": "Step 1 (empty/empty write): EVM rendered empty bytes as '0x' and Polkadot as '' in BOTH the indexed (bIdx) and unindexed (bVal) positions of the same event, while empty string sIdx/sVal was '' on both chains. This pins the artifact specifically to empty BYTES (not empty string) and shows it is positional-independent within event args, exactly as h6 predicted for event decode paths."
+        }
+      ],
+      "next_probe": "Emit an event carrying bytes() alongside a return of bytes() from the same call, and also pass bytes() as a non-indexed arg to an external contract call; check whether the '0x'-vs-'' mismatch appears uniformly across event args, returns, and call args, or only in some decode paths."
+    },
+    {
+      "id": "h7",
+      "statement": "All event-argument divergences observed in the indexed/unindexed dynamic-args family are fully explained by three already-known artifacts with no residual semantic divergence: (a) indexed string/bytes are Keccak-hashed on EVM but inline on Polkadot (h1), (b) UTF-8-valid bytes are rendered as decoded strings by the Polkadot oracle (h4), (c) empty bytes render as '0x' vs '' (h6). Unindexed string values, empty strings, and per-call event emission order always agree across chains.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-p1",
+          "verdict": "DIVERGENCE",
+          "note": "Step-by-step audit: step 0 mismatch only on indexed args (hashed vs raw) \u2014 unindexed sVal/bVal matched; step 1 mismatch only on indexed hash + empty-bytes '0x'-vs-'' rendering; step 2 mismatch only on indexed hash + UTF-8 string rendering of 0x01..0x20; step 3 RETURN_MISMATCH solely on the bytes element (string matched). The 43-byte string sVal matched verbatim on both chains, so no length-dependent string handling exists beyond the indexed-hash rule."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-p2",
+          "verdict": "DIVERGENCE",
+          "note": "Full step-by-step audit again matches the three-artifact consolidation: step 0 divergence only on indexed args (keccak 'hello'=0x1c8aff95..., keccak 0xdeadbeef=0xd4fd4e18... vs inline), unindexed sVal/bVal matched; step 1 divergence only on indexed empty values (keccak256('')=0xc5d246... vs '') plus empty-bytes '0x'-vs-'' on bVal while empty string sVal='' matched on both; step 2 divergence only on indexed hash plus UTF-8 control-char rendering of 0x01..0x20 (applied identically to indexed bIdx and unindexed bVal, positional-independent per h4), while the 43-byte unindexed string matched verbatim; steps 3-4 RETURN_MISMATCH solely on the bytes element (string matched) and the duplicate getLast query produced byte-identical results. Storage counts also tracked h5 exactly (2=2, then EVM stale 2 vs 0, then 5 vs 2). No residual semantic divergence detected anywhere in the family."
+        }
+      ],
+      "next_probe": "Emit an event whose args include a non-UTF-8 bytes value >32 bytes (e.g., 0xff followed by 40 bytes) as both indexed and unindexed: h1 predicts indexed divergence (hash vs raw) while the unindexed value must match as hex on both chains (h4 boundary at UTF-8 validity, not length) \u2014 any mismatch on the unindexed non-UTF-8 value would refute this consolidation."
+    },
+    {
+      "id": "h8",
+      "statement": "Cross-contract event emission ordering is preserved depth-first in the decoded event stream: if a parent contract emits E1, calls a child that emits C1, then emits E2, both chains should report E1, C1, E2. A divergence here (e.g., pallet-contracts grouping by contract or re-parenting child events) would be the first evidence that event ordering is not always chain-equivalent, since all ordering evidence so far is single-contract only.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-count123-order",
+          "verdict": "PASS",
+          "note": "Single-call ordering robustly confirmed (3rd replication), so the only remaining ordering risk is cross-contract nesting, which no probe in this family has exercised."
+        }
+      ],
+      "next_probe": "Deploy a helper contract with an emit function; the parent emits event E1(uint), calls helper.emitC() which emits C1(uint), then emits E2(uint). Compare the full decoded event sequences on both chains."
+    },
+    {
+      "id": "h9",
+      "statement": "The Polkadot oracle's UTF-8-decode rendering of bytes (h4) applies uniformly to function RETURN values, and the non-UTF-8 fallback to hex holds on every surface tested: get() returning 0x68656c6c6f ('hello') rendered as hex on EVM vs the decoded string 'hello' on Polkadot (RETURN_MISMATCH), while 0xff00ff (invalid UTF-8) produced NO event or return mismatch on either chain. Together with h4/h6 this means all bytes decode paths (indexed args, unindexed args, returns) follow a single rule: UTF-8-valid -> decoded string on Polkadot only; invalid -> hex on both. It is purely presentational: storage counts matched (1=1) and only slot encodings differed (Polkadot slot = 478560413032 = 0x6f6c6c6568, the 5 bytes little-endian without length prefix; EVM slot = keccak-based spill value), so the logical value stored was identical.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-bytes-utf8-return",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0 event Blob(0x68656c6c6f): EVM '0x68656c6c6f' vs Polkadot 'hello' (exact h4 prediction, now on a dedicated single-bytes-arg event). Step 1 get() return: same hex-vs-'hello' divergence, proving the UTF-8 decode is not event-specific. Step 2 set(0xff00ff): NO EVENT_MISMATCH and NO RETURN_MISMATCH anywhere, confirming the fallback boundary is UTF-8 validity (h4), not length (3-byte non-UTF-8 value). Storage counts matched at every step (1=1); slot values differed only in physical encoding (Polkadot 478560413032 = little-endian 'hello' sans length prefix; EVM hash-like spill slot), consistent with h5's count-parity claim for sub-31-byte values."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Step 4 getLast() return: the 43-char string element matched verbatim on both chains while the bytes element 0x0102...1f20 (valid UTF-8 control chars, non-printable) was rendered as the decoded control-char string on Polkadot vs hex on EVM (RETURN_MISMATCH solely on the bytes element). This extends h9 beyond the printable 'hello' case: the Polkadot oracle UTF-8-decodes even non-printable-but-valid UTF-8 byte sequences on the return surface, and the fallback boundary is UTF-8 validity, not printability or length. Storage at step 0 corroborated h9's earlier encoding note (Polkadot slot 478560413032 = little-endian 'hello' without length prefix; counts matched 1=1 in the single-bytes variant and 2=2 here). The returns-surface claim of h9 is now fully supported; only the external call-arg surface remains unexercised."
+        }
+      ],
+      "next_probe": "Call an external helper contract passing bytes(0x68656c6c6f) as an argument and return the same bytes; verify the Polkadot oracle renders 'hello' on the call-arg/return surface too while 0xff00ff stays hex, and check the empty-bytes '0x'-vs-'' rule (h6) on that same cross-contract call surface."
+    },
+    {
+      "id": "h10",
+      "statement": "When a single call emits multiple events with the SAME signature (same event name and arg types) but DIFFERENT argument values, the Polkadot decoded event stream reports every copy with the LAST emission's argument values \u2014 including literal (non-state) args \u2014 while EVM reports each emission with its own per-emit values. In this probe EVM decoded Mark(1, keccak('a'), 0x00), Mark(2, keccak('bc'), 0x) but Polkadot decoded Mark(2,'bc',''), Mark(2,'bc',''): the literal tag 1 became 2 and s1/b1 became the second emit's values, so this cannot be a state-read timing artifact in the contract and points to pallet-contracts event recording or oracle decode replaying the final same-signature event's payload. This is a genuine divergence NOT explained by the known artifacts h1 (indexed hash), h4 (UTF-8 decode), or h6 (empty bytes); it also delimits h2's confirmed ordering claim, which was only tested across events with distinct signatures ('One'/'Two'/'Three') and identical-arg repeats, not same-signature events with differing args.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order",
+          "verdict": "DIVERGENCE",
+          "note": "Both mix() calls (alice and bob) produced identical divergence: EVM decoded Mark(tag=1, s=0x3ac22516...=keccak('a'), b=0x00) then Mark(tag=2, s=0x2657ebb9...=keccak('bc'), b=0x), while Polkadot decoded Mark(2,'bc','') twice. The first event's literal arg tag=1 was reported as 2, proving the values were copied from the second emission, not read from contract state at emit time. Divergence was byte-identical across both steps (deterministic, not sender- or run-dependent)."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-m1-samesig-replay",
+          "verdict": "DIVERGENCE",
+          "note": "Second replication of the same-signature replay: emitPairTwice('left',0xaa,'right',0xbbbb) \u2014 EVM decoded Pair(keccak('left'),'left',keccak(0xaa),0xaa) then Pair(keccak('right'),'right',keccak(0xbbbb),0xbbbb), while Polkadot decoded Pair('right','right','0xbbbb','0xbbbb') TWICE. The replay corrupts ALL four arg positions of the first emission \u2014 indexed string, unindexed string, indexed bytes, unindexed bytes \u2014 uniformly with the second emission's values, and applies on top of the known h1 (indexed args raw, not hashed) and h6 (empty-bytes) artifacts without interacting with them. Caveat: in this probe the emitted args equal the storage values written just before each emit, so the state-read alternative is not independently excluded here \u2014 but pack-dup-order already excluded it via the literal 'tag' arg (1 reported as 2), so the replay-in-recording/decoding interpretation stands. Storage counts matched 2=2 with differing slot values, consistent with h5's short-string count-parity. Triage again bug_candidate, deterministic."
+        }
+      ],
+      "next_probe": "Emit two same-signature events with pure literal args and no intervening storage writes (emit Mark(1,'x',0x01); emit Mark(2,'y',0x02);), isolating the replay from any state coupling; if Polkadot still reports both as Mark(2,'y',0x02) the replay is in event recording/decoding, and adding an interleaved different-signature event checks whether positional integrity of the surrounding stream is preserved."
+    },
+    {
+      "id": "h11",
+      "statement": "When two same-signature events with different args are separated by an interleaved different-signature event (emit A(1); emit B(9); emit A(2)), the Polkadot replay corruption is scoped per-signature: B decodes with its own args and stays at its stream position, while both A copies show A(2)'s values \u2014 i.e., the stream's event-count and inter-signature ordering remain intact and only same-signature payloads are overwritten. If instead the interleaved B were also corrupted or displaced, the defect would be a whole-stream positional/decode bug rather than a per-signature payload replay.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-m1-samesig-replay",
+          "verdict": "DIVERGENCE",
+          "note": "The replay was shown to clobber every arg of all same-signature occurrences while preserving event COUNT (both Pair emissions still present as two entries). Whether positional integrity survives interleaving with other signatures is untested; prior h2-order probes used distinct signatures only, so this scopes the blast radius of the h10 defect."
+        },
+        {
+          "probe": "event-interleave-same-sig-scope-h11",
+          "verdict": "DIVERGENCE",
+          "note": "Exactly as predicted: EVM decoded A(1),B(9),A(2) while Polkadot decoded A(2),B(9),A(2). The interleaved different-signature event B kept its own arg (9) and its stream position on Polkadot; only the two same-signature A payloads were overwritten by the last A emission's values (1 -> 2). Event count preserved (3 events on both chains). This confirms the h10 replay defect is scoped per-signature within a call, not a whole-stream decode bug, and replicates h10 with plain uint256 args (no string/bytes involvement), showing the replay is type-agnostic. Post-call queries (snapshot/aLast/bLast) were consistent, so contract state is unaffected \u2014 the corruption is purely in the recorded/decoded event payloads."
+        }
+      ],
+      "next_probe": "Emit A(uint)=1, then B(uint)=9, then A(uint)=2 in one call; check that EVM reports A(1),B(9),A(2) while Polkadot reports A(2),B(9),A(2) (B intact, A replayed) and that the 3-event count is preserved on both chains."
+    },
+    {
+      "id": "h12",
+      "statement": "For values of exactly 32 bytes and above, Polkadot's physical storage slot CONTENT overlaps EVM's spill-slot content (at step 2 with 32-byte values, one Polkadot slot value was numerically IDENTICAL to one of EVM's spill-slot values: 44046402572626160612103472728795008085361523578694645928734845681441465000289), suggesting pallet-contracts/solang stores a keccak-256-style hash of long string/bytes content in a single slot (length recoverable implicitly or stored elsewhere), while EVM uses 2 slots per variable (length word + keccak-derived data slot), giving EVM=2N vs Polkadot=N nonzero entries for N long variables. EVM's extra '65','65' entries at step 2 may be its length words or low-entropy spill remnants.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-m2-shortstring-boundary",
+          "verdict": "DIVERGENCE",
+          "note": "Step 2 (32-byte values): EVM nonzero set = {44046402572626160612103472728795008085361523578694645928734845681441465000289, 455867356320691211509944977504407603390036387149619137164185182714736811808, 65, 65}; Polkadot set = {14528991250861404666834535435384615765856667510756806797353855100662256435713, 44046402572626160612103472728795008085361523578694645928734845681441465000289}. One value appears on BOTH chains, implying shared keccak-based content encoding for >=32-byte values, diverging only in slot count/layout."
+        }
+      ],
+      "next_probe": "Use a contract with a SINGLE string variable; store one fixed 32-byte value (e.g., 32 x 'a'), then read raw storage. Check whether the single Polkadot slot value equals keccak256('aaaa...') (hex of the 32 bytes) exactly, and whether EVM shows 2 slots with one equal to that same hash and the other encoding length 32."
+    },
+    {
+      "id": "h13",
+      "statement": "The h10 same-signature event payload replay is scoped to a single call's event batch and does not bleed across transactions: two identical same-signature events (Pair with empty args) emitted in two successive separate calls (steps 1 and 2) are each decoded correctly and independently on Polkadot. This implies the defect is in per-call event recording/decoding (all same-signature payloads in one call overwritten by the last), not a persistent contract-level event state bug.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-m3-dup-empty-reorder-sender",
+          "verdict": "DIVERGENCE",
+          "note": "Steps 1 and 2 are separate transactions, each emitting exactly one Pair('','','',''). Both decoded identically on both chains (single Pair per call, empty values), so no cross-call contamination despite the two calls being byte-identical. The h10 replay therefore does not persist across calls; it is per-call scoped. (No replay was expected here since each call has only one event, but this confirms successive identical same-signature emissions in different transactions stay independent.)"
+        },
+        {
+          "probe": "events-samesig-reverse-empty-clobber-p13",
+          "verdict": "DIVERGENCE",
+          "note": "Reverse-direction test of h13's next_probe: within one call, emit Pair(7,'abc') then Pair(0,''). EVM decoded Pair(7,'abc'),Pair(0,'') but Polkadot decoded Pair(0,''),Pair(0,'') \u2014 the first emission was clobbered by the EMPTY second payload, so the replay copies the last same-signature emission's values unconditionally and a skip-empty overwrite heuristic is ruled out. Event count preserved (2 events both chains), and the two calls (steps 0 and 2, alice and bob) replayed independently and identically, reconfirming per-call scoping with no cross-transaction bleed. getCount queries matched (no RETURN_MISMATCH). Replay now replicated across uint256+string (this probe), plain uint256 (h11), and string/bytes (h10) arg shapes."
+        }
+      ],
+      "next_probe": "Within ONE call emit Pair with non-empty args first and Pair with empty args second (reverse of h10's direction): if Polkadot reports both as the empty Pair, the replay clobbers with empty values too (ruling out a skip-empty overwrite heuristic); if the first keeps its values, the replay only propagates non-empty payloads, narrowing the defect mechanism."
+    },
+    {
+      "id": "h14",
+      "statement": "The h10 same-signature payload replay is a pure last-wins overwrite: ALL earlier same-signature emissions in a call are replaced by the final emission's argument values, regardless of whether the final payload is empty or non-empty, and regardless of arg types (uint256+string, plain uint256, and string/bytes shapes all replay identically). The replay never drops or reorders events \u2014 count and stream positions are always preserved. The remaining unknown is the replay's scope boundary: it is confirmed per-call and per-signature, but untested across contract boundaries (two different contracts emitting same-signature events within one call).",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-samesig-reverse-empty-clobber-p13",
+          "verdict": "DIVERGENCE",
+          "note": "Empty-last clobber shows the overwrite is unconditional (not gated on payload non-emptiness), and identical replay on two independent calls (alice, bob) shows it is deterministic and per-call. Combined with h10 (non-empty clobber, literal args), h11 (interleaved different-signature event untouched), and h13 (no cross-call bleed), the last-wins semantics are fully characterized except for the cross-contract scope boundary."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Third+ replication of unconditional last-wins replay with a NEW payload shape: first emit Mark(1, 'a', 0x00) was clobbered by the second emit Mark(2, 'bc', '') whose bytes arg is EMPTY \u2014 EVM decoded Mark(1, keccak('a'), 0x00), Mark(2, keccak('bc'), 0x) while Polkadot decoded Mark(2,'bc','') twice. The overwrite propagates empty payloads and also clobbers the literal tag (1->2), again ruling out state-read and skip-empty explanations. Both senders (bob step0, alice step1) produced byte-identical divergence, reconfirming determinism and per-call scoping. The only untested boundary remains cross-contract same-signature scope."
+        }
+      ],
+      "next_probe": "Parent emits Pair(1,'x'), calls a child contract that emits the identically-declared event Pair(2,'y'), then parent emits nothing more. Check whether Polkadot decodes Pair(1,'x'),Pair(2,'y') (replay scoped per contract) or Pair(2,'y'),Pair(2,'y') (replay keyed only on event signature/topic, merging across the contract boundary)."
+    },
+    {
+      "id": "h15",
+      "statement": "EVM's stale-slot behavior after an empty overwrite is length-dependent in a way that refines h5's monotonicity claim: overwriting a short (<=31-byte) bytes/string value with empty zeroes its single packed slot (count returns to the pre-write level), whereas overwriting a long (>31-byte) value leaves the keccak spill slots nonzero (count stays elevated). In this probe b1 went 0x00 -> empty within the call and EVM's nonzero set was exactly {flag=1, s1 short-string slot, s2 short-string slot} with NO stale b1 entry, while Polkadot's compacted layout ({1, 25442='bc' LE, 97='a'}) also showed 3 entries \u2014 count parity held end-to-end. h5's 'monotonic within a variable's lifetime' is thus spill-slot-specific, not universal. Polkadot's count tracks current logical value in both regimes.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-p0",
+          "verdict": "DIVERGENCE",
+          "note": "After mix() (b1: 0x00 -> empty), EVM nonzero_entries=3 = {1, bigShortString(s1='a'), bigShortString(s2='bc')} \u2014 no stale b1 slot, proving the short-bytes empty write zeroed its packed slot. Polkadot=3 = {1, 25442 (0x6362='bc' LE sans length prefix), 97 ('a' LE)}. Counts match despite value encodings differing, and no residual b1='0x00' remnant on EVM. This is the short-value counterpart to h5's stale-spill observation."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-p1",
+          "verdict": "DIVERGENCE",
+          "note": "Second replication of short-value empty-overwrite count parity: after mix() (b1: 0x00 -> empty), EVM nonzero_entries=3 = {1, shortString('a'), shortString('bc')} with NO stale b1 slot, proving the short-bytes empty write zeroed its packed slot; Polkadot=3 = {1, 25442 ('bc' LE sans length prefix), 97 ('a' LE)}. Counts match end-to-end despite differing encodings, and both senders (alice step0, bob step1) produced byte-identical storage multisets. This corroborates h15's length-dependent refinement of h5's monotonicity claim for the short-value regime; the long-value regime half of h15 remains supported only by h5's earlier stale-spill evidence."
+        }
+      ],
+      "next_probe": "Deploy a contract with two separate bytes vars: write a 1-byte value to varA and a 64-byte value to varB, then overwrite both with empty in the same call. Predict EVM nonzero count drops by 1 (varA zeroed) but retains varB's length word + spill slot (count stays at the long-write level), while Polkadot goes to 0 nonzero entries."
+    },
+    {
+      "id": "h16",
+      "statement": "The empty-bytes '0x'-vs-'' oracle artifact (h6) is element-local in heterogeneous tuple returns: a getAll() returning (uint8, string, bytes, string) produced RETURN_MISMATCH only on the bytes element ([1,'a','0x','bc'] on EVM vs [1,'a','','bc'] on Polkadot) while the uint8 and both string elements in the SAME tuple matched exactly. Tuple-return comparisons therefore degrade per-element: a divergence isolated to a single bytes element of an otherwise-matching tuple can be auto-triaged as the h6 presentational artifact without further probing.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-p1",
+          "verdict": "DIVERGENCE",
+          "note": "Step 3 getAll() returned (1,'a','0x','bc') on EVM vs (1,'a','','bc') on Polkadot: flag=1, s1='a', s2='bc' all matched across chains; the tuple diverged solely because b1=empty rendered as '0x' on EVM vs '' on Polkadot. This is the first heterogeneous multi-type tuple return observed in this family, and the h6 artifact stayed strictly confined to the bytes element."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-p2",
+          "verdict": "DIVERGENCE",
+          "note": "Step 2 getAll() returned (1,'a','0x','bc') on EVM vs (1,'a','','bc') on Polkadot: flag=1, s1='a', s2='bc' all matched across chains while the tuple diverged solely on the empty bytes element b1 rendered '0x' vs ''. This is the second independent replication of h16's element-locality claim with a heterogeneous (uint8,string,bytes,string) tuple, now across a different sender pair (bob, charlie vs prior alice/bob), and the divergence was byte-identical across both steps, confirming the artifact is deterministic and strictly confined to the bytes element."
+        }
+      ],
+      "next_probe": "Return a tuple with two bytes elements, one empty and one 0x00, from one function (e.g., getBytesPair() returns (bytes, bytes)); check that RETURN_MISMATCH flags only the empty element ('0x'-vs-'') while the 0x00 element matches as '0x00' on both chains, confirming element-locality holds when the artifact coexists with a non-empty sibling bytes value."
+    },
+    {
+      "id": "h17",
+      "statement": "The h10/h14 same-signature replay is VALUE-overwrite only and structurally invisible when the payloads are identical: a call emitting the same-signature event twice with byte-identical literal args (Mark(1,'a',0x00) then Mark(1,'a',0x00)) decodes to two identical entries on both chains (modulo known artifacts) \u2014 so mere duplication of an event signature within one call produces no divergence; the defect only manifests when same-signature payloads differ. This also confirms no dedup/coalescing occurs for identical same-signature repeats (count and positions preserved), paralleling h2's distinct-signature result.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-identical-literal-repeats",
+          "verdict": "DIVERGENCE",
+          "note": "Control experiment for h10: both emits are Mark(1,'a',hex'00') \u2014 identical literal args. EVM decoded Mark(1, keccak('a')=0x3ac22516..., 0x00) twice; Polkadot decoded Mark(1,'a','\\u0000') twice. After stripping known artifacts (h1: 'a' inline vs hashed; h4: 0x00 is valid UTF-8 so decoded to the control char '\\u0000' vs hex '0x00'), the two streams agree exactly: both entries present, correct order, correct count. The replay predicted by h14 is present but unobservable because last-wins over identical payloads is a no-op. No structural divergence arises from same-signature duplication alone."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-p0-m1-unindexed-only-diff",
+          "verdict": "DIVERGENCE",
+          "note": "This probe executed h17's next_probe directly: two Mark emissions with byte-identical indexed args (tag=1, s='a') differing ONLY in the unindexed bytes (0x01 vs 0x02). EVM decoded Mark(1, keccak('a')=0x3ac22516..., 0x01) then Mark(1, keccak('a'), 0x02); Polkadot decoded Mark(1,'a','\\u0002') TWICE \u2014 the first emission's unindexed value was clobbered by the second, so the replay fires even when all indexed topics match and there is no full-payload difference. This resolves h17's distinguishing question in favor of signature-keyed replay. Caveat: the differing unindexed arg here was state-backed (b1 written before each emit), so a deferred-state-read-at-decode alternative is not independently excluded by this probe alone; h10's literal tag arg (1 reported as 2) already excluded it, so the signature-keyed overwrite interpretation stands. Contrast with h17's control probe (identical payloads) confirms both halves of the statement: identical same-signature duplication is structurally invisible, any payload difference makes the replay observable."
+        }
+      ],
+      "next_probe": "Emit two same-signature events where ONLY the unindexed arg differs and indexed args are identical (emit Mark(1,'a',hex'01'); emit Mark(1,'a',hex'02');): if Polkadot reports b=0x02 twice, the replay keys on event signature alone and clobbers even when all indexed topics match; if the first keeps 0x01, the replay is gated on a full-payload difference check."
+    },
+    {
+      "id": "h18",
+      "statement": "The h10/h14 last-wins same-signature replay scales to three or more emissions and is robust across payload transitions: a call emitting Mark(1,'a',0x00), Mark(2,'bc',''), Mark(3,'def',0x0102) decodes on Polkadot as Mark(3,'def','\\u0001\\u0002') THREE times, clobbering the first two copies even though the middle payload is empty and the final payload is a non-empty multi-byte non-printable value. Stream count (3=3) and positions are preserved exactly, the corruption is byte-identical across two independent senders (alice, bob), and contract state is unaffected (getAll returned (1,'def',0x0102,'bc') logically on both chains). The replay mechanism therefore keys on event signature alone and unconditionally propagates the final emission's payload to every same-signature occurrence in the call, regardless of how many there are or what the intermediate payloads were.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-triple-same-sig",
+          "verdict": "DIVERGENCE",
+          "note": "EVM decoded Mark(1,keccak('a')=0x3ac22516...,0x00), Mark(2,keccak('bc')=0x2657ebb9...,0x), Mark(3,keccak('def')=0x34607c9b...,0x0102); Polkadot decoded Mark(3,'def','\\u0001\\u0002') three times. First emission clobbered (tag 1->3, literal proof against state-read), empty-middle emission clobbered (skip-empty for intermediate payloads ruled out), and the final non-empty non-printable bytes payload propagated to all copies. Event count 3=3 and ordering preserved on both chains; steps 0 and 1 byte-identical across senders. Storage count parity 4=4 (flag=1, 'bc'/'def' short strings, 0x0102 short bytes \u2014 consistent with h5/h15 count-parity for short values). Step 2 getAll RETURN_MISMATCH solely on the bytes element ('0x0102' vs '\\u0001\\u0002' per h4/h16 element-locality); uint8 and both strings matched."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-p0-m1-unindexed-only-diff",
+          "verdict": "DIVERGENCE",
+          "note": "Extends h18's unconditional-propagation claim to the minimal-difference case: the replay clobbers a same-signature emission even when the two emissions share identical indexed args (same tag, same indexed string 'a') and differ only in one unindexed arg. Polkadot reported the final emission's unindexed bytes (0x02 as '\\u0002' per h4 UTF-8 decode) in BOTH stream positions; event count (2=2) and positions preserved; byte-identical divergence across both senders (bob step0, alice step1); contract state unaffected (step 2 getAll logically (1,'a',0x02) on both chains, RETURN_MISMATCH solely on bytes rendering per h4/h9). Storage counts matched 3=3 (EVM {1, shortString('a'), shortBytes(0x02)} vs Polkadot {1, 97, 2}), consistent with h5/h15 short-value count parity."
+        }
+      ],
+      "next_probe": "Emit four same-signature events A(1),A(2),A(3),A(4) interleaved with two different-signature events B(10),B(11) (sequence A1,B10,A2,A3,B11,A4): check that Polkadot reports all four A payloads as A(4) while B(10) and B(11) keep their own values at correct positions, confirming the replay scales linearly in N and never corrupts interleaved foreign-signature events at higher event counts."
+    },
+    {
+      "id": "h19",
+      "statement": "The Polkadot storage-slot oracle renders uint8 state values with a signed interpretation of the raw slot word, while the EVM oracle renders them unsigned: flag=255 appeared as '255' in EVM's storage multiset but as '-1' in Polkadot's (two's complement of the low byte / i256 word). Crucially, the RETURN path decodes the same slot correctly as 255 on both chains (getAll returned 255 on Polkadot), so this is a storage-slot RENDERING artifact in the oracle, not a semantic divergence in stored data or ABI decoding. The divergence appears only in the storage comparison surface for unsigned ints with the high bit set.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-uint8-boundary-reorder",
+          "verdict": "DIVERGENCE",
+          "note": "Storage multisets at all 3 steps: EVM {255, shortString('a'), shortString('bc')} vs Polkadot {-1, 25442 ('bc' LE), 97 ('a' LE)}. The '-1' vs '255' pair is the sole count-mode mismatch source beyond known encodings, yet getAll() returned flag=255 correctly on BOTH chains (tuple diverged only on the empty-bytes element per h6/h16). This isolates the signed-slot rendering to the storage oracle. Nonzero-entry counts matched 3=3 (h5/h15 count parity for short values), and the event stream showed the known h14 last-wins replay (Mark(255,keccak('a'),0x00) clobbered to Mark(0,'bc','') on Polkadot, tag 255->0 proving literal-arg overwrite) byte-identically across alice/bob/charlie."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-p0-m3-uint8-boundary",
+          "verdict": "DIVERGENCE",
+          "note": "Storage multisets at step 0: EVM {2, 32895, bigShortString('a')} vs Polkadot {-128, 127, 97}. Polkadot rendered lo=127 as '127' but hi=128 as '-128' \u2014 exactly the high-bit-keyed signed reinterpretation predicted, with the sign boundary falling between 127 and 128 for declared uint8 width. getAll() returned (127,128,'a',...) with BOTH uint8s decoded correctly as 127 and 128 on Polkadot; the RETURN_MISMATCH was solely the bytes element 0x00 ('0x00' vs '\\u0000' per h4). This fully resolves h19: the artifact is a signed-slot rendering in the storage oracle keyed on the value's high bit, never visible on the return/ABI surface. Incidentally, EVM's '32895' = 0x807F = hi<<8|lo shows solc packed the two consecutive uint8 vars into ONE slot while Polkadot gave each its own slot, and counts still coincidentally matched 3=3."
+        }
+      ],
+      "next_probe": "Store boundary uint8 values 127 and 128 (high bit clear vs set) in two separate state variables and compare storage multisets: if Polkadot renders 127 as '127' but 128 as '-128', the artifact is a signed reinterpretation keyed on the value's high bit (or on declared uint8 width); also store a uint16 65535 to check whether the sign artifact scales with the declared type width or always manifests as a full i256 negative."
+    },
+    {
+      "id": "h20",
+      "statement": "A pure-literal variant of the same-signature replay, fully decoupled from contract state, will show Polkadot clobbering the first emission's unindexed arg even when NO storage writes occur: emitting Mark(1,'a',hex'01') then Mark(1,'a',hex'02') as pure literals will decode on Polkadot as Mark(1,'a',0x02) twice. If instead the first keeps 0x01, the replay is somehow gated on state-backed args or emission-side effects, and the mechanism would need re-characterization. This is the last clean isolation step for the h10 family: every prior replay probe had at least one state-backed differing arg.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-p0-m1-unindexed-only-diff",
+          "verdict": "DIVERGENCE",
+          "note": "Motivating observation: in this probe the clobbered unindexed arg (0x01 -> 0x02) was read from storage b1, so although the signature-keyed replay interpretation is strongly supported by h10's literal-tag exclusion, a strictly literal-only differing arg has never been tested. This probe is the closest yet (only one arg differs, all indexed args identical) but retains the state-write sequence, leaving the pure-literal isolation as the one remaining mechanism test."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-p0-m4-indexed-address-sender",
+          "verdict": "DIVERGENCE",
+          "note": "The two Mark emissions differed ONLY in the literal indexed tag (1 vs 2); every other arg (state-backed s1='a', b1=0x00, msg.sender) was byte-identical across the two emits. EVM decoded Mark(1, keccak('a'), 0x00, who) then Mark(2, ...); Polkadot decoded Mark(2,'a','\\u0000',whoSS58) TWICE. The first emission's tag 1 was overwritten by the literal 2, and no state read or deferred-decode could produce '2' for the first emission, so the replay is confirmed to key on a pure-literal payload difference. The pure-literal isolation h20 called for is satisfied: the clobbered value was a compile-time literal with no storage coupling."
+        }
+      ],
+      "next_probe": "Modify the contract so mix() emits Mark(1, 'lit', hex'01') then Mark(1, 'lit', hex'02') using only inline literals with no state variable touched; check whether Polkadot reports the unindexed bytes as 0x02 in both entries (pure literal-keyed replay confirmed) and verify getAll/state is untouched so no deferred-read explanation remains."
+    },
+    {
+      "id": "h21",
+      "statement": "EVM (solc) packs consecutive small-width uint state variables into shared 32-byte slots while Polkadot allocates one slot per variable (m3 evidence: lo/hi uint8 merged into EVM slot 32895=0x807F vs Polkadot entries 127/-128). h5's count parity does NOT hold universally for scalar groups; count parity held in m3/m4 only coincidentally via offsetting effects. Direct replication of the zero-content half (m4): with flag=1(uint8), s1='a'(string), b1=0x00(bytes), last=address, EVM nonzero=4 including a '2' entry (EVM's len*2 short-bytes encoding of the single zero byte) vs Polkadot=3 with NO entry for b1 \u2014 Polkadot's slot for single-zero-byte content is all-zero (uncounted). The pureliteral-p2 contrast completes the discriminator: with the identical layout but b1=0x01 (single NONZERO byte), Polkadot counts the slot (multiset {1, 1, 97}, 3=3 with EVM whose short-bytes(0x01) slot 4523128...26658 differs in encoding but is counted on both sides). So count parity for short bytes values tracks Polkadot's zero-vs-nonzero slot content, not the packing layout. The uint8-packing half remains supported only by the single m3 observation; the N-uint8 packing count probe is still the key open test.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-p0-m3-uint8-boundary",
+          "verdict": "DIVERGENCE",
+          "note": "EVM storage multiset {2 (short-bytes 0x00: len*2=2 in low byte), 32895 (=0x807F packed lo/hi), shortString('a')} vs Polkadot {-128, 127, 97}. EVM merged the two uint8 vars into one packed slot; Polkadot kept them separate. Count parity 3=3 masked the packing difference because Polkadot's b1=0x00 slot was absent from the multiset (likely zero) while EVM counted its short-bytes encoding. Event stream showed the known h14 last-wins replay (Mark(127,...) clobbered to Mark(128,'a','\\u0000') on Polkadot, tag 127->128 with literal args, reconfirming signature-keyed overwrite); getAll diverged only on the h4 bytes element."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-p0-m4-indexed-address-sender",
+          "verdict": "DIVERGENCE",
+          "note": "Storage at both steps: EVM nonzero=4 including a '2' entry (= 1-byte 0x00 short-bytes: len*2 in the low byte) vs Polkadot=3 with NO entry for b1. Counts diverged (4 vs 3) for the first time in a short-value-only contract, and the difference is exactly EVM's counted short-bytes-of-zero slot vs Polkadot's zeroed slot \u2014 direct support for h21's predicted Polkadot single-zero-byte zero-slot behavior, now seen with bob (step0) and alice (step1) producing byte-identical structure per sender."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-pureliteral-p2",
+          "verdict": "DIVERGENCE",
+          "note": "With b1=0x01 (1-byte NONZERO bytes, same layout as m4's 0x00 case): EVM nonzero=3 {1, shortString('a')=4387434...77634, shortBytes(0x01)=4523128...26658} vs Polkadot=3 {1, 1, 97} \u2014 counts match exactly. Compared to m4 (b1=0x00: EVM=4 vs Polkadot=3), the ONLY delta is the zero-vs-nonzero single byte: Polkadot counts single-nonzero-byte content and omits all-zero content, while EVM counts its len*2 short-bytes encoding in both cases. This pins h21's zero-content half to content-zero-ness rather than bytes-type or length."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-identical-p3",
+          "verdict": "DIVERGENCE",
+          "note": "Storage at both steps: EVM nonzero=4 {1, shortString('a')=4387434...77634, shortString('bc')=4450157...42116, shortBytes(0x01)=4523128...26658 (the exact slot value identified in pureliteral-p2)} vs Polkadot=4 {1, 1, 25442 ('bc' LE), 97 ('a' LE)}. Counts match exactly, and Polkadot's second '1' entry is precisely the single-nonzero-byte (0x01) slot \u2014 the direct nonzero-content counterpart to m4's zero-content omission. The zero-vs-nonzero content rule for short bytes count parity now holds across three layouts (m4: EVM 4 vs Polkadot 3 for b1=0x00; pureliteral-p2 and this probe: parity for b1=0x01). Byte-identical multisets for bob (step 0) and alice (step 1), reconfirming h23's no-sender-dependence."
+        }
+      ],
+      "next_probe": "Declare 8 separate uint8 state variables with no other state, assign distinct nonzero values in one call, and compare nonzero-entry counts: prediction EVM=1 (all 8 packed in one 32-byte slot) vs Polkadot=8. Also store bytes(hex'00') alone in a second variant to check whether Polkadot's slot for single-zero-byte content is zero (uncounted) while EVM counts it."
+    },
+    {
+      "id": "h22",
+      "statement": "Address-typed state variables have different physical slot content: EVM stores the raw 20-byte H160 right-aligned in one 32-byte word (the numeric slot value equals the hex address, e.g., bob 0x3c44cdddb6a9... -> 344073830386746567427978432078835137280280269756, alice 0x70997970... -> 642829559307850963015472508762062935916233390536), while Polkadot stores a 32-byte hash-like value (~1e76 magnitude, sender-dependent, NOT derivable as the raw H160) in one slot. Nonzero-entry counts still match for the address contribution (1 slot each side), and the return path decodes the address correctly on both chains (getAll returned alice's address as hex on EVM vs SS58 on Polkadot per h3), so this is physical-encoding-only, paralleling h5/h12 for hash-based long-content storage.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-p0-m4-indexed-address-sender",
+          "verdict": "DIVERGENCE",
+          "note": "EVM storage multisets contained the raw address words numerically equal to the sender H160s (step0 bob 3440738...e47 = 0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc; step1 alice 642829...e47 = 0x70997970c51812dc3a010c7d01b50e0d17dc79c8), while Polkadot's per-sender entries (15828117218077146982975182736126642079282541474409931988462911568811767084432 for bob; 32755485107096887593508828502283399972595822571454870173030530435142669086606 for alice) are full 32-byte hash-like values that change with sender and are not the raw H160. Both sides contributed exactly 1 nonzero slot for the address, and getAll returned the address correctly on both chains (hex vs SS58 per h3, the only return divergences besides the known h4 bytes control-char rendering)."
+        }
+      ],
+      "next_probe": "Store a hardcoded address literal (last = address(uint160(0x1234))) in one call and compare raw storage slot values on both chains: check whether Polkadot's slot for a fixed H160 is a deterministic function of the address (same value across senders/steps), whether it equals a known hash (blake2/keccak) of the H160 or its SS58 form, and whether the return path still decodes 0x...1234 correctly on both chains."
+    },
+    {
+      "id": "h23",
+      "statement": "The physical storage state of a contract after a mutating call converges to a pure function of the final logical state across chains, with no divergence footprint from call repetition or sender changes: repeating the identical mix() call three times (steps 0-2, all bob) plus once from alice (step 3) produced byte-identical storage multisets within each chain at every step, and the known per-variable rules (h15 short-slot zeroing, h5 stale long-spill) fully determine the multiset from the final variable values alone. This extends h15's per-variable monotonicity claim: not only is EVM's count non-increasing within a variable's lifetime for short values, but interleaving different senders and repeated identical calls leaves no additional state divergence of any kind.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-p0-p2",
+          "verdict": "DIVERGENCE",
+          "note": "Steps 0,1,2 (bob,bob,bob) and step 3 (alice) each reported the identical EVM multiset {1, 43874346312576839672212443538448152585028080127215369968075725190498334277634, 44501577020573166109214514151211888658146836910606214698208895391957214298116} and identical Polkadot multiset {1, 25442, 97}; divergence signature STORAGE_MISMATCH|*|mix|multiset(count) recurred identically at all four points with equal counts (3=3), and the event-stream replay (Mark(2,'bc','') twice per h14) and getAll empty-bytes artifact (h16) were byte-identical at every step. No divergence accumulation, no sender dependence, no step-order dependence anywhere in the observable surfaces."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-p0-p3",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0 (bob) and step 2 (alice) each produced byte-identical storage multisets within each chain: EVM {1, 43874346312576839672212443538448152585028080127215369968075725190498334277634, 44501577020573166109214514151211888658146836910606214698208895391957214298116} vs Polkadot {1, 25442, 97}, counts 3=3 at both steps, and identical to the p2 multisets (which repeated mix 4x). Sender change (bob->alice) and call repetition left zero additional state divergence: the multiset is fully determined by final logical values via known rules (h15 short-slot zeroing: no stale b1=0x00 slot on EVM since b1 ends empty; h5 count parity). The EVENT replay (Mark(2,'bc','') twice per h14) and the getAll empty-bytes artifact (h16: (1,'a','0x','bc') vs (1,'a','','bc'), all other elements matching) were byte-identical across senders too. h23's no-sender-dependence, no-accumulation claim is directly replicated."
+        }
+      ],
+      "next_probe": "Deploy a variant with two bytes vars (b1, b2) and sequence: set b1 to 64-byte value in call 1, overwrite b1 empty in call 2, then set b2 to 1-byte value in call 3; check whether EVM's storage multiset still shows b1's stale length+spill slots from call 1 at the final query (write-history persists per variable across DIFFERENT calls) while Polkadot tracks only current values \u2014 confirming cross-call persistence of EVM stale slots vs their absence for short-value zeroing (h15)."
+    },
+    {
+      "id": "h24",
+      "statement": "The Polkadot dry-run/query failure (SCALE-encoded error blob) is keyed on event EMISSION during simulation, not on non-view mutability or storage mutation: querying the view get(), the non-view local-only touch() (no storage writes), and the storage-mutating bump() all succeed identically on both chains, while the previously-failing mix() is the only function among these that emits events. This strongly localizes the trigger to pallet-contracts' handling of event recording during simulation calls, narrowing h24's two candidate keys (storage mutation vs mutability flag) down to event emission.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-p0-p3",
+          "verdict": "DIVERGENCE",
+          "note": "Step 1 was a dry-run query of mix(): EVM status=success, error=null; Polkadot status=error with a ~1KB SCALE-encoded hex blob (containing repeated 32-byte words resembling pallet-contracts runtime error/context data). The immediately preceding and following ACTUAL calls to mix() (steps 0, 2) executed successfully on both chains with the known h14 event replay, so the function is executable on Polkadot and the failure is confined to the query/dry-run surface \u2014 a new STATUS_MISMATCH signature (STATUS_MISMATCH|1|mix|success!=error) not previously seen in this family, where prior queries were all view functions (getAll) and matched."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-interleave-p1",
+          "verdict": "DIVERGENCE",
+          "note": "Step 2 dry-run query of view getAll(): no STATUS_MISMATCH on either chain; the only divergence was RETURN_MISMATCH solely on the empty-bytes element ([1,'a','0x','bc'] vs [1,'a','','bc'] per h6/h16) with uint8 and both string elements matching. Combined with h24's earlier evidence (mix() dry-run -> Polkadot error blob while actual mix() txs succeed), the dry-run failure is specific to the non-view selector, not to simulation/queries generally."
+        },
+        {
+          "probe": "dryrun-nonview-vs-storage-mutation-p0",
+          "verdict": "PASS",
+          "note": "All 4 steps agreed with zero divergences: query get() (view) PASS, query touch() (non-view, no state write) PASS, real call bump() PASS, query bump() (non-view, storage-mutating) PASS. This directly executes h24's proposed discriminator (c): a non-view function with no storage writes succeeds as a dry-run on pallet-contracts, refuting 'keyed on mutability flag'. And bump() being a storage-mutating non-view whose query also succeeds refutes 'keyed on storage mutation'. The only remaining difference from the earlier failing mix() query is that mix() emits events \u2014 hence the refined event-emission trigger hypothesis."
+        }
+      ],
+      "next_probe": "Same contract, but add steps querying (a) a pure/view getter (expect success on both), (b) mix() as query from a second sender, and (c) a non-view function that only writes to a local (non-state) variable or performs no storage writes. If (c) succeeds on Polkadot while mix() fails, the dry-run error is keyed on storage mutation; if (c) also fails, it is keyed on the non-view mutability of the selector itself."
+    },
+    {
+      "id": "h25",
+      "statement": "The h14 last-wins same-signature replay source value is absent from all observable contract state, excluding any deferred-storage-read explanation independently of the literal-tag argument (h20): in pureliteral-p2 the replayed first-event bytes 0x02 existed nowhere in storage (stored b1=0x01), and now in tag255-p4 the replayed tag value 2 is likewise absent from state (stored flag=255; s1='a', b1='', s2='bc' \u2014 '2' appears in no queryable surface) while EVM decoded the first Mark with the stored-matching tag 255. The replay must inject the payload purely from the event record itself. The remaining location split is pallet-contracts event RECORDING (on-chain, already-duplicated at ingestion) vs oracle DECODE (raw recorded events are distinct but the decode step replays); these are distinguishable by inspecting raw contract events from the pallet-contracts RPC before oracle normalization.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-pureliteral-p2",
+          "verdict": "DIVERGENCE",
+          "note": "EVM decoded Mark(1, keccak('a')=0x3ac22516..., 0x01) then Mark(1, keccak('a'), 0x02); Polkadot decoded Mark(1,'a','\\u0002') twice. Step 2 getAll() returned b1=0x01 ('0x01' vs '\\u0001' per h4) on BOTH chains, proving stored b1=0x01 \u2014 so the first event's replayed value 0x02 is nowhere in state. This is the isolation h20's next_probe called for, with a stronger exclusion route than the literal-tag argument: the clobbered value is absent from storage entirely. Byte-identical divergence for bob (step 0) and alice (step 1); event count 2=2 and positions preserved (h14 invariants); contract state unaffected. Storage counts 3=3 (see h21 refine)."
+        },
+        {
+          "probe": "events-indexed-vs-unindexed-dyn-pack-dup-order-tag255-p4",
+          "verdict": "DIVERGENCE",
+          "note": "mix() emits Mark(255, s1='a', b1=0x00) then Mark(2, s2='bc', b1=''). EVM decoded Mark(255, keccak('a'), 0x00), Mark(2, keccak('bc'), 0x); Polkadot decoded Mark(2,'bc','') twice \u2014 the first emission's tag 255 was clobbered by the literal 2. At query time getAll returns (255,'a','','bc'), so neither '2' nor any other replayed-source value exists in state: a deferred read of final state would have replayed tag 255 (matching flag), not 2. This is a second independent state-absence isolation of the replay source (after pureliteral-p2's 0x02), with the boundary uint8 255 clobbered byte-identically across bob (step 0) and alice (step 2). All other divergences were known artifacts: h1 indexed hash (keccak('a')=0x3ac22516..., keccak('bc')=0x2657ebb9... vs inline), h6/h16 empty-bytes-only RETURN_MISMATCH on getAll ([255,'a','0x','bc'] vs [255,'a','','bc'], flag and both strings matching), h19 signed-slot rendering (EVM 255 vs Polkadot -1), and h15/h5 count parity 3=3 with EVM short-value slots zeroed (no stale b1 entry) \u2014 no new divergence class."
+        }
+      ],
+      "next_probe": "Fetch the RAW contract events for the mix() call directly from the pallet-contracts RPC (system.events / contract event topics) without the oracle's decode+normalize step: if the raw records show two distinct payloads (0x01 then 0x02), the replay is introduced by the oracle decode path; if the raw records already show 0x02 twice, the defect is in pallet-contracts event recording. Same probe on EVM (eth_getLogs) as control should show distinct payloads."
+    },
+    {
+      "id": "h26",
+      "statement": "The h10/h14 same-signature last-wins replay operates independently per signature even when multiple overloaded signatures of the same event name are emitted in one call: each signature's earlier occurrences are clobbered by that signature's final emission only, other signatures (including same-name overloads) are never affected, and the per-signature clobbers compose without interaction. This implies the replay is keyed on the EVM topic0-equivalent (keccak of canonical signature) or the pallet-contracts event identifier, and will correctly handle contracts that heavily overload event names \u2014 no false cross-signature contamination should occur.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "events-overload-same-name-replay-key",
+          "verdict": "DIVERGENCE",
+          "note": "Two signatures present (Ping(uint256), Ping(uint256,string)); only the matching-signature occurrences replayed. No pure-literal dynamic args here, but the clobbered value 3 for the first Ping(uint256) is a compile-time literal absent from any state read at that point (last=7 written after all emits, and getLast returned 7 on both chains with no RETURN_MISMATCH), consistent with h20/h25's state-absence isolation. Deterministic across alice and bob."
+        },
+        {
+          "probe": "event-overload-samesig-interleaved-pairwise",
+          "verdict": "DIVERGENCE",
+          "note": "Exact confirmation of h26's prediction: emit Ping(1), Ping(10,'a'), Ping(2), Ping(20,'b') in one call \u2014 EVM decoded Ping(1), Ping(10,'a'), Ping(2), Ping(20,'b') while Polkadot decoded Ping(2), Ping(20,'b'), Ping(2), Ping(20,'b'). Each overload's earlier occurrences were clobbered by that signature's OWN final emission only: Ping(uint256) copies 1->2 (last Ping(uint256) value) and Ping(uint256,string) copies 10/'a' -> 20/'b', with zero cross-signature contamination. Event count preserved (4=4), stream positions intact, interleaving pattern unaffected. Queries of get() (last=4) matched on both chains with no RETURN_MISMATCH, and both senders (alice, bob) produced byte-identical divergence, reconfirming determinism and per-call scoping (h13/h14/h23). The replay is therefore keyed on the per-signature event identifier (topic0-equivalent), not the event name, and composes cleanly for overloaded names \u2014 no false cross-contamination should occur in contracts that heavily overload events."
+        }
+      ],
+      "next_probe": "Interleave two overloads with two emissions each in one call: emit Ping(1), Ping(10,'a'), Ping(2), Ping(20,'b'); predict Polkadot decodes Ping(2), Ping(20,'b'), Ping(2), Ping(20,'b') \u2014 both signatures simultaneously last-wins-replayed, each pair clobbered independently, count 4=4 and positions preserved; any cross-contamination (e.g., Ping(20,'b') affecting Ping(uint256) entries) would refute independent per-signature replay."
+    },
+    {
+      "id": "h27",
+      "statement": "Query/dry-run calls on pallet-contracts are pure simulations that do NOT commit state, matching anvil's eth_call semantics: querying bump() (flag += 1) returns the would-be incremented value but leaves flag unchanged afterward, on both chains. If instead Polkadot persisted the dry-run's state change, a subsequent get() would disagree with EVM \u2014 that would be a semantic divergence in query semantics, not just a status-code difference.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "dryrun-nonview-vs-storage-mutation-p0",
+          "verdict": "PASS",
+          "note": "Step 2 (real bump by bob) and step 3 (query bump by charlie) produced no STATUS or RETURN divergence, so the Polkadot node accepted a storage-mutating dry-run without error \u2014 but the probe never read flag afterwards, leaving the commit-vs-simulate question open. The clean PASS establishes that queries of mutating functions are at least API-compatible on both chains; persistence behavior is the untested half."
+        }
+      ],
+      "next_probe": "Sequence: call bump() for real (flag=1), then query bump() (returns 2, both chains), then call get() \u2014 predict get() returns 1 on BOTH chains, proving the query did not commit state on either side; a Polkadot get() returning 2 would refute the read-only-query equivalence and indicate dry-run state leakage."
+    }
+  ],
+  "updated_ts": 1794320323.282168
+}

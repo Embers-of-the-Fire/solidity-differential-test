@@ -1,0 +1,72 @@
+{
+  "name": "int-sdiv-smod-minus-one-widths-p0-shr256-mask",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract Shr256MaskProbe {\n    uint256 public count;\n    uint256 public last;\n\n    function shr256(uint256 x, uint256 n) external returns (uint256) {\n        uint256 r = x >> n;\n        last = r;\n        count += 1;\n        return r;\n    }\n}",
+  "contract": "Shr256MaskProbe",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "shr256",
+      "args": [
+        255,
+        255
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "shr256",
+      "args": [
+        255,
+        256
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "shr256",
+      "args": [
+        255,
+        257
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "shr256",
+      "args": [
+        255,
+        320
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "count"
+    },
+    {
+      "action": "query",
+      "function": "last"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "0645822dd4f228a0",
+    "origin": "mutated_llm"
+  }
+}

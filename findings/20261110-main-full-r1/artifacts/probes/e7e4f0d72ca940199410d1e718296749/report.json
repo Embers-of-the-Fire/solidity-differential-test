@@ -1,0 +1,723 @@
+{
+  "name": "events-indexed-vs-unindexed-dyn-addridx-fixed",
+  "contract": "EventAddrIdx",
+  "tool_versions": {
+    "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+    "solang": "solang version v0.3.5",
+    "anvil": "anvil Version: 1.7.1-dev",
+    "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+  },
+  "oracle_config": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "execution": "on-chain",
+  "workdir": "/tmp/oracle-run-awzd7srq",
+  "timing": {
+    "started_at": "2026-11-10T04:25:41.704+00:00",
+    "started_epoch": 1794284741.704649,
+    "total_ms": 4208.0594719991495,
+    "nodes": {
+      "evm": {
+        "start_ms": 502.6943260018015,
+        "stop_ms": 1.9275270005891798
+      },
+      "polkadot": {
+        "start_ms": 1425.060264999047,
+        "stop_ms": 16.20260400159168
+      }
+    }
+  },
+  "compile": {
+    "solc": {
+      "compiler": "solc",
+      "ok": true,
+      "version": "Version: 0.8.33+commit.64118f21.Linux.g++",
+      "errors": null,
+      "warnings": [
+        "Warning: SPDX license identifier not provided in source file. Before publishing, consider adding a comment containing \"SPDX-License-Identifier: <SPDX-License>\" to each source file. Use \"SPDX-License-Identifier: UNLICENSED\" for non-open-source code. Please see https://spdx.org for more information.\n--> input.sol\n\n"
+      ],
+      "artifacts": {
+        "abi": true,
+        "bytecode_bytes": 495,
+        "wasm_bytes": 0,
+        "metadata": false
+      },
+      "elapsed_ms": 4.9168229998031165
+    },
+    "solang": {
+      "compiler": "solang",
+      "ok": true,
+      "version": "solang version v0.3.5",
+      "errors": null,
+      "warnings": null,
+      "artifacts": {
+        "abi": false,
+        "bytecode_bytes": 0,
+        "wasm_bytes": 39818,
+        "metadata": true
+      },
+      "elapsed_ms": 256.48102999912226
+    }
+  },
+  "deploy": {
+    "evm": {
+      "status": "success",
+      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "tx_hash": "98c0e2046bf07d787898a0df48a4626375ebdf448a976ab5be9191cf3d72f600",
+      "error": null,
+      "elapsed_ms": 8.981799999673967
+    },
+    "polkadot": {
+      "status": "success",
+      "address": "5GQix9p34roZwmguYmhgzuGAeFdQLFwxkBEg16b6KS1tqZEv",
+      "tx_hash": null,
+      "error": null,
+      "elapsed_ms": 1455.6887679991632
+    }
+  },
+  "steps": [
+    {
+      "index": 0,
+      "action": "call",
+      "function": "ping",
+      "args": [],
+      "sender": "alice",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 258.4472229991661,
+          "tx_ms": 10.42793299893674,
+          "snapshot_ms": 1.9930380003643222
+        },
+        "evm_total_ms": 270.87154400032887,
+        "polkadot": {
+          "dry_run_ms": 1.5578330003336305,
+          "tx_ms": 54.94671999986167,
+          "snapshot_ms": 7.189793999714311
+        },
+        "polkadot_total_ms": 63.697286999740754
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "7a9d93385fc5c2bee8b7cbb96af01723860d1f9fde58e7f2c3fdbf5ea5fc8c3b",
+          "block_hash": "2e92048d33ed79ec8cd686a5a27f78686e7288a052e5e669cce186f9f55cd326",
+          "gas_used": 45083,
+          "events": [
+            {
+              "name": "AddrIdx",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+                },
+                {
+                  "name": "fixedAddr",
+                  "value": "0x0000000000000000000000000000000000001234"
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "evm",
+          "block": {
+            "number": 2,
+            "hash": "0x2e92048d33ed79ec8cd686a5a27f78686e7288a052e5e669cce186f9f55cd326",
+            "timestamp": 1794284745
+          },
+          "contract": {
+            "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+            "balance": "0",
+            "nonce": 1
+          },
+          "storage": {
+            "0x0000000000000000000000000000000000000000000000000000000000000000": "0x0000000000000000000000000000000000000000000000000000000000000001"
+          }
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "0x92c68477bd4737084932e69e240293176892e58fc86cb5792ca892dcc225a8fd",
+          "block_hash": "0xa3b17d2062683e6e3a6fcf3d2af50accd2d6a69eec69de2d19d1902b140a4f42",
+          "gas_used": 1302926564,
+          "events": [
+            {
+              "name": "AddrIdx",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
+                },
+                {
+                  "name": "fixedAddr",
+                  "value": "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuywopL4"
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "polkadot",
+          "block": {
+            "number": 2,
+            "hash": "0xa3b17d2062683e6e3a6fcf3d2af50accd2d6a69eec69de2d19d1902b140a4f42",
+            "timestamp": 1794284745632
+          },
+          "contract": {
+            "address": "5GQix9p34roZwmguYmhgzuGAeFdQLFwxkBEg16b6KS1tqZEv",
+            "balance": "1000000000",
+            "nonce": 0
+          },
+          "storage": {
+            "0xff0f22492f44bac4c4b30ae58d0e8daa0000000000000000000000000000000000000000000000000000000000000000": "0x0100000000000000000000000000000000000000000000000000000000000000"
+          }
+        }
+      },
+      "divergences": [
+        {
+          "kind": "EVENT_MISMATCH",
+          "step": 0,
+          "detail": "emitted events differ",
+          "evm": [
+            {
+              "name": "AddrIdx",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+                },
+                {
+                  "name": "fixedAddr",
+                  "value": "0x0000000000000000000000000000000000001234"
+                }
+              ]
+            }
+          ],
+          "polkadot": [
+            {
+              "name": "AddrIdx",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
+                },
+                {
+                  "name": "fixedAddr",
+                  "value": "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuywopL4"
+                }
+              ]
+            }
+          ],
+          "point": 0,
+          "signature": "EVENT_MISMATCH|0|ping|args"
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "action": "call",
+      "function": "ping",
+      "args": [],
+      "sender": "bob",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 6.1670049999520415,
+          "tx_ms": 22.72480200008431,
+          "snapshot_ms": 10.913197000263608
+        },
+        "evm_total_ms": 39.807873999961885,
+        "polkadot": {
+          "dry_run_ms": 2.0729389998450642,
+          "tx_ms": 48.7912349999533,
+          "snapshot_ms": 12.573632000567159
+        },
+        "polkadot_total_ms": 63.441856000281405
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "d21faed515ba7106b2c433a0d0a1b6af0924b08386cdc32c3ace29e32fe33394",
+          "block_hash": "be13d71f83460151606763768e54e501779033a0482fdf06ee600df1a34ae7c3",
+          "gas_used": 27983,
+          "events": [
+            {
+              "name": "AddrIdx",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc"
+                },
+                {
+                  "name": "fixedAddr",
+                  "value": "0x0000000000000000000000000000000000001234"
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "evm",
+          "block": {
+            "number": 3,
+            "hash": "0xbe13d71f83460151606763768e54e501779033a0482fdf06ee600df1a34ae7c3",
+            "timestamp": 1794284745
+          },
+          "contract": {
+            "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+            "balance": "0",
+            "nonce": 1
+          },
+          "storage": {
+            "0x0000000000000000000000000000000000000000000000000000000000000000": "0x0000000000000000000000000000000000000000000000000000000000000002"
+          }
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "0x6f974b52dea578d049eb5747894e85e5b0b5ec43af720df8b9937746314b021e",
+          "block_hash": "0x58199976112e4542814ea43f8f7467cbf34c3b06e565de8dde213b33543865db",
+          "gas_used": 1302947108,
+          "events": [
+            {
+              "name": "AddrIdx",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"
+                },
+                {
+                  "name": "fixedAddr",
+                  "value": "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuywopL4"
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "polkadot",
+          "block": {
+            "number": 3,
+            "hash": "0x58199976112e4542814ea43f8f7467cbf34c3b06e565de8dde213b33543865db",
+            "timestamp": 1794284745738
+          },
+          "contract": {
+            "address": "5GQix9p34roZwmguYmhgzuGAeFdQLFwxkBEg16b6KS1tqZEv",
+            "balance": "1000000000",
+            "nonce": 0
+          },
+          "storage": {
+            "0xff0f22492f44bac4c4b30ae58d0e8daa0000000000000000000000000000000000000000000000000000000000000000": "0x0200000000000000000000000000000000000000000000000000000000000000"
+          }
+        }
+      },
+      "divergences": [
+        {
+          "kind": "EVENT_MISMATCH",
+          "step": 1,
+          "detail": "emitted events differ",
+          "evm": [
+            {
+              "name": "AddrIdx",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc"
+                },
+                {
+                  "name": "fixedAddr",
+                  "value": "0x0000000000000000000000000000000000001234"
+                }
+              ]
+            }
+          ],
+          "polkadot": [
+            {
+              "name": "AddrIdx",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"
+                },
+                {
+                  "name": "fixedAddr",
+                  "value": "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuywopL4"
+                }
+              ]
+            }
+          ],
+          "point": 1,
+          "signature": "EVENT_MISMATCH|1|ping|args"
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "action": "call",
+      "function": "ping",
+      "args": [],
+      "sender": "charlie",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 6.930831999852671,
+          "tx_ms": 22.50847100003739,
+          "snapshot_ms": 6.73443999949086
+        },
+        "evm_total_ms": 36.17649300031189,
+        "polkadot": {
+          "dry_run_ms": 3.1954380010574823,
+          "tx_ms": 47.35083200102963,
+          "snapshot_ms": 2.0501489998423494
+        },
+        "polkadot_total_ms": 52.599589000237756
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "ff463752d406f54c58dd4836e80d319ca9562cbad85fbb5a0dc7eab1f6e89a4c",
+          "block_hash": "2218f7373bf302f1cf0face62758b6b5d05770dcf10d1321da62afeac8a5bd51",
+          "gas_used": 27983,
+          "events": [
+            {
+              "name": "AddrIdx",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+                },
+                {
+                  "name": "fixedAddr",
+                  "value": "0x0000000000000000000000000000000000001234"
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "evm",
+          "block": {
+            "number": 4,
+            "hash": "0x2218f7373bf302f1cf0face62758b6b5d05770dcf10d1321da62afeac8a5bd51",
+            "timestamp": 1794284745
+          },
+          "contract": {
+            "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+            "balance": "0",
+            "nonce": 1
+          },
+          "storage": {
+            "0x0000000000000000000000000000000000000000000000000000000000000000": "0x0000000000000000000000000000000000000000000000000000000000000003"
+          }
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "0xa06d38bbd7c410bef5a14906dbe3687b07442b49e7314f933d9104dbca6cc41c",
+          "block_hash": "0x6a05cd716221e4778e132d5cf539ff12bef86fe2e5f9d3822d2f79668b30bb2f",
+          "gas_used": 1302947108,
+          "events": [
+            {
+              "name": "AddrIdx",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+                },
+                {
+                  "name": "fixedAddr",
+                  "value": "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuywopL4"
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "polkadot",
+          "block": {
+            "number": 4,
+            "hash": "0x6a05cd716221e4778e132d5cf539ff12bef86fe2e5f9d3822d2f79668b30bb2f",
+            "timestamp": 1794284745839
+          },
+          "contract": {
+            "address": "5GQix9p34roZwmguYmhgzuGAeFdQLFwxkBEg16b6KS1tqZEv",
+            "balance": "1000000000",
+            "nonce": 0
+          },
+          "storage": {
+            "0xff0f22492f44bac4c4b30ae58d0e8daa0000000000000000000000000000000000000000000000000000000000000000": "0x0300000000000000000000000000000000000000000000000000000000000000"
+          }
+        }
+      },
+      "divergences": [
+        {
+          "kind": "EVENT_MISMATCH",
+          "step": 2,
+          "detail": "emitted events differ",
+          "evm": [
+            {
+              "name": "AddrIdx",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+                },
+                {
+                  "name": "fixedAddr",
+                  "value": "0x0000000000000000000000000000000000001234"
+                }
+              ]
+            }
+          ],
+          "polkadot": [
+            {
+              "name": "AddrIdx",
+              "args": [
+                {
+                  "name": "who",
+                  "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+                },
+                {
+                  "name": "fixedAddr",
+                  "value": "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuywopL4"
+                }
+              ]
+            }
+          ],
+          "point": 2,
+          "signature": "EVENT_MISMATCH|2|ping|args"
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "action": "query",
+      "function": "getN",
+      "args": [],
+      "sender": "deployer",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 7.324775000597583,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "evm_total_ms": 7.325915001274552,
+        "polkadot": {
+          "dry_run_ms": 1.9351569990249118,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "polkadot_total_ms": 1.9359069992788136
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": 3,
+          "revert_reason": null,
+          "return_data_raw": "0x0000000000000000000000000000000000000000000000000000000000000003",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": 3,
+          "revert_reason": null,
+          "return_data_raw": "0x0300000000000000000000000000000000000000000000000000000000000000",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "divergences": []
+    }
+  ],
+  "divergences": [
+    {
+      "kind": "EVENT_MISMATCH",
+      "step": 0,
+      "detail": "emitted events differ",
+      "evm": [
+        {
+          "name": "AddrIdx",
+          "args": [
+            {
+              "name": "who",
+              "value": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+            },
+            {
+              "name": "fixedAddr",
+              "value": "0x0000000000000000000000000000000000001234"
+            }
+          ]
+        }
+      ],
+      "polkadot": [
+        {
+          "name": "AddrIdx",
+          "args": [
+            {
+              "name": "who",
+              "value": "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
+            },
+            {
+              "name": "fixedAddr",
+              "value": "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuywopL4"
+            }
+          ]
+        }
+      ],
+      "point": 0,
+      "signature": "EVENT_MISMATCH|0|ping|args"
+    },
+    {
+      "kind": "EVENT_MISMATCH",
+      "step": 1,
+      "detail": "emitted events differ",
+      "evm": [
+        {
+          "name": "AddrIdx",
+          "args": [
+            {
+              "name": "who",
+              "value": "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc"
+            },
+            {
+              "name": "fixedAddr",
+              "value": "0x0000000000000000000000000000000000001234"
+            }
+          ]
+        }
+      ],
+      "polkadot": [
+        {
+          "name": "AddrIdx",
+          "args": [
+            {
+              "name": "who",
+              "value": "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y"
+            },
+            {
+              "name": "fixedAddr",
+              "value": "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuywopL4"
+            }
+          ]
+        }
+      ],
+      "point": 1,
+      "signature": "EVENT_MISMATCH|1|ping|args"
+    },
+    {
+      "kind": "EVENT_MISMATCH",
+      "step": 2,
+      "detail": "emitted events differ",
+      "evm": [
+        {
+          "name": "AddrIdx",
+          "args": [
+            {
+              "name": "who",
+              "value": "0x90f79bf6eb2c4f870365e785982e1f101e93b906"
+            },
+            {
+              "name": "fixedAddr",
+              "value": "0x0000000000000000000000000000000000001234"
+            }
+          ]
+        }
+      ],
+      "polkadot": [
+        {
+          "name": "AddrIdx",
+          "args": [
+            {
+              "name": "who",
+              "value": "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+            },
+            {
+              "name": "fixedAddr",
+              "value": "5C4hrfjw9DjXZTzV3MwzrrAr9P1MJhSrvWGWqi1eSuywopL4"
+            }
+          ]
+        }
+      ],
+      "point": 2,
+      "signature": "EVENT_MISMATCH|2|ping|args"
+    }
+  ],
+  "earliest_divergence": {
+    "point": 0,
+    "signature": "EVENT_MISMATCH|0|ping|args"
+  },
+  "verdict": "DIVERGENCE"
+}

@@ -1,0 +1,649 @@
+{
+  "name": "int-sdiv-smod-minus-one-widths-p4-seqmix",
+  "contract": "IntDivOverflowWidths",
+  "tool_versions": {
+    "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+    "solang": "solang version v0.3.5",
+    "anvil": "anvil Version: 1.7.1-dev",
+    "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+  },
+  "oracle_config": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "execution": "on-chain",
+  "workdir": "/tmp/oracle-run-uapci5r2",
+  "timing": {
+    "started_at": "2026-11-10T08:21:56.192+00:00",
+    "started_epoch": 1794298916.1920545,
+    "total_ms": 4500.8870950005075,
+    "nodes": {
+      "evm": {
+        "start_ms": 503.5066939999524,
+        "stop_ms": 3.147045001242077
+      },
+      "polkadot": {
+        "start_ms": 1480.2631279999332,
+        "stop_ms": 31.298075002268888
+      }
+    }
+  },
+  "compile": {
+    "solc": {
+      "compiler": "solc",
+      "ok": true,
+      "version": "Version: 0.8.33+commit.64118f21.Linux.g++",
+      "errors": null,
+      "warnings": [
+        "Warning: SPDX license identifier not provided in source file. Before publishing, consider adding a comment containing \"SPDX-License-Identifier: <SPDX-License>\" to each source file. Use \"SPDX-License-Identifier: UNLICENSED\" for non-open-source code. Please see https://spdx.org for more information.\n--> input.sol\n\n"
+      ],
+      "artifacts": {
+        "abi": true,
+        "bytecode_bytes": 1232,
+        "wasm_bytes": 0,
+        "metadata": false
+      },
+      "elapsed_ms": 8.39495100080967
+    },
+    "solang": {
+      "compiler": "solang",
+      "ok": true,
+      "version": "solang version v0.3.5",
+      "errors": null,
+      "warnings": null,
+      "artifacts": {
+        "abi": false,
+        "bytecode_bytes": 0,
+        "wasm_bytes": 40589,
+        "metadata": true
+      },
+      "elapsed_ms": 332.32468999995035
+    }
+  },
+  "deploy": {
+    "evm": {
+      "status": "success",
+      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "tx_hash": "ef61cfef09ddabaad633ce36daf447dc874b6120bc840c94706b56db035be6eb",
+      "error": null,
+      "elapsed_ms": 76.17754700186197
+    },
+    "polkadot": {
+      "status": "success",
+      "address": "5Ep1p7Rpm54R6DGXYNtfqtqFkvJ337M2UvxYTX1tHdv8ai4S",
+      "tx_hash": null,
+      "error": null,
+      "elapsed_ms": 1719.0777319992776
+    }
+  },
+  "steps": [
+    {
+      "index": 0,
+      "action": "call",
+      "function": "divWide",
+      "args": [
+        -9223372036854775808,
+        -1
+      ],
+      "sender": "bob",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 8.126310000079684,
+          "tx_ms": 14.62336199983838,
+          "snapshot_ms": 10.008649001974845
+        },
+        "evm_total_ms": 32.76112099774764,
+        "polkadot": {
+          "dry_run_ms": 4.478153001400642,
+          "tx_ms": 52.22025799957919,
+          "snapshot_ms": 7.860599002015078
+        },
+        "polkadot_total_ms": 64.56174000049941
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "revert",
+          "return_value": null,
+          "revert_reason": "Panic(0x11)",
+          "return_data_raw": "0x4e487b710000000000000000000000000000000000000000000000000000000000000011",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "revert",
+          "tx_hash": null,
+          "block_hash": null,
+          "gas_used": null,
+          "events": [],
+          "error": "('Panic error 0x11: Arithmetic operation results in underflow or overflow.', '0x4e487b710000000000000000000000000000000000000000000000000000000000000011')"
+        },
+        "state": {
+          "chain": "evm",
+          "block": {
+            "number": 1,
+            "hash": "0xb1dd894d85978bd5982927c3dcee514293e483827726feaa08cafffdbc737f18",
+            "timestamp": 1794298917
+          },
+          "contract": {
+            "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+            "balance": "0",
+            "nonce": 1
+          },
+          "storage": {}
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "error",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": null,
+          "debug_message": null,
+          "error": "0x03080c000000013000000000000000c2945c3f551702000000010000000408d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27db53f7d58d2000000000000000000000000000100000008027d8966a32a864cd407a34105b14e808156467ebaca8891ffe4b3c6ec8c01012f00472be45d0000000000000000000000d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d0000010000000003798076db224a184fe188ceafec819cf59b54914fea1363506aac94cc41c26b500000010000000400798076db224a184fe188ceafec819cf59b54914fea1363506aac94cc41c26b5000ca9a3b0000000000000000000000000000010000000402d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d798076db224a184fe188ceafec819cf59b54914fea1363506aac94cc41c26b5000ca9a3b0000000000000000000000000000010000000800d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d798076db224a184fe188ceafec819cf59b54914fea1363506aac94cc41c26b500000010000000808d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d798076db224a184fe188ceafec819cf59b54914fea1363506aac94cc41c26b5080c4d26c1700000000000000000000000000010000000808d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d798076db224a184fe188ceafec819cf59b54914fea1363506aac94cc41c26b50009c3b4d1700000000000000000000000000010000000407d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27db7fe9381d100000000000000000000000000010000000600d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27dfe40e9d600000000000000000000000000000000000000000000000000000000000001000000000003cfa1e8d626020100000000"
+        },
+        "tx": {
+          "status": "revert",
+          "tx_hash": "0x55a9260895857f7a9328b9e31ac8f08bcb97f723230a0c5593abb5e0902249ef",
+          "block_hash": "0x6869c1aa1b407c64ec327e5353d58d400f1a612f749211cacd6be8315a145889",
+          "gas_used": null,
+          "events": [],
+          "error": "{'type': 'Module', 'name': 'ContractTrapped', 'docs': ['Contract trapped during execution.']}"
+        },
+        "state": {
+          "chain": "polkadot",
+          "block": {
+            "number": 2,
+            "hash": "0x6869c1aa1b407c64ec327e5353d58d400f1a612f749211cacd6be8315a145889",
+            "timestamp": 1794298920357
+          },
+          "contract": {
+            "address": "5Ep1p7Rpm54R6DGXYNtfqtqFkvJ337M2UvxYTX1tHdv8ai4S",
+            "balance": "1000000000",
+            "nonce": 0
+          },
+          "storage": {
+            "0xbc148335f9356adcdeeaf0b481e31dea0100000000000000000000000000000000000000000000000000000000000000": "0x00000000000000000000000000000000"
+          }
+        }
+      },
+      "divergences": []
+    },
+    {
+      "index": 1,
+      "action": "query",
+      "function": "m128",
+      "args": [],
+      "sender": "deployer",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 6.577082000148948,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "evm_total_ms": 6.578412001545075,
+        "polkadot": {
+          "dry_run_ms": 2.34884200108354,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "polkadot_total_ms": 2.349672002310399
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": 0,
+          "revert_reason": null,
+          "return_data_raw": "0x0000000000000000000000000000000000000000000000000000000000000000",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": 0,
+          "revert_reason": null,
+          "return_data_raw": "0x00000000000000000000000000000000",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "divergences": []
+    },
+    {
+      "index": 2,
+      "action": "call",
+      "function": "divWide",
+      "args": [
+        -9223372036854775808,
+        -1
+      ],
+      "sender": "alice",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 7.857028998841997,
+          "tx_ms": 12.981564002984669,
+          "snapshot_ms": 5.294395999953849
+        },
+        "evm_total_ms": 26.135798998438986,
+        "polkadot": {
+          "dry_run_ms": 2.238451001176145,
+          "tx_ms": 46.792510998784564,
+          "snapshot_ms": 6.448263000493171
+        },
+        "polkadot_total_ms": 55.48200499833911
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "revert",
+          "return_value": null,
+          "revert_reason": "Panic(0x11)",
+          "return_data_raw": "0x4e487b710000000000000000000000000000000000000000000000000000000000000011",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "revert",
+          "tx_hash": null,
+          "block_hash": null,
+          "gas_used": null,
+          "events": [],
+          "error": "('Panic error 0x11: Arithmetic operation results in underflow or overflow.', '0x4e487b710000000000000000000000000000000000000000000000000000000000000011')"
+        },
+        "state": {
+          "chain": "evm",
+          "block": {
+            "number": 1,
+            "hash": "0xb1dd894d85978bd5982927c3dcee514293e483827726feaa08cafffdbc737f18",
+            "timestamp": 1794298917
+          },
+          "contract": {
+            "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+            "balance": "0",
+            "nonce": 1
+          },
+          "storage": {}
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "error",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": null,
+          "debug_message": null,
+          "error": "0x03080c000000011400000000000000c2945c3f55170200000001000000040890b5ab205c6974c9ea841be688864633dc9ca8a357843eeacf2314649965fe223bc079b0d10000000000000000000000000001000000040790b5ab205c6974c9ea841be688864633dc9ca8a357843eeacf2314649965fe22e9824588d10000000000000000000000000001000000060090b5ab205c6974c9ea841be688864633dc9ca8a357843eeacf2314649965fe22523d342800000000000000000000000000000000000000000000000000000000000001000000000103080c0000004297d1a042bd0200000000"
+        },
+        "tx": {
+          "status": "revert",
+          "tx_hash": "0x3b6006985e1f52dfd9aa9148b3a69d6f4814c8407f353c4d8274fd4b36f40ce9",
+          "block_hash": "0x8b9c71c47ad57f94fdc302f9f58735cca4ffb77ce8d136dc49d7cb59cfd0fda4",
+          "gas_used": null,
+          "events": [],
+          "error": "{'type': 'Module', 'name': 'ContractTrapped', 'docs': ['Contract trapped during execution.']}"
+        },
+        "state": {
+          "chain": "polkadot",
+          "block": {
+            "number": 3,
+            "hash": "0x8b9c71c47ad57f94fdc302f9f58735cca4ffb77ce8d136dc49d7cb59cfd0fda4",
+            "timestamp": 1794298920450
+          },
+          "contract": {
+            "address": "5Ep1p7Rpm54R6DGXYNtfqtqFkvJ337M2UvxYTX1tHdv8ai4S",
+            "balance": "1000000000",
+            "nonce": 0
+          },
+          "storage": {
+            "0xbc148335f9356adcdeeaf0b481e31dea0100000000000000000000000000000000000000000000000000000000000000": "0x00000000000000000000000000000000"
+          }
+        }
+      },
+      "divergences": []
+    },
+    {
+      "index": 3,
+      "action": "call",
+      "function": "bump",
+      "args": [],
+      "sender": "charlie",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 3.9142389978223946,
+          "tx_ms": 16.522091998922406,
+          "snapshot_ms": 5.742987999838078
+        },
+        "evm_total_ms": 26.181788998655975,
+        "polkadot": {
+          "dry_run_ms": 2.2502410029119346,
+          "tx_ms": 49.511414999869885,
+          "snapshot_ms": 6.016100000124425
+        },
+        "polkadot_total_ms": 57.78013600138365
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "9b56aef265691e7c9e771d30c87ceeeacbe79497de8f1e5274bf613cc1aeab2e",
+          "block_hash": "5a287c3488476e5d9624b00cd1ee5ec2db9e286441eba18dedc26ffc89479b72",
+          "gas_used": 43583,
+          "events": [],
+          "error": null
+        },
+        "state": {
+          "chain": "evm",
+          "block": {
+            "number": 2,
+            "hash": "0x5a287c3488476e5d9624b00cd1ee5ec2db9e286441eba18dedc26ffc89479b72",
+            "timestamp": 1794298920
+          },
+          "contract": {
+            "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+            "balance": "0",
+            "nonce": 1
+          },
+          "storage": {
+            "0x0000000000000000000000000000000000000000000000000000000000000000": "0x0000000000000000000000000000000000000000000000000000000000000001"
+          }
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "0xa3a18f288a1b14a96437256eacfd9052488cfb2ff4b1b81cb267463e8cad11cc",
+          "block_hash": "0xc736f79d654157de363f05abbf25f1943d9a386944e6ebeae741d4cab88285bc",
+          "gas_used": 909921584,
+          "events": [],
+          "error": null
+        },
+        "state": {
+          "chain": "polkadot",
+          "block": {
+            "number": 4,
+            "hash": "0xc736f79d654157de363f05abbf25f1943d9a386944e6ebeae741d4cab88285bc",
+            "timestamp": 1794298920530
+          },
+          "contract": {
+            "address": "5Ep1p7Rpm54R6DGXYNtfqtqFkvJ337M2UvxYTX1tHdv8ai4S",
+            "balance": "1000000000",
+            "nonce": 0
+          },
+          "storage": {
+            "0xbc148335f9356adcdeeaf0b481e31dea0100000000000000000000000000000000000000000000000000000000000000": "0x00000000000000000000000000000000",
+            "0xff0f22492f44bac4c4b30ae58d0e8daa0000000000000000000000000000000000000000000000000000000000000000": "0x0100000000000000000000000000000000000000000000000000000000000000"
+          }
+        }
+      },
+      "divergences": []
+    },
+    {
+      "index": 4,
+      "action": "call",
+      "function": "divWide",
+      "args": [
+        -7,
+        2
+      ],
+      "sender": "alice",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 5.7632680000097025,
+          "tx_ms": 10.789453001052607,
+          "snapshot_ms": 2.618173002701951
+        },
+        "evm_total_ms": 19.17369399961899,
+        "polkadot": {
+          "dry_run_ms": 2.324511999177048,
+          "tx_ms": 44.97239199918113,
+          "snapshot_ms": 1.5490670011786278
+        },
+        "polkadot_total_ms": 48.84991099970648
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": -3,
+          "revert_reason": null,
+          "return_data_raw": "0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "de7fe13f6a5b1f58584db6ae81ab6804efc6e1a3dc5428b8154d1f1d07e39dba",
+          "block_hash": "55cf6b43877b4c10e65962d5eff40dd017ba021f78cf4b4b4e954f02a51d805b",
+          "gas_used": 50187,
+          "events": [],
+          "error": null
+        },
+        "state": {
+          "chain": "evm",
+          "block": {
+            "number": 3,
+            "hash": "0x55cf6b43877b4c10e65962d5eff40dd017ba021f78cf4b4b4e954f02a51d805b",
+            "timestamp": 1794298920
+          },
+          "contract": {
+            "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+            "balance": "0",
+            "nonce": 1
+          },
+          "storage": {
+            "0x0000000000000000000000000000000000000000000000000000000000000000": "0x0000000000000000000000000000000000000000000000000000000000000002",
+            "0x0000000000000000000000000000000000000000000000000000000000000001": "0x0000000000000000fffffffffffffffd00000000000000000000000000000000"
+          }
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": -3,
+          "revert_reason": null,
+          "return_data_raw": "0xfdffffffffffffff",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "0xd55d4a22f2125afc77bd6acf7a132ae2b94b0c73284b0ec2b20967b77ddfe5d1",
+          "block_hash": "0x6fac84dca3ea111d1ead2b19bd362896ac22bd8c725fa634435c531f8a82b12b",
+          "gas_used": 1078830596,
+          "events": [],
+          "error": null
+        },
+        "state": {
+          "chain": "polkadot",
+          "block": {
+            "number": 5,
+            "hash": "0x6fac84dca3ea111d1ead2b19bd362896ac22bd8c725fa634435c531f8a82b12b",
+            "timestamp": 1794298920607
+          },
+          "contract": {
+            "address": "5Ep1p7Rpm54R6DGXYNtfqtqFkvJ337M2UvxYTX1tHdv8ai4S",
+            "balance": "1000000000",
+            "nonce": 0
+          },
+          "storage": {
+            "0x9d7224862f5243be3cf3be5853f2c8100200000000000000000000000000000000000000000000000000000000000000": "0xfdffffffffffffff",
+            "0xbc148335f9356adcdeeaf0b481e31dea0100000000000000000000000000000000000000000000000000000000000000": "0x00000000000000000000000000000000",
+            "0xff0f22492f44bac4c4b30ae58d0e8daa0000000000000000000000000000000000000000000000000000000000000000": "0x0200000000000000000000000000000000000000000000000000000000000000"
+          }
+        }
+      },
+      "divergences": [
+        {
+          "kind": "STORAGE_MISMATCH",
+          "step": 4,
+          "detail": "contract storage differs (mode=count)",
+          "evm": {
+            "nonzero_entries": 2,
+            "values": [
+              "2",
+              "6277101735386680762814942322444851025712231622168729878528"
+            ]
+          },
+          "polkadot": {
+            "nonzero_entries": 2,
+            "values": [
+              "-3",
+              "2"
+            ]
+          },
+          "point": 4,
+          "signature": "STORAGE_MISMATCH|4|divWide|multiset(count)"
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "action": "query",
+      "function": "last",
+      "args": [],
+      "sender": "deployer",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 2.510472000722075,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "evm_total_ms": 2.5118619996646885,
+        "polkadot": {
+          "dry_run_ms": 1.2343359994702041,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "polkadot_total_ms": 1.2350760007393546
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": -3,
+          "revert_reason": null,
+          "return_data_raw": "0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": -3,
+          "revert_reason": null,
+          "return_data_raw": "0xfdffffffffffffff",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "divergences": []
+    },
+    {
+      "index": 6,
+      "action": "query",
+      "function": "count",
+      "args": [],
+      "sender": "deployer",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 1.8840699995053,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "evm_total_ms": 1.8848399995476939,
+        "polkadot": {
+          "dry_run_ms": 1.0007450000557583,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "polkadot_total_ms": 1.0014350009441841
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": 2,
+          "revert_reason": null,
+          "return_data_raw": "0x0000000000000000000000000000000000000000000000000000000000000002",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": 2,
+          "revert_reason": null,
+          "return_data_raw": "0x0200000000000000000000000000000000000000000000000000000000000000",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "divergences": []
+    }
+  ],
+  "divergences": [
+    {
+      "kind": "STORAGE_MISMATCH",
+      "step": 4,
+      "detail": "contract storage differs (mode=count)",
+      "evm": {
+        "nonzero_entries": 2,
+        "values": [
+          "2",
+          "6277101735386680762814942322444851025712231622168729878528"
+        ]
+      },
+      "polkadot": {
+        "nonzero_entries": 2,
+        "values": [
+          "-3",
+          "2"
+        ]
+      },
+      "point": 4,
+      "signature": "STORAGE_MISMATCH|4|divWide|multiset(count)"
+    }
+  ],
+  "earliest_divergence": {
+    "point": 4,
+    "signature": "STORAGE_MISMATCH|4|divWide|multiset(count)"
+  },
+  "verdict": "DIVERGENCE"
+}

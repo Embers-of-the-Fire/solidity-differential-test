@@ -1,0 +1,36 @@
+{
+  "name": "events-indexed-vs-unindexed-dyn-pack-dup-order-p0-m3-uint8-boundary",
+  "solidity": "pragma solidity >=0.8.0;\ncontract EventOrderPackM3 {\n    event Mark(uint8 indexed tag, string indexed s, bytes b);\n    uint8 public lo;\n    uint8 public hi;\n    string public s1;\n    bytes public b1;\n    function mix() external {\n        lo = 127;\n        hi = 128;\n        s1 = \"a\";\n        b1 = hex\"00\";\n        emit Mark(127, s1, b1);\n        emit Mark(128, s1, b1);\n    }\n    function getAll() external view returns (uint8, uint8, string memory, bytes memory) {\n        return (lo, hi, s1, b1);\n    }\n}",
+  "contract": "EventOrderPackM3",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "mix",
+      "args": [],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "getAll",
+      "args": []
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "0be2dcfeab5ef303",
+    "origin": "mutated_llm"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "name": "env-vars-gasleft-arithmetic",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract EnvProbe {\n    uint256 public gasSeen;\n    uint256 public numberSeen;\n\n    function snapshot() public {\n        uint256 n = block.number;\n        numberSeen = n;\n        gasSeen = gasleft() + 1000;\n    }\n\n    function getGas() public view returns (uint256) {\n        return gasleft();\n    }\n\n    function gasDelta() public view returns (uint256) {\n        uint256 g0 = gasleft();\n        uint256 s = 0;\n        for (uint256 i = 0; i < 5; i++) {\n            s += i * 3;\n        }\n        return g0 - gasleft() + s;\n    }\n}",
+  "contract": "EnvProbe",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "query",
+      "function": "getGas"
+    },
+    {
+      "action": "call",
+      "function": "snapshot",
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "gasSeen"
+    },
+    {
+      "action": "query",
+      "function": "numberSeen"
+    },
+    {
+      "action": "query",
+      "function": "gasDelta"
+    },
+    {
+      "action": "query",
+      "function": "getGas"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "e16417c35f782698",
+    "origin": "mutated_llm"
+  }
+}

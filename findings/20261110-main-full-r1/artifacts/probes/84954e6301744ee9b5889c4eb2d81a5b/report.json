@@ -1,0 +1,79 @@
+{
+  "name": "crypto-hash-packed-static-addr-bool-bytes4-literal",
+  "contract": "HashPackedStaticLiteral",
+  "tool_versions": {
+    "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+    "solang": "solang version v0.3.5",
+    "anvil": "anvil Version: 1.7.1-dev",
+    "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+  },
+  "oracle_config": {
+    "storage": "count",
+    "events": false,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "execution": "on-chain",
+  "workdir": "/tmp/oracle-run-71r_j1pp",
+  "timing": {
+    "started_at": "2026-11-10T11:07:25.990+00:00",
+    "started_epoch": 1794308845.9909468,
+    "total_ms": 24.38058899861062,
+    "nodes": {}
+  },
+  "compile": {
+    "solc": {
+      "compiler": "solc",
+      "ok": true,
+      "version": "Version: 0.8.33+commit.64118f21.Linux.g++",
+      "errors": null,
+      "warnings": [
+        "Warning: SPDX license identifier not provided in source file. Before publishing, consider adding a comment containing \"SPDX-License-Identifier: <SPDX-License>\" to each source file. Use \"SPDX-License-Identifier: UNLICENSED\" for non-open-source code. Please see https://spdx.org for more information.\n--> input.sol\n\n"
+      ],
+      "artifacts": {
+        "abi": true,
+        "bytecode_bytes": 3470,
+        "wasm_bytes": 0,
+        "metadata": false
+      },
+      "elapsed_ms": 13.125114994181786
+    },
+    "solang": {
+      "compiler": "solang",
+      "ok": false,
+      "version": "solang version v0.3.5",
+      "errors": [
+        "\u001b[0m\u001b[1m\u001b[38;5;9merror\u001b[0m\u001b[1m: ethereum address literal '0x000000000000000000000000000000000000dEaD' not supported on target Polkadot\u001b[0m\n  \u001b[0m\u001b[34m\u250c\u2500\u001b[0m /tmp/solang-_67m1a3j/input.sol:3:26\n  \u001b[0m\u001b[34m\u2502\u001b[0m\n\u001b[0m\u001b[34m3\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m     address constant A = \u001b[0m\u001b[31m0x000000000000000000000000000000000000dEaD\u001b[0m;\n  \u001b[0m\u001b[34m\u2502\u001b[0m                          \u001b[0m\u001b[31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\u001b[0m"
+      ],
+      "warnings": null,
+      "artifacts": null,
+      "elapsed_ms": 11.223642999539152
+    }
+  },
+  "deploy": {},
+  "steps": [],
+  "divergences": [
+    {
+      "kind": "COMPILE_ASYMMETRY",
+      "step": null,
+      "detail": "one compiler rejected the source while the other accepted it",
+      "evm": {
+        "solc_ok": true,
+        "errors": null
+      },
+      "polkadot": {
+        "solang_ok": false,
+        "errors": [
+          "\u001b[0m\u001b[1m\u001b[38;5;9merror\u001b[0m\u001b[1m: ethereum address literal '0x000000000000000000000000000000000000dEaD' not supported on target Polkadot\u001b[0m\n  \u001b[0m\u001b[34m\u250c\u2500\u001b[0m /tmp/solang-_67m1a3j/input.sol:3:26\n  \u001b[0m\u001b[34m\u2502\u001b[0m\n\u001b[0m\u001b[34m3\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m     address constant A = \u001b[0m\u001b[31m0x000000000000000000000000000000000000dEaD\u001b[0m;\n  \u001b[0m\u001b[34m\u2502\u001b[0m                          \u001b[0m\u001b[31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\u001b[0m"
+        ]
+      },
+      "point": "compile",
+      "signature": "COMPILE_ASYMMETRY|compile||solang-rejects"
+    }
+  ],
+  "earliest_divergence": {
+    "point": "compile",
+    "signature": "COMPILE_ASYMMETRY|compile||solang-rejects"
+  },
+  "verdict": "DIVERGENCE"
+}

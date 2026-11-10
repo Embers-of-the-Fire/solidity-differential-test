@@ -1,0 +1,60 @@
+{
+  "name": "crypto-hash-packed-vs-encode-single-int-width",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract CryptoHashWidthProbe {\n    bytes32 public k16;\n    bytes32 public e16;\n    bytes32 public k32;\n    bytes32 public e32;\n    bytes32 public k64;\n    bytes32 public e64;\n\n    function set(uint16 a, uint32 b, uint64 c) public {\n        k16 = keccak256(abi.encodePacked(a));\n        e16 = keccak256(abi.encode(a));\n        k32 = keccak256(abi.encodePacked(b));\n        e32 = keccak256(abi.encode(b));\n        k64 = keccak256(abi.encodePacked(c));\n        e64 = keccak256(abi.encode(c));\n    }\n\n    function getK16() public view returns (bytes32) { return k16; }\n    function getE16() public view returns (bytes32) { return e16; }\n    function getK32() public view returns (bytes32) { return k32; }\n    function getE32() public view returns (bytes32) { return e32; }\n    function getK64() public view returns (bytes32) { return k64; }\n    function getE64() public view returns (bytes32) { return e64; }\n}",
+  "contract": "CryptoHashWidthProbe",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "set",
+      "args": [
+        4660,
+        3735928559,
+        81985529216486895
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "getK16"
+    },
+    {
+      "action": "query",
+      "function": "getE16"
+    },
+    {
+      "action": "query",
+      "function": "getK32"
+    },
+    {
+      "action": "query",
+      "function": "getE32"
+    },
+    {
+      "action": "query",
+      "function": "getK64"
+    },
+    {
+      "action": "query",
+      "function": "getE64",
+      "sender": "charlie"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "8f4c6600ec0296de",
+    "origin": "mutated_llm"
+  }
+}

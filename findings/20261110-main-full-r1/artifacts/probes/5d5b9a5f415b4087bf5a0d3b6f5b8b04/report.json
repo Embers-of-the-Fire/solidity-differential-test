@@ -1,0 +1,944 @@
+{
+  "name": "event-overload-samesig-interleaved-pairwise",
+  "contract": "EventOverloadReplay",
+  "tool_versions": {
+    "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+    "solang": "solang version v0.3.5",
+    "anvil": "anvil Version: 1.7.1-dev",
+    "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+  },
+  "oracle_config": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "execution": "on-chain",
+  "workdir": "/tmp/oracle-run-y5tav6m9",
+  "timing": {
+    "started_at": "2026-11-10T14:18:15.943+00:00",
+    "started_epoch": 1794320295.9440134,
+    "total_ms": 2520.9923169968533,
+    "nodes": {
+      "evm": {
+        "start_ms": 502.84705300146015,
+        "stop_ms": 3.153259000100661
+      },
+      "polkadot": {
+        "start_ms": 1225.1145980044384,
+        "stop_ms": 31.291646002500784
+      }
+    }
+  },
+  "compile": {
+    "solc": {
+      "compiler": "solc",
+      "ok": true,
+      "version": "Version: 0.8.33+commit.64118f21.Linux.g++",
+      "errors": null,
+      "warnings": [
+        "Warning: SPDX license identifier not provided in source file. Before publishing, consider adding a comment containing \"SPDX-License-Identifier: <SPDX-License>\" to each source file. Use \"SPDX-License-Identifier: UNLICENSED\" for non-open-source code. Please see https://spdx.org for more information.\n--> input.sol\n\n"
+      ],
+      "artifacts": {
+        "abi": true,
+        "bytecode_bytes": 1053,
+        "wasm_bytes": 0,
+        "metadata": false
+      },
+      "elapsed_ms": 8.325301998411305
+    },
+    "solang": {
+      "compiler": "solang",
+      "ok": true,
+      "version": "solang version v0.3.5",
+      "errors": null,
+      "warnings": null,
+      "artifacts": {
+        "abi": false,
+        "bytecode_bytes": 0,
+        "wasm_bytes": 40823,
+        "metadata": true
+      },
+      "elapsed_ms": 341.25310300441924
+    }
+  },
+  "deploy": {
+    "evm": {
+      "status": "success",
+      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "tx_hash": "45505d6c58762136122126442af81229e26921f97efd8b14834b62272373422f",
+      "error": null,
+      "elapsed_ms": 10.504475998459384
+    },
+    "polkadot": {
+      "status": "success",
+      "address": "5DnprwhveSrzEMsiVLVjtih3LKXmFhrzFyY1witS14hBLyEo",
+      "tx_hash": null,
+      "error": null,
+      "elapsed_ms": 263.57362699491205
+    }
+  },
+  "steps": [
+    {
+      "index": 0,
+      "action": "call",
+      "function": "mix",
+      "args": [],
+      "sender": "alice",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 3.6576530037564225,
+          "tx_ms": 8.833854997646995,
+          "snapshot_ms": 2.05684299726272
+        },
+        "evm_total_ms": 14.553020999301225,
+        "polkadot": {
+          "dry_run_ms": 1.760920997185167,
+          "tx_ms": 47.02356400230201,
+          "snapshot_ms": 1.4756090022274293
+        },
+        "polkadot_total_ms": 50.26370399718871
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "c0f40d91aa8c5688ddf18f5e861f02a78dd713c034270585249b511bdaee2ae0",
+          "block_hash": "f980763e7c33b5c359e919dad45db13697557540751a511b287b9df5eeec95a4",
+          "gas_used": 50505,
+          "events": [
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 1
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 10
+                },
+                {
+                  "name": "s",
+                  "value": "a"
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 2
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 20
+                },
+                {
+                  "name": "s",
+                  "value": "b"
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "evm",
+          "block": {
+            "number": 2,
+            "hash": "0xf980763e7c33b5c359e919dad45db13697557540751a511b287b9df5eeec95a4",
+            "timestamp": 1794320298
+          },
+          "contract": {
+            "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+            "balance": "0",
+            "nonce": 1
+          },
+          "storage": {
+            "0x0000000000000000000000000000000000000000000000000000000000000000": "0x0000000000000000000000000000000000000000000000000000000000000004"
+          }
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "0x7fe1be801b24ac807f35f086606e8d080cbc26e0133fc497ea7b6000505c2c30",
+          "block_hash": "0x7e187e5e3c928e326cc9eb396a45b7e95450f90fa64e07e02b9d6c8648d23901",
+          "gas_used": 1394583477,
+          "events": [
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 2
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 20
+                },
+                {
+                  "name": "s",
+                  "value": "b"
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 2
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 20
+                },
+                {
+                  "name": "s",
+                  "value": "b"
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "polkadot",
+          "block": {
+            "number": 2,
+            "hash": "0x7e187e5e3c928e326cc9eb396a45b7e95450f90fa64e07e02b9d6c8648d23901",
+            "timestamp": 1794320298313
+          },
+          "contract": {
+            "address": "5DnprwhveSrzEMsiVLVjtih3LKXmFhrzFyY1witS14hBLyEo",
+            "balance": "1000000000",
+            "nonce": 0
+          },
+          "storage": {
+            "0xff0f22492f44bac4c4b30ae58d0e8daa0000000000000000000000000000000000000000000000000000000000000000": "0x0400000000000000000000000000000000000000000000000000000000000000"
+          }
+        }
+      },
+      "divergences": [
+        {
+          "kind": "EVENT_MISMATCH",
+          "step": 0,
+          "detail": "emitted events differ",
+          "evm": [
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 1
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 10
+                },
+                {
+                  "name": "s",
+                  "value": "a"
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 2
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 20
+                },
+                {
+                  "name": "s",
+                  "value": "b"
+                }
+              ]
+            }
+          ],
+          "polkadot": [
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 2
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 20
+                },
+                {
+                  "name": "s",
+                  "value": "b"
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 2
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 20
+                },
+                {
+                  "name": "s",
+                  "value": "b"
+                }
+              ]
+            }
+          ],
+          "point": 0,
+          "signature": "EVENT_MISMATCH|0|mix|args"
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "action": "query",
+      "function": "get",
+      "args": [],
+      "sender": "deployer",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 3.0217079984140582,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "evm_total_ms": 3.023577999556437,
+        "polkadot": {
+          "dry_run_ms": 1.7459720038459636,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "polkadot_total_ms": 1.7468520018155687
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": 4,
+          "revert_reason": null,
+          "return_data_raw": "0x0000000000000000000000000000000000000000000000000000000000000004",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": 4,
+          "revert_reason": null,
+          "return_data_raw": "0x0400000000000000000000000000000000000000000000000000000000000000",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "divergences": []
+    },
+    {
+      "index": 2,
+      "action": "call",
+      "function": "mix",
+      "args": [],
+      "sender": "bob",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 2.16711300163297,
+          "tx_ms": 6.491191001259722,
+          "snapshot_ms": 1.9053920041187666
+        },
+        "evm_total_ms": 10.566045995801687,
+        "polkadot": {
+          "dry_run_ms": 1.450618998205755,
+          "tx_ms": 45.91311699914513,
+          "snapshot_ms": 1.924421994772274
+        },
+        "polkadot_total_ms": 49.29117800202221
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "19568fe3b69390bfe60ef37c887da5850d30a8e035cdee3e9368d23c1ad08cbf",
+          "block_hash": "d278b687ebdfccee9f14bb2a132cb8c79489dd316a48ccacf4e6f388f5a0dca4",
+          "gas_used": 30605,
+          "events": [
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 1
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 10
+                },
+                {
+                  "name": "s",
+                  "value": "a"
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 2
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 20
+                },
+                {
+                  "name": "s",
+                  "value": "b"
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "evm",
+          "block": {
+            "number": 3,
+            "hash": "0xd278b687ebdfccee9f14bb2a132cb8c79489dd316a48ccacf4e6f388f5a0dca4",
+            "timestamp": 1794320298
+          },
+          "contract": {
+            "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+            "balance": "0",
+            "nonce": 1
+          },
+          "storage": {
+            "0x0000000000000000000000000000000000000000000000000000000000000000": "0x0000000000000000000000000000000000000000000000000000000000000004"
+          }
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": null,
+          "revert_reason": null,
+          "return_data_raw": "0x",
+          "debug_message": null,
+          "error": null
+        },
+        "tx": {
+          "status": "success",
+          "tx_hash": "0x576e1560bb4549f1fae69c3e1d615963b5eea56be73e405558574b003e102c50",
+          "block_hash": "0x6d591946375e845beec0c164f541d14ae361a6f7b5576651d911fca77c3fb1a6",
+          "gas_used": 1394584725,
+          "events": [
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 2
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 20
+                },
+                {
+                  "name": "s",
+                  "value": "b"
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 2
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 20
+                },
+                {
+                  "name": "s",
+                  "value": "b"
+                }
+              ]
+            }
+          ],
+          "error": null
+        },
+        "state": {
+          "chain": "polkadot",
+          "block": {
+            "number": 3,
+            "hash": "0x6d591946375e845beec0c164f541d14ae361a6f7b5576651d911fca77c3fb1a6",
+            "timestamp": 1794320298379
+          },
+          "contract": {
+            "address": "5DnprwhveSrzEMsiVLVjtih3LKXmFhrzFyY1witS14hBLyEo",
+            "balance": "1000000000",
+            "nonce": 0
+          },
+          "storage": {
+            "0xff0f22492f44bac4c4b30ae58d0e8daa0000000000000000000000000000000000000000000000000000000000000000": "0x0400000000000000000000000000000000000000000000000000000000000000"
+          }
+        }
+      },
+      "divergences": [
+        {
+          "kind": "EVENT_MISMATCH",
+          "step": 2,
+          "detail": "emitted events differ",
+          "evm": [
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 1
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 10
+                },
+                {
+                  "name": "s",
+                  "value": "a"
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 2
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 20
+                },
+                {
+                  "name": "s",
+                  "value": "b"
+                }
+              ]
+            }
+          ],
+          "polkadot": [
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 2
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 20
+                },
+                {
+                  "name": "s",
+                  "value": "b"
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 2
+                }
+              ]
+            },
+            {
+              "name": "Ping",
+              "args": [
+                {
+                  "name": "a",
+                  "value": 20
+                },
+                {
+                  "name": "s",
+                  "value": "b"
+                }
+              ]
+            }
+          ],
+          "point": 2,
+          "signature": "EVENT_MISMATCH|2|mix|args"
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "action": "query",
+      "function": "get",
+      "args": [],
+      "sender": "deployer",
+      "value": 0,
+      "timing": {
+        "evm": {
+          "dry_run_ms": 3.2813910002005287,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "evm_total_ms": 3.2832109936862253,
+        "polkadot": {
+          "dry_run_ms": 1.9090819987468421,
+          "tx_ms": null,
+          "snapshot_ms": null
+        },
+        "polkadot_total_ms": 1.9100319987046532
+      },
+      "evm": {
+        "chain": "evm",
+        "dry_run": {
+          "status": "success",
+          "return_value": 4,
+          "revert_reason": null,
+          "return_data_raw": "0x0000000000000000000000000000000000000000000000000000000000000004",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "polkadot": {
+        "chain": "polkadot",
+        "dry_run": {
+          "status": "success",
+          "return_value": 4,
+          "revert_reason": null,
+          "return_data_raw": "0x0400000000000000000000000000000000000000000000000000000000000000",
+          "debug_message": null,
+          "error": null
+        }
+      },
+      "divergences": []
+    }
+  ],
+  "divergences": [
+    {
+      "kind": "EVENT_MISMATCH",
+      "step": 0,
+      "detail": "emitted events differ",
+      "evm": [
+        {
+          "name": "Ping",
+          "args": [
+            {
+              "name": "a",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "name": "Ping",
+          "args": [
+            {
+              "name": "a",
+              "value": 10
+            },
+            {
+              "name": "s",
+              "value": "a"
+            }
+          ]
+        },
+        {
+          "name": "Ping",
+          "args": [
+            {
+              "name": "a",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "name": "Ping",
+          "args": [
+            {
+              "name": "a",
+              "value": 20
+            },
+            {
+              "name": "s",
+              "value": "b"
+            }
+          ]
+        }
+      ],
+      "polkadot": [
+        {
+          "name": "Ping",
+          "args": [
+            {
+              "name": "a",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "name": "Ping",
+          "args": [
+            {
+              "name": "a",
+              "value": 20
+            },
+            {
+              "name": "s",
+              "value": "b"
+            }
+          ]
+        },
+        {
+          "name": "Ping",
+          "args": [
+            {
+              "name": "a",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "name": "Ping",
+          "args": [
+            {
+              "name": "a",
+              "value": 20
+            },
+            {
+              "name": "s",
+              "value": "b"
+            }
+          ]
+        }
+      ],
+      "point": 0,
+      "signature": "EVENT_MISMATCH|0|mix|args"
+    },
+    {
+      "kind": "EVENT_MISMATCH",
+      "step": 2,
+      "detail": "emitted events differ",
+      "evm": [
+        {
+          "name": "Ping",
+          "args": [
+            {
+              "name": "a",
+              "value": 1
+            }
+          ]
+        },
+        {
+          "name": "Ping",
+          "args": [
+            {
+              "name": "a",
+              "value": 10
+            },
+            {
+              "name": "s",
+              "value": "a"
+            }
+          ]
+        },
+        {
+          "name": "Ping",
+          "args": [
+            {
+              "name": "a",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "name": "Ping",
+          "args": [
+            {
+              "name": "a",
+              "value": 20
+            },
+            {
+              "name": "s",
+              "value": "b"
+            }
+          ]
+        }
+      ],
+      "polkadot": [
+        {
+          "name": "Ping",
+          "args": [
+            {
+              "name": "a",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "name": "Ping",
+          "args": [
+            {
+              "name": "a",
+              "value": 20
+            },
+            {
+              "name": "s",
+              "value": "b"
+            }
+          ]
+        },
+        {
+          "name": "Ping",
+          "args": [
+            {
+              "name": "a",
+              "value": 2
+            }
+          ]
+        },
+        {
+          "name": "Ping",
+          "args": [
+            {
+              "name": "a",
+              "value": 20
+            },
+            {
+              "name": "s",
+              "value": "b"
+            }
+          ]
+        }
+      ],
+      "point": 2,
+      "signature": "EVENT_MISMATCH|2|mix|args"
+    }
+  ],
+  "earliest_divergence": {
+    "point": 0,
+    "signature": "EVENT_MISMATCH|0|mix|args"
+  },
+  "verdict": "DIVERGENCE"
+}

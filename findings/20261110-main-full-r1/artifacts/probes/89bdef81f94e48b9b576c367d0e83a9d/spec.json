@@ -1,0 +1,67 @@
+{
+  "name": "intdiv-layout-unchecked-reorder",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract IntDivLayoutUncheckedReorder {\n    int256 public min256;\n    int16 public min16;\n    uint8 public bump;\n    uint256 public count;\n\n    constructor() {\n        min256 = type(int256).min;\n        min16 = type(int16).min;\n        bump = 1;\n    }\n\n    function div256() public returns (int256) {\n        int256 r = min256 / int256(-1);\n        unchecked { count++; }\n        return r;\n    }\n\n    function div16() public returns (int16) {\n        int16 r = min16 / int16(-1);\n        unchecked { count++; }\n        return r;\n    }\n\n    function touchBump(uint8 v) public {\n        bump = v;\n        unchecked { count++; }\n    }\n}",
+  "contract": "IntDivLayoutUncheckedReorder",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "execution": "on-chain",
+  "steps": [
+    {
+      "action": "call",
+      "function": "div256",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "div16",
+      "args": [],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "div256",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "touchBump",
+      "args": [
+        255
+      ],
+      "sender": "charlie",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "bump",
+      "args": []
+    },
+    {
+      "action": "query",
+      "function": "count",
+      "args": []
+    }
+  ],
+  "meta": {
+    "parent_id": "ab3a51096efb1c6c",
+    "origin": "mutated_llm"
+  }
+}

@@ -1,0 +1,73 @@
+{
+  "name": "overload-inherit-dispatch-p2",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract Base {\n    uint256 public baseState;\n\n    function f(uint256 x) public virtual returns (uint256) {\n        baseState = x + 1;\n        return 100 + x;\n    }\n\n    // Internal call to a virtual function: must dispatch to the override in Child.\n    function h(uint256 x) public returns (uint256) {\n        return f(x);\n    }\n}\n\ncontract Child is Base {\n    uint256 public childState;\n    uint256 public lastResult;\n\n    function f(uint256 x) public override returns (uint256) {\n        childState = x + 2;\n        return 200 + x;\n    }\n\n    // Overload distinguished by argument count from f(uint256).\n    function f(uint256 x, uint256 y) public returns (uint256) {\n        lastResult = 300 + x + y;\n        return lastResult;\n    }\n\n    // External self-call dispatch to the overridden single-arg overload.\n    function runDispatch(uint256 x) public returns (uint256) {\n        lastResult = this.f(x);\n        return lastResult;\n    }\n}",
+  "contract": "Child",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "h",
+      "args": [
+        2
+      ],
+      "sender": "alice"
+    },
+    {
+      "action": "query",
+      "function": "childState"
+    },
+    {
+      "action": "query",
+      "function": "baseState"
+    },
+    {
+      "action": "call",
+      "function": "f",
+      "args": [
+        7
+      ],
+      "sender": "alice"
+    },
+    {
+      "action": "query",
+      "function": "childState"
+    },
+    {
+      "action": "call",
+      "function": "f",
+      "args": [
+        3,
+        4
+      ],
+      "sender": "bob"
+    },
+    {
+      "action": "query",
+      "function": "lastResult"
+    },
+    {
+      "action": "call",
+      "function": "runDispatch",
+      "args": [
+        10
+      ],
+      "sender": "charlie"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "317d3e15715b50c4",
+    "origin": "mutated_prog"
+  }
+}

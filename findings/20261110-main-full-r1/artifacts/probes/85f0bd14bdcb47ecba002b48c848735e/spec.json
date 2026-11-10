@@ -1,0 +1,65 @@
+{
+  "name": "string-bytes-indexed-event-empty-unicode-concat",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract StringBytesConcatProbe {\n    event Dyn(string indexed marker, string val, bytes data);\n\n    uint256 public emitCount;\n    string public lastVal;\n    bytes public lastData;\n\n    function log(string memory marker, string memory a, string memory b, bytes memory x, bytes memory y) external {\n        emitCount += 1;\n        lastVal = string.concat(a, b);\n        lastData = bytes.concat(x, y);\n        emit Dyn(marker, lastVal, lastData);\n    }\n}",
+  "contract": "StringBytesConcatProbe",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "log",
+      "args": [
+        "empty",
+        "",
+        "",
+        "0x",
+        "0x"
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "log",
+      "args": [
+        "ascii",
+        "foo",
+        "bar",
+        "0x0102",
+        "0x0304"
+      ],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "emitCount"
+    },
+    {
+      "action": "query",
+      "function": "lastVal"
+    },
+    {
+      "action": "query",
+      "function": "lastData"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "4e6ab21b967ad2fb",
+    "origin": "mutated_llm"
+  }
+}

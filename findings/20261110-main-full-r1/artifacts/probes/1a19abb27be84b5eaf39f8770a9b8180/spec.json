@@ -1,0 +1,69 @@
+{
+  "name": "revert-custom-error-address-payload-p1",
+  "solidity": "pragma solidity >=0.8.0;\n\nerror BadValue(bytes32 tag, address a, address b);\n\ncontract AddrRevertProbe {\n    uint256 public count;\n\n    function bump() internal {\n        count += 1;\n    }\n\n    function failAddr(bytes32 tag, address expected) public {\n        bump();\n        revert BadValue(tag, msg.sender, expected);\n    }\n\n    function failAddrZero(bytes32 tag) public {\n        bump();\n        revert BadValue(tag, msg.sender, address(0));\n    }\n\n    function failAddrHigh(bytes32 tag) public {\n        address high = address(uint160(0x8000000000000000000000000000000000000000));\n        bump();\n        revert BadValue(tag, high, msg.sender);\n    }\n}",
+  "contract": "AddrRevertProbe",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "query",
+      "function": "count"
+    },
+    {
+      "action": "call",
+      "function": "failAddr",
+      "args": [
+        "0x01",
+        "$bob"
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "failAddrZero",
+      "args": [
+        "0x02"
+      ],
+      "sender": "charlie",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "failAddrHigh",
+      "args": [
+        "0x03"
+      ],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "failAddrHigh",
+      "args": [
+        "0x53"
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "count"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "50a31af7e366014c",
+    "origin": "mutated_prog"
+  }
+}

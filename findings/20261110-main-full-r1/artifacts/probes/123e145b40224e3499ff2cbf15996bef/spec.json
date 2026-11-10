@@ -1,0 +1,47 @@
+{
+  "name": "storage-packing-mixed-widths-strbytes-min",
+  "solidity": "pragma solidity >=0.8.0;\ncontract StoragePackingProbeStrBytesMin {\n    string public text;\n    bytes public blob;\n\n    function setText(string memory t) public { text = t; }\n    function setBlob(bytes memory bl) public { blob = bl; }\n    function length() public view returns (uint256) { return bytes(text).length + blob.length; }\n}",
+  "contract": "StoragePackingProbeStrBytesMin",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "setText",
+      "args": [
+        "abcdefghijklmnopqrstuvwxyz0123456789"
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "setBlob",
+      "args": [
+        "0x0102030405060708090a"
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "length",
+      "args": []
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "7de584791301b34f",
+    "origin": "mutated_llm"
+  }
+}

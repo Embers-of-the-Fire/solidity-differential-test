@@ -1,0 +1,378 @@
+{
+  "seed_id": "storage-layout",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "Solang (default opt level) fails to compile contracts that mix tightly packable primitive state variables (uint8/bool/int32) with dynamically-sized storage (string, bytes) and fixed arrays, panicking with Option::unwrap() on None in emit/instructions.rs, while solc compiles the same source. This is a solang codegen crash, not a behavioral divergence in storage packing.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "storage-packing-mixed-widths",
+          "verdict": "DIVERGENCE",
+          "note": "COMPILE_ASYMMETRY: solc_ok=true, solang panicked at src/emit/instructions.rs:774:54 (Option::unwrap on None). No runtime steps executed on polkadot side, so storage packing agreement remains untested."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Independent mutated variant (added uint256 `wide` and `length()` view) reproduces the identical solang crash: panic at src/emit/instructions.rs:774:54, Option::unwrap on None, while solc compiles cleanly (solc_ok=true). Two distinct sources hitting the same panic site indicate a single deterministic codegen bug rather than a source-specific fluke."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-p2",
+          "verdict": "DIVERGENCE",
+          "note": "h1's original next_probe (minimal reduction) was already executed via h5's bisection cells; the remaining open question is which minimal pair (string+bytes or string+array) triggers the panic, which is exactly h7's current next_probe. p2 adds only determinism evidence, already captured in h7's refine."
+        }
+      ],
+      "next_probe": "Subsumed by h7's bisection: compile minimal base + `string text` + `bytes blob` (no array, no event) under solang default opt; if it compiles, try minimal base + string + uint8[4] (no bytes). The first panicking pair is the minimal trigger."
+    },
+    {
+      "id": "h2",
+      "statement": "Raw-storage count-mode agreement between solc and solang is unreachable by construction: EVM packs all four small vars (uint8,bool,int32,uint8) into a single slot (nonzero_entries=1), while pallet-contracts stores each SCALE-encoded value as its own child-trie entry (3 entries), so count mode diverges on every step as an oracle artifact even when both chains are semantically correct. Semantic-level agreement IS observable: the getter queries a() and c() produced no divergence (both return 1 and 2147483647), so state values agree at the ABI level. Layout agreement must be assessed via getters/events/decoded value comparison, not raw entry counts.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "storage-packing-mixed-widths",
+          "verdict": "DIVERGENCE",
+          "note": "Probe aborted at compile; zero evidence gathered about runtime storage layout divergence. Clean PASS on a reduced variant would confirm layout agreement for that subset."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-min-small-vars",
+          "verdict": "DIVERGENCE",
+          "note": "STORAGE_MISMATCH flagged at steps 0-2 with evm nonzero_entries=1 (packed slot values 140737488355839, 140737488355584, 71916856549507073) vs polkadot nonzero_entries=2-3 (individual SCALE values like -2147483648, 1, 2147483647), triaged as oracle_artifact. Crucially, the query steps a() and c() after the final setSmall did NOT diverge \u2014 both chains read back identical values. First runtime evidence in this area: packing differs structurally, semantics agree."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-small-plus-string",
+          "verdict": "DIVERGENCE",
+          "note": "Second runtime confirmation of h2's core claim: count-mode STORAGE_MISMATCH at every mutating step (evm nonzero_entries=1-4 packed/short-string slots vs polkadot 4-5 individual SCALE entries), yet BOTH semantic queries passed cleanly \u2014 length() after setText(\"short\") agreed, and b() agreed (true). Structural layout divergence coexists with full semantic agreement, including across a delete/rewrite cycle of dynamic storage."
+        }
+      ],
+      "next_probe": "Compile a solang-only variant with all state variables and setters but with the `event Packed` declaration and `emit Packed(...)` statement removed. If it compiles, run setSmall/setText/setBlob/setArr/clearA with the count-mode storage oracle against solc to get the first actual layout-agreement data; if it still panics, strip `uint8[4] arr` next."
+    },
+    {
+      "id": "h3",
+      "statement": "The instructions.rs:774 unwrap panic is triggered by emitting an event with mixed-width primitive arguments (uint8, bool, int32), not by storage of string/bytes/fixed arrays: the crash site is in LLVM instruction emission (emit path), and the event is the only construct forcing ABI-encoding of a bool/int32 alongside uint8. Removing the event alone should make the contract compile under solang while keeping every storage variable.",
+      "status": "refuted",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "storage-packing-mixed-widths-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Panic reproduced at identical location across two variants differing only in storage declarations, consistent with a shared emission-time trigger (the Packed event is identical in both). Untested: whether the event, the fixed array, or dynamic storage alone causes it."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-min-small-vars",
+          "verdict": "DIVERGENCE",
+          "note": "Solang compiled AND executed the minimal source containing the identical `event Packed(uint8,bool,int32,uint8)` declaration and emit statement, at default opt level. The event is therefore exonerated as the panic trigger; h3's core prediction (event emission alone causes the instructions.rs:774 unwrap) is false. The trigger must be among the constructs absent here: string, bytes, or the fixed array."
+        }
+      ],
+      "next_probe": "Solang-only compile matrix on the same source: (A) remove event declaration + emit, keep all storage; (B) keep event but replace args with a single uint256; (C) keep event, change bool->uint8 and int32->int256. The cell that first compiles identifies the responsible construct."
+    },
+    {
+      "id": "h4",
+      "statement": "The solang emit-path panic at src/emit/instructions.rs:774:54 (Option::unwrap on None) is optimization-level independent: it occurs during instruction emission, which precedes LLVM optimization. Aggressive opt_level reproduces the byte-identical panic on the full 8-var construct set (seven sources now crash identically across default and aggressive levels), so increasing optimization cannot rescue this source family. The untested direction is the opposite sweep \u2014 'none' or 'less' \u2014 since a coarser pipeline could theoretically reorder or skip the offending emission, though emit-phase placement makes even that unlikely.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "storage-packing-mixed-widths-p1",
+          "verdict": "DIVERGENCE",
+          "note": "Third independently mutated variant (different arg values 200/-123456/77/255, different sender rotation, longer text, longer blob) hits the byte-identical panic site src/emit/instructions.rs:774:54 with Option::unwrap on None, while solc_ok=true. Crash determinism across three distinct sources, storage shapes, and value ranges points to a single emission-time construct (the Packed event shared by all three), not to data- or layout-dependent behavior. No runtime steps executed, so h2 layout agreement and h3 trigger attribution remain open."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-min-small-vars",
+          "verdict": "DIVERGENCE",
+          "note": "h4's framing assumed h3's matrix (event removal) was the unblocking path; with h3 refuted, the opt-level sweep must target a source that actually panics \u2014 i.e., one containing dynamic or array storage \u2014 not the event-bearing minimal source, which now compiles at default."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-crash-opt-aggressive",
+          "verdict": "DIVERGENCE",
+          "note": "Full 8-var source (4 small + wide + string + bytes + uint8[4] + Packed event) under solang opt_level=aggressive panics at the byte-identical site src/emit/instructions.rs:774:54 with Option::unwrap on None, while solc_ok=true (optimizer off). This is the first aggressive-level data point and the seventh source overall hitting the identical site: LLVM IR optimization (aggressive) neither masks nor relocates the crash, consistent with an emit-phase defect upstream of all opt passes."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-min-strbytes-opt-none",
+          "verdict": "DIVERGENCE",
+          "note": "h4's untested sweep direction executed: the minimal two-variable {string, bytes} contract (storage-packing-mixed-widths-strbytes-min source) under solang opt_level=\"none\" panics at the byte-identical site src/emit/instructions.rs:774:54 with Option::unwrap on None, while solc_ok=true (optimizer off). The crash now survives the coarsest available pipeline, making emit-phase opt-independence confirmed across the full opt-level spectrum: default (h10 strbytes-min), none (this probe), and aggressive (h4's full-source probe). No LLVM optimization pass ordering or skip can rescue the string+bytes pair; the defect is unconditionally upstream of all opt passes, exactly as h4's emit-phase-placement argument predicted. Opt-level is fully exonerated as a workaround dimension for this bug family."
+        }
+      ],
+      "next_probe": "Sweep opt_level (\"none\", \"less\", \"aggressive\") on the now-minimal crashing source storage-packing-mixed-widths-strbytes-min (just `string` + `bytes` + trivial setters), which is the cheapest source guaranteed to panic at instructions.rs:774 under default opt. If the panic is byte-identical across all levels, emit-phase opt-independence is confirmed for the minimal trigger; if \"none\" compiles, LLVM IR optimization ordering is implicated despite the emit-phase placement."
+    },
+    {
+      "id": "h5",
+      "statement": "The solang instructions.rs:774 unwrap panic is NOT triggered by string storage coexisting with small primitives: the small-vars-plus-string variant compiles AND runs cleanly under solang (default opt), including string setter, delete, and rewrite. The trigger set is now narrowed to {bytes, uint8[4]} or a combination thereof; single-candidate bisection continues.",
+      "status": "refuted",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "storage-packing-mixed-widths-min-small-vars",
+          "verdict": "DIVERGENCE",
+          "note": "Minimal reduction (h1's next_probe) succeeded where the parent sources failed: solang compiled and executed the small-vars-only contract, proving neither mixed-width primitives nor the Packed event triggers the panic. This narrows the trigger set from four candidates to three and invalidates the emit-path/event hypothesis (h3)."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-small-plus-string",
+          "verdict": "PASS",
+          "note": "h5's bisection cell (A) result: adding `string text` + setText/clearText/length to the previously-confirmed compiling minimal base produced a fully working solang build with no panic. String/dynamic-string SCALE storage is exonerated as the sole trigger, removing h5's originally favored candidate."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-array-bytes-no-string",
+          "verdict": "PASS",
+          "note": "The string-free variant containing `bytes blob` + `uint8[4] arr` + the Packed event compiled AND executed cleanly under solang (default opt): all 5 mutating steps and both semantic queries (a(), arr(3)) ran. This eliminates {bytes, uint8[4]} as the panic trigger set. Combined with h5's earlier string-only result, neither string alone nor bytes+array alone panics; the instructions.rs:774 unwrap requires a COMBINATION involving string storage plus bytes and/or the fixed array."
+        }
+      ],
+      "next_probe": "Bisect on the minimal compiling base: add exactly one construct per variant \u2014 (A) `string text` + setter, (B) `bytes blob` + setter, (C) `uint8[4] arr` + setter. Compile each under solang. The variant that panics at instructions.rs:774 identifies the trigger; if all three compile, the trigger is the combination (e.g., string+array together)."
+    },
+    {
+      "id": "h6",
+      "statement": "Deleting a dynamic string via `delete` leaves stale nonzero data slots in EVM raw storage (anvil dump at clearText step still shows the pre-delete slot values), whereas pallet-contracts removes/shrinks its SCALE entries to match the emptied state; consequently count-mode agreement degrades further after deletes and can never be expected on raw dumps even though both chains semantically agree (length() reads back correctly post-delete and post-rewrite). Raw-entry comparison must treat post-delete state as known-mismatch and rely on getter-level checks.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "storage-packing-mixed-widths-small-plus-string",
+          "verdict": "DIVERGENCE",
+          "note": "At step 2 (clearText) the EVM storage dump is byte-identical to step 1's dump (same 4 nonzero entries, including the two string-data slots), while polkadot shrank from 5 to 4 entries. Despite this raw asymmetry, the subsequent length() query after rewrite agreed (\"short\" -> 5). Delete-staleness on the EVM side is a new, durable oracle artifact distinct from mere packing."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-string-delete-stale",
+          "verdict": "DIVERGENCE",
+          "note": "h6's exact predicted experiment: setText(36-char string), then clearText with NO rewrite, then length(). Post-delete, the EVM dump (step 3) is byte-identical to step 1's dump \u2014 all 4 nonzero entries retained including the two stale string data slots \u2014 while polkadot pruned the string SCALE entry (5->4 entries). The post-delete length() query agreed (0) on both chains, and a()=0 / c()=-123456 agreed after clearA. Delete-staleness on EVM vs entry-pruning on pallet-contracts is now a confirmed, repeatable triage signature. Note also that at step 3 entry counts coincidentally converged (4 vs 4) yet the oracle still flagged mismatch, implying the count-mode oracle compares value multisets, not just counts \u2014 so numeric count equality never produces a false PASS."
+        }
+      ],
+      "next_probe": "After setText(long) then clearText with NO rewrite, query length() (expect 0 agreement) and dump raw storage on both chains: confirm EVM retains the two pre-delete nonzero slots while polkadot shows only the 4 small-var entries, establishing the delete-staleness signature as a triage marker."
+    },
+    {
+      "id": "h7",
+      "statement": "The solang emit-path unwrap panic at src/emit/instructions.rs:774:54 requires coexistence of `string` storage with at least one other dynamically- or array-sized construct (`bytes` or fixed array): string+wide+small-vars+event compiles and runs cleanly, string+small-vars compiles (h5), bytes+array+small-vars compiles (h5), and the full triple string+bytes+array panics \u2014 now reproduced across FIVE distinct sources (h1 variants, p0, p1, p2, p3) with byte-identical panic site. p3 additionally carries a malformed setText call list (2 args for a 1-param function) and distinct step ordering/values, yet still crashes identically at compile time while solc_ok=true (optimizer off). Because the crash occurs during instruction emission, it is fully independent of runtime values, senders, call arity, and step sequencing; the trigger predicate is purely the source-level construct set {string AND (bytes OR array)}, with uint256 `wide`, declaration order, and event design exonerated. Discriminating test remains the minimal pair: string+bytes vs string+array.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "storage-packing-mixed-widths-array-bytes-no-string",
+          "verdict": "PASS",
+          "note": "Bisection cell excluding string: solang built and ran the full step sequence. Since the parent sources (all containing string) crashed at the identical panic site, and both single-construct reductions succeed, the crash predicate is a conjunction involving string, narrowed from 'one of {string,bytes,array}' to '{string AND (bytes OR array)}'."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-reordered-wide-int64",
+          "verdict": "DIVERGENCE",
+          "note": "Reordered variant with string + uint256 wide + four small vars + Packed event compiled AND executed fully under solang default opt (all 5 calls, 3 queries, event emission with int64 arg). No panic at instructions.rs:774. This eliminates declaration order and a full-width uint256 neighbor as panic co-factors; the conjunction {string AND (bytes OR array)} survives intact."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-p2",
+          "verdict": "DIVERGENCE",
+          "note": "Fourth independent mutation of the full construct set (all 8 vars: 4 small + wide + string + bytes + uint8[4] + Packed event) panics at the byte-identical site src/emit/instructions.rs:774:54 with Option::unwrap on None, while solc_ok=true (optimizer off). The setSmall step list here even omits the 4th arg (d), which is irrelevant because compilation never succeeds \u2014 reinforcing that the crash predicate is purely source-construct-based and deterministic. Consistent with h7's {string AND (bytes OR array)} conjunction; does not yet discriminate string+bytes from string+array."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-p3",
+          "verdict": "DIVERGENCE",
+          "note": "Fifth independent mutation of the full construct set (all 8 vars + Packed event) panics at the byte-identical site src/emit/instructions.rs:774:54 with Option::unwrap on None, while solc_ok=true (optimizer off). Distinctive features vs p2: setText invoked with 2 args (arity anomaly), setArr called before setBlob, 36-char string, 10-byte blob, bob sender on setArr. All irrelevant because compilation fails before any runtime step \u2014 reinforcing that the crash predicate is source-construct-based and deterministic, and matching h7's {string AND (bytes OR array)} conjunction. Still does not discriminate string+bytes from string+array."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-min-string-bytes",
+          "verdict": "DIVERGENCE",
+          "note": "h7's discriminating cell executed: minimal base (4 small vars + uint256 wide) + `string text` + `bytes blob`, with NO uint8[4] array and NO Packed event, panics at the byte-identical site src/emit/instructions.rs:774:54 with Option::unwrap on None, while solc_ok=true. This directly satisfies the conjunction {string AND (bytes OR array)} and proves string+bytes alone (no array, no event) is a sufficient trigger set \u2014 the fixed array is exonerated as a required co-factor. Sixth independent source, identical panic site; the emit-path crash predicate is now confirmed as a source-level string+bytes co-declaration."
+        }
+      ],
+      "next_probe": "None needed for h7 itself \u2014 the {string, bytes} conjunction is confirmed and its discriminating cells (min-string-bytes DIVERGENCE, min-string-array PASS) are executed. Residual minimality is owned by h10 (two-var {string, bytes} contract); opt-level independence of the minimal pair is owned by h4."
+    },
+    {
+      "id": "h8",
+      "statement": "Scalar deletes also diverge structurally in count mode, complementing h6's dynamic-delete finding: clearing a small primitive via `delete` removes the SCALE entry entirely on pallet-contracts (nonzero_entries dropped 7->6 after clearA because `a` became zero and its child-trie entry vanished), while EVM rewrites the still-nonzero packed slot (36310271995609599 -> 36310271995609344) since b, c, d remain. Polkadot's entry count tracks logical nonzero state per variable; EVM's tracks nonzero 32-byte slots. Semantic agreement holds regardless (a() read 0 on both chains after clearA).",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "storage-packing-mixed-widths-array-bytes-no-string",
+          "verdict": "DIVERGENCE",
+          "note": "At step 4 (clearA), polkadot nonzero_entries fell 7->6 (entry for `a` removed when zeroed) while EVM kept 3 entries with the packed slot value mutated (a cleared, other fields preserved). STORAGE_MISMATCH flagged as oracle_artifact; query a() at step 5 agreed (0) on both chains. First direct evidence that polkadot prunes zero-valued SCALE entries even for scalar deletes, whereas EVM staleness (h6) applies to dynamic-slot data and slot-rewrite asymmetry applies to packed scalars."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-reordered-wide-int64",
+          "verdict": "DIVERGENCE",
+          "note": "Second independent confirmation: at step 4 (clearA) polkadot nonzero_entries fell 6->5 (the zeroed `a` entry was pruned) while EVM kept all 5 entries with the packed slot value rewritten in place (93691751020133761039729151 -> 93691751020133761039728896). The follow-up query a() agreed (0) on both chains. Scalar-delete pruning on pallet-contracts vs slot-rewrite on EVM is now a repeatable, triageable structural signature."
+        }
+      ],
+      "next_probe": "Call setSmall(0, false, 0, 0) then dump raw storage on both chains: predict EVM packed slot becomes zero and nonzero_entries falls to the blob+array slots (2-3), while polkadot drops all four small-var entries leaving only blob/arr entries \u2014 testing whether count-mode can ever converge when all packed fields are zeroed, and confirming polkadot deletes entries on zero-assignment."
+    },
+    {
+      "id": "h9",
+      "statement": "Integer boundary values round-trip identically across solc/anvil and solang/pallet-contracts in storage semantics: uint256 MAX (2^256-1, read as -1 in signed slot dumps) and int64 MIN (-9223372036854775808) are stored and returned identically by getters on both chains, despite the count-mode oracle flagging structural mismatch. Additionally, uint8 increments that stay in range (254->255 via bumpA) mutate storage in place identically (EVM packed slot last byte +1; polkadot entry -2 -> -1) with full semantic agreement. Only the revert behavior at the 255+1 overflow boundary is untested.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "storage-packing-mixed-widths-reordered-wide-int64",
+          "verdict": "DIVERGENCE",
+          "note": "Extreme values handled identically: wide() = 2^256-1 agreed, c() = -9223372036854775808 agreed, a() = 0 after clearA agreed; all divergences were STORAGE_MISMATCH count-mode artifacts triaged as oracle_artifact. bumpA 254->255 updated EVM packed slot ...150->...151 and polkadot entry -2->-1 with no query divergence. No event divergence despite Packed carrying int64."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-overflow-revert",
+          "verdict": "DIVERGENCE",
+          "note": "h9's exact predicted experiment executed: setSmall(255, true, 2^31-1, 255) then bumpA(). On both chains the 255+1 uint8 overflow reverted identically \u2014 storage is byte-identical between step 0 and step 1 on EVM (single packed slot 71916856549507583 unchanged) and on polkadot (4 SCALE entries -1, -1, 1, 2147483647 unchanged), the revert_reasons oracle raised no divergence, and the post-revert query a() agreed (255) on both chains with no divergence flagged. Revert parity at the overflow boundary plus bit-identical state preservation after a failed transaction is now confirmed; the two STORAGE_MISMATCH flags are the already-triaged packing/count oracle artifact (1 packed slot vs 4 SCALE entries). h9's previously-untested boundary clause is resolved."
+        }
+      ],
+      "next_probe": "setSmall(255, true, 9223372036854775807, 255) then call bumpA() and assert revert parity: both chains should revert identically (checked arithmetic) with matching revert reasons; then query a() expecting 255 on both, confirming that a reverted overflow leaves state unchanged on both chains."
+    },
+    {
+      "id": "h10",
+      "statement": "The instructions.rs:774 unwrap panic requires only `string` and `bytes` storage co-declared in one contract: the fixed array is now exonerated as a co-factor (string+array+small-vars+wide compiles and runs cleanly; string+bytes+small-vars+wide panics identically), and the event and declaration order were exonerated earlier. It is likely that even a two-variable contract {string, bytes} with trivial setters triggers the same panic, in which case the bug is unconditionally in solang's SCALE/ABI handling of the string-bytes storage pair during instruction emission, independent of all other layout context. Only the necessity of the small packed primitives and uint256 `wide` remains untested.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "storage-packing-mixed-widths-min-string-bytes",
+          "verdict": "DIVERGENCE",
+          "note": "Confirms string+bytes suffices (no array, no event), narrowing the trigger from {string AND (bytes OR array)} toward a pure {string, bytes} pair, but the presence of small vars + wide leaves necessity of those co-factors untested."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-min-string-array",
+          "verdict": "DIVERGENCE",
+          "note": "The complement cell to min-string-bytes: swapping `bytes blob` for `uint8[4] arr` flips the outcome from a byte-identical instructions.rs:774 panic to a fully working build. Since the two cells differ only in bytes-vs-array, the panic co-factor is bytes specifically; the trigger set is now narrowed to {string, bytes, (small vars+wide?)} with only the primitive/wide co-factor necessity open."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-strbytes-min",
+          "verdict": "DIVERGENCE",
+          "note": "h10's predicted minimal experiment executed exactly as specified: a two-variable contract containing ONLY `string public text; bytes public blob;` plus setText/setBlob/length panics at the byte-identical site src/emit/instructions.rs:774:54 with Option::unwrap on None, while solc_ok=true. The small packed primitives and uint256 `wide` are exonerated as necessary co-factors. The minimal trigger set is exactly the {string, bytes} storage pair \u2014 eighth distinct source, identical panic site. This is an unconditional solang codegen bug in instruction emission for contracts co-declaring string and bytes storage, independent of all other layout context."
+        }
+      ],
+      "next_probe": "Compile a minimal contract containing ONLY `string public text; bytes public blob;` plus setText/setBlob/length under solang default opt. If it panics at instructions.rs:774, the minimal trigger is exactly the string+bytes pair; if it compiles, the small primitives or uint256 wide are necessary co-factors and the trigger set must be re-widened."
+    },
+    {
+      "id": "h11",
+      "statement": "Fixed-length arrays are stored per-element as separate SCALE entries on pallet-contracts but packed whole into a single EVM slot: after setArr(0,255) and setArr(3,1), EVM shows one array slot holding 16777471 (= 0x010000FF, both elements packed), while polkadot shows two individual entries (-1, 1) \u2014 one child-trie entry per written index, not one entry per array. Count-mode therefore diverges by (number of written indices - 1) for partially-written arrays. Because entries appear per-index, setting all four elements might converge counts (EVM 1 slot vs polkadot either 4 entries or one merged array entry) \u2014 untested. Semantic agreement holds regardless (a(), c(), length() all agreed).",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "storage-packing-mixed-widths-array-full",
+          "verdict": "DIVERGENCE",
+          "note": "h11's discriminating experiment executed exactly as specified: after writing all four indices (255, 128, 64, 1), EVM shows ONE array slot holding 21004543 (= 0x014080FF, all four bytes packed little-endian) for a total of 3 nonzero entries (packed small vars, wide=-1, array slot), while polkadot shows NINE entries: 4 small-var SCALE values (-56, 1, -123456, 77), wide (-1), and FOUR separate per-index array entries (-1, -128, 64, 1) \u2014 confirming one child-trie entry per written index with no merging even for a fully-written fixed array. Counts therefore never converge for arrays (EVM 3 vs polkadot 9), and the per-index divergence delta grows by +1 per distinct written index. Semantic agreement held: queries a()=200 and arr(3)=1 produced no divergence. The alternative branch of h11's fork (polkadot merging into one array entry, enabling count convergence) is refuted."
+        }
+      ],
+      "next_probe": "Write all four indices of uint8[4] (setArr(0..3)) with distinct nonzero values and dump raw storage on both chains: if polkadot shows 4 entries, per-index storage is confirmed and counts never converge for arrays; if it shows 1 merged SCALE entry, count-mode can converge for fully-written fixed arrays. Then query arr(0) and arr(3) to confirm semantic agreement on partially-written arrays."
+    },
+    {
+      "id": "h12",
+      "statement": "String-length threshold creates a predictable count-mode delta: solc/EVM stores short strings (<=31 bytes) inline in a single slot, but strings longer than 31 bytes occupy 1 + ceil(len/32) slots (36 chars -> length slot holding 2*len+1 = 73 plus 2 data slots = 3 entries), whereas solang/pallet-contracts stores the entire SCALE-encoded string as exactly ONE child-trie entry regardless of length. Per-step nonzero entry counts therefore differ by (2 + ceil(len/32)) vs 1 for long strings and by 0 vs 1 per additional var for short strings, making the string-length threshold at 32 bytes a discontinuous, testable signature in the count oracle.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "storage-packing-mixed-widths-string-delete-stale",
+          "verdict": "DIVERGENCE",
+          "note": "First long-string data point: after setText(36 chars), EVM showed 3 nonzero entries (values include 73 = 2*36+1, the long-string length marker, plus two data slots) while polkadot showed exactly 1 entry holding the whole SCALE-encoded string. Earlier probes only exercised short strings (single EVM slot), so this establishes the 1+ceil(len/32) vs 1 slot-count law for long strings; all flagged mismatches triaged as oracle_artifact, with length() queries agreeing at every step."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-string-threshold",
+          "verdict": "DIVERGENCE",
+          "note": "h12's exact predicted experiment executed with lengths 31, 32, and 62: at len 31 EVM shows 2 nonzero entries (packed small-vars slot + ONE inline short-string slot, value 44048183304486788312148433451363384677562265908331949128489393198128510022974 = data with 2*31+1=63 in low byte); at len 32 EVM jumps to 3 entries with the length slot reading exactly 65 = 2*32+1, confirming the inline->long-string transition lands precisely at the 32-byte boundary; at len 62 EVM shows 4 entries with length slot 125 = 2*62+1 plus two data slots, matching the 1+ceil(len/32) slot law. Polkadot holds constant at 5 entries (4 small-var SCALE values + exactly ONE string entry, e.g. the 62-char SCALE blob at step 3) across all three lengths, proving pallet-contracts stores any-length string as a single child-trie entry. All four mismatches triaged as oracle_artifact; semantic queries length() (=62) and a() (=200) agreed with no divergence. The discontinuity signature, the 2*len+1 length marker, and the per-length count delta are all confirmed as repeatable triage markers."
+        }
+      ],
+      "next_probe": "Store strings of length 31, 32, and 64 via setText on both chains and dump raw storage after each: predict EVM nonzero_entries jump from 1 (len 31, inline) to 3 (len 32) to 4 (len 64) with the length slot reading 2*len+1, while polkadot stays at 1 entry (plus the small-var entries) for all three lengths; verify the discontinuity lands exactly at 32 bytes."
+    },
+    {
+      "id": "h13",
+      "statement": "Pallet-contracts raw storage dumps decode small unsigned integers as SIGNED two's-complement values, while EVM dumps show them unsigned: a uint8 of 255 appears as -1, 254 as -2, and NOW 128 as -128 (this probe's d=128 read as -128 in every polkadot dump), whereas EVM shows them unsigned. The signedness decoding rule is now observed at three magnitudes (128, 254, 255) across scalars and array elements. The remaining unverified clause is getter-level proof that the -128 dump reading corresponds to a semantically correct 128, plus confirmation for an array element at the int8 boundary.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "storage-packing-mixed-widths-string-only-arr-boundary",
+          "verdict": "DIVERGENCE",
+          "note": "Signedness artifact directly observable: polkadot step-0 multiset contains -1 (uint8 d=255), 1 (bool b=true), -2147483648 (int32 c, genuinely negative); step 2 adds another -1 (arr[0]=255). EVM-side values are always unsigned (packed slot 71916856549572864, standalone array slot 255, merged slot 16777471). Combined with the earlier bumpA evidence (254->-2, 255->-1) this is a repeatable decoding rule for polkadot dumps, now seen across scalars and array elements alike."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-string-delete-rewrite",
+          "verdict": "DIVERGENCE",
+          "note": "Direct observation of h13's rule at the 128 boundary without running its named next_probe: polkadot value multiset contains -128 at steps 0-4 corresponding to uint8 d=128 (EVM packed slot 36310271995609089 encodes it unsigned). This is the third magnitude (after 254->-2, 255->-1) confirming the int8 re-interpretation rule for polkadot dumps; c=-1 reads genuinely negative on both sides and a=1 reads 1, so the signedness artifact is specific to unsigned values with the high bit set. Getter d() was not among this probe's queries, so the semantic-parity half of the discriminating test remains open."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-int8-boundary",
+          "verdict": "DIVERGENCE",
+          "note": "h13's exact named next_probe executed: setSmall(128, false, 0, 128) then setArr(1, 128). Polkadot dumps show -128 for BOTH the scalar entries (a=128, d=128; two -128 values at step 0) and, after setArr, a third -128 for the array element arr[1]=128 \u2014 the int8 signedness artifact now directly observed at the 128 boundary for scalars AND array elements in one probe. EVM shows the unsigned packed slot 36028797018964096 (= 0x800000800000000, encoding a=0x80 and d=0x80) and standalone array slot 32768... i.e. 128<<8 pattern for the merged array region, all unsigned. Crucially, the getter-level half of the discriminating test passed: the query steps d(), arr(1), and a() produced NO divergence, proving the -128 dump readings are pure signedness decode artifacts with semantically correct 128 stored and returned on both chains. Both STORAGE_MISMATCH flags triaged as oracle_artifact per the established count-mode/packing signatures. h13's final unverified clause is resolved; the signedness decoding rule is fully confirmed as a repeatable triage marker at magnitudes 128/254/255 across scalars and array elements, with semantic parity guaranteed at the getter level."
+        }
+      ],
+      "next_probe": "setSmall(128, false, 0, 0) then setArr(1, 128) and dump raw storage on both chains: predict polkadot shows -128 for both the scalar and array entries (int8 boundary) while EVM shows 128 unsigned in the packed slot and array slot; then query d() and arr(1) expecting 128 on both chains to prove the -128 dump reading is a signedness artifact, not a semantic divergence."
+    },
+    {
+      "id": "h14",
+      "statement": "The instructions.rs:774 unwrap panic trigger is broader than the confirmed {string, bytes} pair (h10): a source containing `bytes blob` + `uint8[4] arr` + `uint256 wide` + small primitives + the Packed event, but NO string, panics at the byte-identical site while solc_ok=true. Since the earlier string-free variant lacking `wide` compiled cleanly (h5's array-bytes-no-string PASS), the uint256 full-width slot is implicated as a co-factor that converts a benign {bytes, array} pair into a crashing triple. The emit-phase bug is therefore in solang's handling of multiple dynamically-sized/array storage coexisting with a full-width slot (or in wide's SCALE layout interacting with them), not uniquely in the string-bytes pair. Candidate trigger predicate: {bytes AND (string OR array)} with wide acting as an aggravator in the array branch.",
+      "status": "refuted",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "storage-packing-mixed-widths-bytes-only-full-array",
+          "verdict": "DIVERGENCE",
+          "note": "String-free source (small vars + wide + bytes + uint8[4] + Packed event + setArrAll helper) panics at the byte-identical site src/emit/instructions.rs:774:54 with Option::unwrap on None, while solc_ok=true (optimizer off). This is the ninth distinct source at the identical panic site and the FIRST without any string storage, directly breaking the {string AND (bytes OR array)} conjunction of h7/h10. The only construct present here but absent from the earlier compiling string-free variant (h5's array-bytes-no-string) is the uint256 `wide` slot (plus the trivial setArrAll/clearA/length helpers, which are unlikely emit triggers), implicating wide as the co-factor that makes {bytes, array} crash. Compilation failure means no runtime steps executed; all step-order/arity variations in this spec are irrelevant to the outcome."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-no-string-bytes-array-wide",
+          "verdict": "DIVERGENCE",
+          "note": "h14's predicted panic cell (A) executed: `uint256 wide` + `bytes blob` + `uint8[4] arr` with NO small primitives and NO Packed event compiled AND ran fully under solang (default opt) \u2014 no instructions.rs:774 panic, solc_ok=true. h14's prediction that {bytes, array, wide} alone is a sufficient string-free trigger is false. Since h14's crashing source additionally contained the 4 small packable primitives (and the event), while h5's compiling string-free variant had small vars+bytes+array but no wide, the wide+bytes+array leg is exonerated; the residual co-factors for that crash family are now confined to {small primitives, event} interacting with {wide, bytes, array}. Runtime data also shows the 33-byte blob obeying the 2*len+1 slot law (length slot 67) and per-index array entries with signedness artifact (-1 for 255), with wide()=2^256-1 and arr(3)=255 agreeing semantically on both chains."
+        }
+      ],
+      "next_probe": "Solang-only compile matrix on minimal 2-4 variable contracts with trivial setters: (A) `bytes` + `uint8[4]` + `uint256 wide` (no small vars, no event) \u2014 predicts panic; (B) `bytes` + `uint8[4]` without wide \u2014 predicts compile (per h5); (C) `bytes` + `uint256 wide` without array \u2014 predicts compile. The cell pattern fixes whether wide is necessary for the string-free crash and whether the predicate is {bytes AND (string OR (array AND wide))}."
+    },
+    {
+      "id": "h15",
+      "statement": "Overwriting a long (>31-byte) string with a short (<=31-byte) string never shrinks EVM nonzero entry count: the orphaned second data slot remains nonzero as a stale artifact, so EVM count stays pinned at the long-string peak (4 entries here: packed slot, rewritten inline short-string slot, plus TWO stale long-string data slots), whereas pallet-contracts rewrites its single SCALE entry in place and its count tracks logical state exactly (constant smallvars+1 across long, deleted, short states). EVM string slot allocation is thus monotonic within a deployment \u2014 only a fresh long string of equal/greater slot demand reuses stale slots \u2014 while polkadot entry count is always logically faithful. Semantic agreement still holds across the shrink cycle (length() agreed at every step).",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "storage-packing-mixed-widths-string-delete-rewrite",
+          "verdict": "DIVERGENCE",
+          "note": "Step 1 (46-char string): EVM 4 entries = packed small slot (36310271995609089) + long-string length slot 93 (=2*46+1, h12 law) + 2 data slots; polkadot 4 entries = 3 small-var SCALE values + 1 whole-string entry. Step 2 clearText: EVM byte-identical 4 entries (stale, h6 signature), polkadot prunes to 3. Step 3 setText(\"abc\", 3 chars): EVM still 4 entries \u2014 the long-string slot 1 was REWRITTEN IN PLACE with the inline short-string value while long-string data slot 2 (44048183304...885) stayed stale and nonzero; polkadot rewrote its single entry in place (new value 6513249, count unchanged at 4). Step 4 clearA: EVM packed slot mutated in place (...089 -> ...088), polkadot pruned the `a` entry 7->... 4->3 (h8 signature). Queries a(), c(), length() after the full long->delete->short->clearA cycle produced NO divergence on any step. All five STORAGE_MISMATCH flags triaged as oracle_artifact."
+        },
+        {
+          "probe": "storage-packing-mixed-widths-string-shrink",
+          "verdict": "DIVERGENCE",
+          "note": "Exact predicted shrink experiment: setText(64 chars) produced EVM 4 nonzero entries (packed slot, long-string length slot 129=2*64+1, and two identical 64-byte 'a' data slots) versus polkadot 5 entries (4 small-var SCALE values plus one whole-string entry). Rewriting with one character left EVM at 4 entries: the long-string slot was repurposed as the inline short-string slot while both prior data slots remained stale and nonzero; polkadot retained exactly 5 entries and rewrote only the whole-string SCALE entry (value 113). Step-4 clearA showed the usual slot-rewrite versus entry-pruning signatures, with counts coincidentally converging at 4 but value multisets still differing. Crucially, neither the post-shrink length() query nor post-clearA a() query diverged, confirming full semantic agreement across the 64->1-byte shrink and scalar-delete cycle. Monotonic EVM string slot allocation and logically faithful polkadot entry counts are repeatable oracle artifacts."
+        }
+      ],
+      "next_probe": "setText(64 chars) then setText(1 char) and dump raw storage on both chains: predict EVM shows 5 entries (packed + inline short slot + 3 stale data slots, count never decreasing) while polkadot shows smallvars+1 entries with the single string SCALE entry rewritten in place; then length() expecting 1 on both, proving the stale EVM slots are pure artifacts."
+    },
+    {
+      "id": "h16",
+      "statement": "The instructions.rs:774 panic has at least two distinct source-level trigger families: (1) the confirmed minimal {string, bytes} pair (h10), and (2) a compound family requiring the small packable primitives to coexist with {uint256 wide, bytes, uint8[4]}: h14's crashing source had all of {small vars, wide, bytes, array, event}, h5's compiling variant lacked only wide, and this probe's compiling variant lacks small vars AND event. The compound family's minimal predicate is therefore {small vars AND wide AND bytes AND array} with the event's role untested, OR the event acts as a co-factor only in combination with wide. h3 exonerated the event as a sole trigger but never tested it as a compound-family co-factor.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "storage-packing-mixed-widths-no-string-bytes-array-wide",
+          "verdict": "DIVERGENCE",
+          "note": "Third leg of the compile matrix resolved: {wide, bytes, array} compiles cleanly, so this combination is exonerated as a self-sufficient trigger. Combined with h5 ({small, bytes, array, event} compiles) and h14's crash source ({small, wide, bytes, array, event} panics), the compound crash predicate must contain all of {small, wide, bytes, array} or substitute the event for one of them \u2014 exactly the fork the next probe resolves. Runtime counts (EVM 4-5 slots vs polkadot 2-3 SCALE entries) and getter agreement (wide(), arr(3)) are consistent with h2/h11/h13 and add no new oracle behavior."
+        }
+      ],
+      "next_probe": "Solang-only compile of small vars (uint8,bool,int32,uint8) + uint256 wide + bytes + uint8[4] with NO Packed event and NO string: if it panics at instructions.rs:774, the event is exonerated in this family too and the minimal predicate is {small vars AND wide AND bytes AND array}; if it compiles, the event is a required co-factor here (resurrecting a restricted form of h3)."
+    },
+    {
+      "id": "h17",
+      "statement": "Dynamically-sized bytes follow the same EVM short/long-string slot law as strings (h12): a 33-byte blob occupies ONE length slot holding 2*len+1 = 67 plus ceil(33/32) = 2 data slots (EVM 4 entries total with wide), while pallet-contracts stores the whole SCALE-encoded blob as exactly ONE child-trie entry (2 entries total with wide). The inline/long transition for bytes is therefore predicted to land at the 32-byte boundary exactly as for strings, with the same 2*len+1 marker signature, but bytes-specific confirmation at lengths 31/32/64 is untested.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "storage-packing-mixed-widths-no-string-bytes-array-wide",
+          "verdict": "DIVERGENCE",
+          "note": "First bytes-length data point in this area: after setBlob(33 bytes), EVM shows 4 nonzero entries including a slot reading 67 = 2*33+1 (the long-bytes length marker, matching h12's string law) plus two data slots (values -452312848583266388373324160190187140051835877600158453279131187530910662656 and 455867356320691211509944977504407603390036387149619137164185182714736811808), while polkadot shows exactly 2 entries: wide(-1 signed dump) and one whole-blob SCALE entry (-101263097986454790756736449573303292087413317154883757242103728907250873204223). STORAGE_MISMATCH at steps 1-2 triaged as oracle_artifact; both queries (wide()=MAX, arr(3)=255) agreed with no divergence. Bytes slot law is inferred but only at one length; the 32-byte boundary test remains open."
+        }
+      ],
+      "next_probe": "setBlob with byte arrays of length 31, 32, and 64 (values 0x00..0x1e, 0x00..0x1f, 0x00..0x3f) interleaved with raw storage dumps on both chains: predict EVM nonzero_entries jump from inline-1 to 1+ceil(len/32) data slots at length 32 with the length slot reading 2*len+1 (65, 129), while polkadot holds constant at smallvars+1 entries with a single rewritten blob SCALE entry; verify the discontinuity lands precisely at 32 bytes."
+    },
+    {
+      "id": "h18",
+      "statement": "Pallet-contracts raw-storage dumps decode unsigned values as signed two's-complement at each variable's OWN declared width, generalizing h13's uint8 observations: this probe's polkadot step-0 multiset contains two -1 entries (uint8 a=255 AND uint16 e=65535 both read as -1) alongside the genuinely negative int32 c=-2147483648 and uint8 d=128 reading -128, while EVM packs all five primitives (bool+uint8+int32+uint8+uint16 = 10 bytes) into a single unsigned slot (4722366342132156891137). The signedness artifact is therefore width-aware per declared type, not a flat int8 reinterpretation: uint16 max maps to -1 exactly as uint8 max does. Semantic parity is preserved across widths: getter e() returned 65535 with no divergence flagged. Untested: the uint16 high-bit boundary at 32768 (predicted to read as -32768).",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "storage-packing-mixed-widths-reordered-uint16",
+          "verdict": "DIVERGENCE",
+          "note": "Polkadot step-0 multiset [-1, -1, -128, -2147483648, 1] maps to a=255(-1), e=65535(-1, NEW uint16 magnitude), d=128(-128), c=MIN, b=1; EVM shows ONE packed slot 4722366342132156891137 (5 heterogeneous primitives, 10 bytes total, all in one slot). Step 1 setText(32 chars): EVM 3 entries with length slot 65 = 2*32+1 (h12 law re-confirmed at the transition boundary) vs polkadot 6 entries (5 small-var SCALE values + 1 whole string). Step 3 clearA: EVM packed slot rewritten in place (...6891137 -> ...5673857), polkadot pruned a's entry 6->5 (h8 signature). All three STORAGE_MISMATCH flags triaged as oracle_artifact; queries length()=32, e()=65535, and a()=0 produced NO divergence, proving semantic parity for uint16 MAX at the getter level. Solang compiled and ran cleanly (no bytes/array), consistent with the established crash predicate."
+        }
+      ],
+      "next_probe": "Call setSmall(1, false, 0, 0, 32768) and dump raw storage on both chains: predict polkadot shows -32768 for the e entry (uint16 0x8000 boundary) while EVM's packed slot encodes 32768 unsigned; then query e() expecting 32768 on both chains to prove the -32768 dump reading is a width-aware signedness artifact with semantically correct storage."
+    }
+  ],
+  "updated_ts": 1794319771.5796263
+}

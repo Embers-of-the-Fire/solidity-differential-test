@@ -1,0 +1,63 @@
+{
+  "name": "layout-subword-packing-raw-slot-vs-getters",
+  "solidity": "pragma solidity >=0.8.0;\ncontract LayoutPack {\n    uint8 public a;\n    uint64 public b;\n    uint256 public c;\n    function setAll() public {\n        a = 255;\n        b = 1794293258;\n        c = 0;\n    }\n    function setA(uint8 v) public { a = v; }\n    function setB(uint64 v) public { b = v; }\n}",
+  "contract": "LayoutPack",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": false,
+    "revert_reasons": false,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "query",
+      "function": "a"
+    },
+    {
+      "action": "query",
+      "function": "b"
+    },
+    {
+      "action": "call",
+      "function": "setAll",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "a"
+    },
+    {
+      "action": "query",
+      "function": "b"
+    },
+    {
+      "action": "call",
+      "function": "setA",
+      "args": [
+        0
+      ],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "a"
+    }
+  ],
+  "meta": {
+    "parent_id": null,
+    "origin": "generated"
+  },
+  "execution": "on-chain"
+}

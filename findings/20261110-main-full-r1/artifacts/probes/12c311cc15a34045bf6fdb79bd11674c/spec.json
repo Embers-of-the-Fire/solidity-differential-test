@@ -1,0 +1,54 @@
+{
+  "name": "env-gasleft-entry-vs-dryrun-m4-normalized-scale",
+  "solidity": "pragma solidity >=0.8.0;\ncontract GasProbe {\n    uint256 public entryGas;\n    uint256 public exitGas;\n    uint256 public entryNorm;\n    uint256 public exitNorm;\n    event GasRecorded(uint256 entryG, uint256 exitG);\n    function getGas() public view returns (uint256) {\n        return gasleft() / 16;\n    }\n    function recordEntry() public {\n        entryGas = gasleft();\n        entryNorm = entryGas / 16;\n        uint256 s = 0;\n        for (uint256 i = 0; i < 16; i++) {\n            s += (i >> 1) + (i * 3);\n        }\n        exitGas = gasleft();\n        exitNorm = exitGas / 16;\n        emit GasRecorded(entryGas, exitGas);\n    }\n}",
+  "contract": "GasProbe",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "query",
+      "function": "getGas"
+    },
+    {
+      "action": "call",
+      "function": "recordEntry",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "entryGas"
+    },
+    {
+      "action": "query",
+      "function": "exitGas"
+    },
+    {
+      "action": "query",
+      "function": "entryNorm"
+    },
+    {
+      "action": "query",
+      "function": "exitNorm"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "d808f126f6528201",
+    "origin": "mutated_llm"
+  }
+}

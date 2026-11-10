@@ -1,0 +1,69 @@
+{
+  "name": "gas-meter-loop-1p5m-cross-boundary-slotperturb",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract GasMeterLoopBoundaryLayout {\n    uint256 public count;\n    uint8 public flag;\n    uint256 public lastResult;\n\n    event Looped(uint256 n, uint256 result, uint256 count);\n\n    function runLoop(uint256 n) external returns (uint256) {\n        uint256 acc = 0;\n        for (uint256 i = 0; i < n; i++) {\n            unchecked {\n                acc = acc + ((i * 3) + (acc / 5)) % 17;\n            }\n            if (i % 13 == 4) {\n                continue;\n            }\n            if (i % 29 == 17) {\n                unchecked {\n                    acc = acc + 2;\n                }\n            }\n        }\n        unchecked {\n            count = count + 1;\n        }\n        lastResult = acc;\n        unchecked {\n            flag = uint8(acc);\n        }\n        emit Looped(n, acc, count);\n        return acc;\n    }\n}",
+  "contract": "GasMeterLoopBoundaryLayout",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "runLoop",
+      "args": [
+        1000
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "count"
+    },
+    {
+      "action": "query",
+      "function": "lastResult"
+    },
+    {
+      "action": "query",
+      "function": "flag"
+    },
+    {
+      "action": "call",
+      "function": "runLoop",
+      "args": [
+        1500000
+      ],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "count"
+    },
+    {
+      "action": "query",
+      "function": "lastResult"
+    },
+    {
+      "action": "query",
+      "function": "flag"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "2862d5e7ed361062",
+    "origin": "mutated_llm"
+  }
+}

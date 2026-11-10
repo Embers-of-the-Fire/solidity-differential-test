@@ -1,0 +1,61 @@
+{
+  "name": "env-vars-blockhash-asymmetry-m4-sender-timestamp-touch",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract SenderTimestampProbe {\n    uint256 public seen;\n    uint256 public touches;\n    address public lastBy;\n\n    event Touched(uint256 seen, uint256 touches, address by);\n\n    function snapshot() public {\n        seen = block.timestamp;\n        lastBy = msg.sender;\n        touches += 1;\n        emit Touched(seen, touches, msg.sender);\n    }\n\n    function touch() public {\n        touches += 1;\n        lastBy = msg.sender;\n    }\n\n    function getNow() public view returns (uint256) {\n        return block.timestamp;\n    }\n}",
+  "contract": "SenderTimestampProbe",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "query",
+      "function": "getNow"
+    },
+    {
+      "action": "call",
+      "function": "snapshot",
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "seen"
+    },
+    {
+      "action": "call",
+      "function": "touch",
+      "sender": "charlie",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "snapshot",
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "touches"
+    },
+    {
+      "action": "query",
+      "function": "lastBy"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "e16417c35f782698",
+    "origin": "mutated_llm"
+  }
+}

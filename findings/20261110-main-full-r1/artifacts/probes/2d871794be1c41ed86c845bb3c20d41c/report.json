@@ -1,0 +1,79 @@
+{
+  "name": "overload-inherit-dispatch",
+  "contract": "Child",
+  "tool_versions": {
+    "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+    "solang": "solang version v0.3.5",
+    "anvil": "anvil Version: 1.7.1-dev",
+    "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+  },
+  "oracle_config": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "execution": "on-chain",
+  "workdir": "/tmp/oracle-run-n1el28ty",
+  "timing": {
+    "started_at": "2026-11-10T02:54:56.839+00:00",
+    "started_epoch": 1794279296.839272,
+    "total_ms": 37.89082799994503,
+    "nodes": {}
+  },
+  "compile": {
+    "solc": {
+      "compiler": "solc",
+      "ok": true,
+      "version": "Version: 0.8.33+commit.64118f21.Linux.g++",
+      "errors": null,
+      "warnings": [
+        "Warning: SPDX license identifier not provided in source file. Before publishing, consider adding a comment containing \"SPDX-License-Identifier: <SPDX-License>\" to each source file. Use \"SPDX-License-Identifier: UNLICENSED\" for non-open-source code. Please see https://spdx.org for more information.\n--> input.sol\n\n"
+      ],
+      "artifacts": {
+        "abi": true,
+        "bytecode_bytes": 1105,
+        "wasm_bytes": 0,
+        "metadata": false
+      },
+      "elapsed_ms": 9.257073001208482
+    },
+    "solang": {
+      "compiler": "solang",
+      "ok": false,
+      "version": "solang version v0.3.5",
+      "errors": [
+        "\u001b[0m\u001b[1m\u001b[38;5;9merror\u001b[0m\u001b[1m: function call can be resolved to multiple functions\u001b[0m\n   \u001b[0m\u001b[34m\u250c\u2500\u001b[0m /tmp/solang-fqjoz50s/input.sol:34:22\n   \u001b[0m\u001b[34m\u2502\u001b[0m    \n\u001b[0m\u001b[34m 6\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m \u001b[0m\u001b[34m\u256d\u001b[0m       function f(uint256 x) public virtual returns (uint256) {\n\u001b[0m\u001b[34m 7\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m           baseState = x + 1;\n\u001b[0m\u001b[34m 8\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m           return 100 + x;\n\u001b[0m\u001b[34m 9\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m       }\n   \u001b[0m\u001b[34m\u2502\u001b[0m \u001b[0m\u001b[34m\u2570\u001b[0m\u001b[0m\u001b[34m\u2500\u2500\u001b[0m\u001b[0m\u001b[34m\u2500\u2500\u2500\u2500\u2500' candidate function\u001b[0m\n   \u001b[0m\u001b[34m\u00b7\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m  \n\u001b[0m\u001b[34m21\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m   \u001b[0m\u001b[34m\u256d\u001b[0m     function f(uint256 x) public override returns (uint256) {\n\u001b[0m\u001b[34m22\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m   \u001b[0m\u001b[34m\u2502\u001b[0m         childState = x + 2;\n\u001b[0m\u001b[34m23\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m   \u001b[0m\u001b[34m\u2502\u001b[0m         return 200 + x;\n\u001b[0m\u001b[34m24\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m   \u001b[0m\u001b[34m\u2502\u001b[0m     }\n   \u001b[0m\u001b[34m\u2502\u001b[0m   \u001b[0m\u001b[34m\u2570\u001b[0m\u001b[0m\u001b[34m\u2500\u2500\u2500\u2500\u2500' candidate function\u001b[0m\n   \u001b[0m\u001b[34m\u00b7\u001b[0m   \u001b[0m\u001b[34m\u2502\u001b[0m\n\u001b[0m\u001b[34m34\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m             lastResult = \u001b[0m\u001b[31mthis.f(x)\u001b[0m;\n   \u001b[0m\u001b[34m\u2502\u001b[0m                          \u001b[0m\u001b[31m^^^^^^^^^\u001b[0m\n\n\u001b[0m\u001b[1m\u001b[38;5;9merror\u001b[0m\u001b[1m: cannot find overloaded function which matches signature\u001b[0m\n   \u001b[0m\u001b[34m\u250c\u2500\u001b[0m /tmp/solang-fqjoz50s/input.sol:34:22\n   \u001b[0m\u001b[34m\u2502\u001b[0m\n\u001b[0m\u001b[34m34\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m         lastResult = \u001b[0m\u001b[31mthis.f(x)\u001b[0m;\n   \u001b[0m\u001b[34m\u2502\u001b[0m                      \u001b[0m\u001b[31m^^^^^^^^^\u001b[0m\n\n\u001b[0m\u001b[1m\u001b[38;5;9merror\u001b[0m\u001b[1m: function expects 2 arguments, 1 provided\u001b[0m\n   \u001b[0m\u001b[34m\u250c\u2500\u001b[0m /tmp/solang-fqjoz50s/input.sol:34:22\n   \u001b[0m\u001b[34m\u2502\u001b[0m\n\u001b[0m\u001b[34m27\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m     function f(uint256 x, uint256 y) public returns (uint256) {\n   \u001b[0m\u001b[34m\u2502\u001b[0m     \u001b[0m\u001b[34m---------------------------------------------------------\u001b[0m \u001b[0m\u001b[34mcandidate function\u001b[0m\n   \u001b[0m\u001b[34m\u00b7\u001b[0m\n\u001b[0m\u001b[34m34\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m         lastResult = \u001b[0m\u001b[31mthis.f(x)\u001b[0m;\n   \u001b[0m\u001b[34m\u2502\u001b[0m                      \u001b[0m\u001b[31m^^^^^^^^^\u001b[0m"
+      ],
+      "warnings": null,
+      "artifacts": null,
+      "elapsed_ms": 28.598134998901514
+    }
+  },
+  "deploy": {},
+  "steps": [],
+  "divergences": [
+    {
+      "kind": "COMPILE_ASYMMETRY",
+      "step": null,
+      "detail": "one compiler rejected the source while the other accepted it",
+      "evm": {
+        "solc_ok": true,
+        "errors": null
+      },
+      "polkadot": {
+        "solang_ok": false,
+        "errors": [
+          "\u001b[0m\u001b[1m\u001b[38;5;9merror\u001b[0m\u001b[1m: function call can be resolved to multiple functions\u001b[0m\n   \u001b[0m\u001b[34m\u250c\u2500\u001b[0m /tmp/solang-fqjoz50s/input.sol:34:22\n   \u001b[0m\u001b[34m\u2502\u001b[0m    \n\u001b[0m\u001b[34m 6\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m \u001b[0m\u001b[34m\u256d\u001b[0m       function f(uint256 x) public virtual returns (uint256) {\n\u001b[0m\u001b[34m 7\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m           baseState = x + 1;\n\u001b[0m\u001b[34m 8\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m           return 100 + x;\n\u001b[0m\u001b[34m 9\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m       }\n   \u001b[0m\u001b[34m\u2502\u001b[0m \u001b[0m\u001b[34m\u2570\u001b[0m\u001b[0m\u001b[34m\u2500\u2500\u001b[0m\u001b[0m\u001b[34m\u2500\u2500\u2500\u2500\u2500' candidate function\u001b[0m\n   \u001b[0m\u001b[34m\u00b7\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m  \n\u001b[0m\u001b[34m21\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m   \u001b[0m\u001b[34m\u256d\u001b[0m     function f(uint256 x) public override returns (uint256) {\n\u001b[0m\u001b[34m22\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m   \u001b[0m\u001b[34m\u2502\u001b[0m         childState = x + 2;\n\u001b[0m\u001b[34m23\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m   \u001b[0m\u001b[34m\u2502\u001b[0m         return 200 + x;\n\u001b[0m\u001b[34m24\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m   \u001b[0m\u001b[34m\u2502\u001b[0m     }\n   \u001b[0m\u001b[34m\u2502\u001b[0m   \u001b[0m\u001b[34m\u2570\u001b[0m\u001b[0m\u001b[34m\u2500\u2500\u2500\u2500\u2500' candidate function\u001b[0m\n   \u001b[0m\u001b[34m\u00b7\u001b[0m   \u001b[0m\u001b[34m\u2502\u001b[0m\n\u001b[0m\u001b[34m34\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m             lastResult = \u001b[0m\u001b[31mthis.f(x)\u001b[0m;\n   \u001b[0m\u001b[34m\u2502\u001b[0m                          \u001b[0m\u001b[31m^^^^^^^^^\u001b[0m\n\n\u001b[0m\u001b[1m\u001b[38;5;9merror\u001b[0m\u001b[1m: cannot find overloaded function which matches signature\u001b[0m\n   \u001b[0m\u001b[34m\u250c\u2500\u001b[0m /tmp/solang-fqjoz50s/input.sol:34:22\n   \u001b[0m\u001b[34m\u2502\u001b[0m\n\u001b[0m\u001b[34m34\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m         lastResult = \u001b[0m\u001b[31mthis.f(x)\u001b[0m;\n   \u001b[0m\u001b[34m\u2502\u001b[0m                      \u001b[0m\u001b[31m^^^^^^^^^\u001b[0m\n\n\u001b[0m\u001b[1m\u001b[38;5;9merror\u001b[0m\u001b[1m: function expects 2 arguments, 1 provided\u001b[0m\n   \u001b[0m\u001b[34m\u250c\u2500\u001b[0m /tmp/solang-fqjoz50s/input.sol:34:22\n   \u001b[0m\u001b[34m\u2502\u001b[0m\n\u001b[0m\u001b[34m27\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m     function f(uint256 x, uint256 y) public returns (uint256) {\n   \u001b[0m\u001b[34m\u2502\u001b[0m     \u001b[0m\u001b[34m---------------------------------------------------------\u001b[0m \u001b[0m\u001b[34mcandidate function\u001b[0m\n   \u001b[0m\u001b[34m\u00b7\u001b[0m\n\u001b[0m\u001b[34m34\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m         lastResult = \u001b[0m\u001b[31mthis.f(x)\u001b[0m;\n   \u001b[0m\u001b[34m\u2502\u001b[0m                      \u001b[0m\u001b[31m^^^^^^^^^\u001b[0m"
+        ]
+      },
+      "point": "compile",
+      "signature": "COMPILE_ASYMMETRY|compile||solang-rejects"
+    }
+  ],
+  "earliest_divergence": {
+    "point": "compile",
+    "signature": "COMPILE_ASYMMETRY|compile||solang-rejects"
+  },
+  "verdict": "DIVERGENCE"
+}

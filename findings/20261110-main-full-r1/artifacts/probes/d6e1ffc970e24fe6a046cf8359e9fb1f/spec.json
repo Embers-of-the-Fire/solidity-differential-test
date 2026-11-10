@@ -1,0 +1,49 @@
+{
+  "name": "env-vars-blockhash-asymmetry-m2-gasleft-monotonic",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract GasMonotonicProbe {\n    uint256 public entrySeen;\n    uint256 public exitSeen;\n    uint256 public consumed;\n\n    event GasSeen(uint256 entry, uint256 exit, uint256 used);\n\n    function getGas() public view returns (uint256) {\n        return gasleft();\n    }\n\n    function snapshotGas() public {\n        uint256 e = gasleft();\n        uint256 s = 0;\n        for (uint256 i = 0; i < 100; i++) {\n            s += i;\n        }\n        uint256 x = gasleft();\n        require(x < e, \"gas not monotonic\");\n        require(s == 4950, \"bad sum\");\n        entrySeen = e;\n        exitSeen = x;\n        consumed = e - x;\n        emit GasSeen(e, x, consumed);\n    }\n}",
+  "contract": "GasMonotonicProbe",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "query",
+      "function": "getGas"
+    },
+    {
+      "action": "call",
+      "function": "snapshotGas",
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "entrySeen"
+    },
+    {
+      "action": "query",
+      "function": "exitSeen"
+    },
+    {
+      "action": "query",
+      "function": "consumed"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "e16417c35f782698",
+    "origin": "mutated_llm"
+  }
+}

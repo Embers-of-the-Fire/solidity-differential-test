@@ -1,0 +1,83 @@
+{
+  "name": "string-bytes-indexed-event-dup-unicode-step-p1-p1",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract StringBytesIndexedEventProbe {\n    event Dyn(string indexed marker, string val, bytes data);\n\n    uint256 public emitCount;\n    string public lastVal;\n    bytes public lastData;\n\n    function log(string memory marker, string memory val, bytes memory data) external {\n        emitCount += 1;\n        lastData = data;\n        lastVal = val;\n        emit Dyn(marker, val, data);\n    }\n}",
+  "contract": "StringBytesIndexedEventProbe",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "log",
+      "args": [
+        "",
+        "",
+        "0x"
+      ],
+      "sender": "charlie",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "log",
+      "args": [
+        "",
+        "",
+        "0x"
+      ],
+      "sender": "charlie",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "log",
+      "args": [
+        "marker-\u96ea",
+        "abcdefghijklmnopqrstuvwxyz0123456",
+        "0x000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+      ],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "emitCount"
+    },
+    {
+      "action": "call",
+      "function": "log",
+      "args": [
+        "marker-\u96ea",
+        "abcdefghijklmnopqrstuvwxyz0123456",
+        "0x000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+      ],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "lastVal"
+    },
+    {
+      "action": "query",
+      "function": "emitCount"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "47197c507eebdb97",
+    "origin": "mutated_prog"
+  }
+}

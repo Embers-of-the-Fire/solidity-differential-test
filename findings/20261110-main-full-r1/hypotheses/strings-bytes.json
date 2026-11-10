@@ -1,0 +1,426 @@
+{
+  "seed_id": "strings-bytes",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "solang deterministically panics (unwrap on None at src/emit/instructions.rs:774:54) at compile time on any contract containing string.concat and/or bytes.concat; concat alone is a proven sufficient trigger and a combined contract (concat + bytes1 cast + string[] push + Dyn event) still panics byte-identically. The panic is source-construct-driven and fully input-independent (reproduces with 31/32-char ASCII inputs, 33-byte payloads, and emoji/non-ASCII arguments). The bytes1(bytes32) truncation cast remains an untested co-trigger; event emission, storage writes and string arrays are exonerated.",
+      "status": "refuted",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "strings-bytes-abi-boundaries",
+          "verdict": "DIVERGENCE",
+          "note": "solc accepted the contract; solang panicked with 'called Option::unwrap() on a None value' at src/emit/instructions.rs:774:54 during codegen. The panic is in instruction emission, consistent with a failing cast or builtin lowering."
+        },
+        {
+          "probe": "string-bytes-indexed-event-empty-unicode",
+          "verdict": "PASS",
+          "note": "A contract containing string/bytes public state, a log() function writing them, and `event Dyn(string indexed marker, string val, bytes data)` with emit compiled and ran fine on solang. Since the original probe panicked at codegen but this structurally similar one does not, the panic trigger is in the removed constructs (bytes1 cast, string.concat/bytes.concat), not the event or storage path."
+        },
+        {
+          "probe": "strings-bytes-abi-boundaries-p0",
+          "verdict": "DIVERGENCE",
+          "note": "A mutated variant (different non-ASCII strings, different bytes payloads, senders shuffled) reproduced the exact same panic at src/emit/instructions.rs:774:54. solc accepted; solang rejected at compile time. Identical line/column across independent runs confirms a deterministic codegen bug triggered by source constructs, not runtime inputs."
+        },
+        {
+          "probe": "strings-bytes-abi-boundaries-m2-concat",
+          "verdict": "DIVERGENCE",
+          "note": "Concat-only variant (string.concat + bytes.concat, state writes, no cast) panicked at the identical line/column (instructions.rs:774:54) while solc compiled. Since concat is now proven sufficient, the trigger set is narrowed from {cast, concat} to {concat confirmed, cast untested}."
+        },
+        {
+          "probe": "strings-bytes-abi-boundaries-m4-seqboundary",
+          "verdict": "DIVERGENCE",
+          "note": "The maximal contract containing every candidate construct panicked at the exact same line/column (src/emit/instructions.rs:774:54) while solc accepted. Argument mutation to sequence-boundary values (31+32-char concat operands, 33-byte bytes.concat, emoji array element, empty-string event arg) did not change the failure site at all. Fourth independent reproduction with identical signature; the ICE is deterministic and independent of both inputs and surrounding constructs."
+        },
+        {
+          "probe": "string-bytes-indexed-event-empty-unicode-concat",
+          "verdict": "DIVERGENCE",
+          "note": "solang compiled and executed a contract using both string.concat and bytes.concat at runtime: foo+bar produced lastVal 'foobar' on both chains, and 0x0102 || 0x0304 produced semantically identical lastData 0x01020304. Empty concat operands were also identity on both sides. Therefore concat is NOT a deterministic compile-time ICE trigger in all contexts; the earlier instructions.rs:774:54 panics are context- or compiler-state-specific rather than 'any contract containing concat'."
+        }
+      ],
+      "next_probe": "Two minimal single-function probes compiled independently on solang: (a) only `function f(bytes32 x) public returns (bytes1) { return bytes1(x); }` \u2014 panics at instructions.rs:774:54 would show the cast shares concat's broken emit path; (b) only `function g(string memory a, string memory c) public returns (string memory) { return string.concat(a,c); }` \u2014 expected to reproduce the same panic, confirming concat as the canonical minimal trigger for a bug report."
+    },
+    {
+      "id": "h2",
+      "statement": "solang's support for string.concat / bytes.concat builtins differs from solc: either it lacks them (would be a clean compile rejection) or miscompiles them (silently wrong concat) rather than panicking.",
+      "status": "refuted",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "strings-bytes-abi-boundaries",
+          "verdict": "DIVERGENCE",
+          "note": "The probe used string.concat/bytes.concat; since compilation panicked before any runtime comparison, support level for these builtins in solang is unverified."
+        },
+        {
+          "probe": "strings-bytes-abi-boundaries-m2-concat",
+          "verdict": "DIVERGENCE",
+          "note": "solang does not cleanly reject nor silently miscompile string.concat/bytes.concat \u2014 it crashes with an internal codegen panic at emit/instructions.rs:774:54, so the 'rather than panicking' clause of h2 is wrong. The underlying claim that solang's concat support diverges from solc stands, but the divergence mode is an ICE (internal compiler error), the most severe form."
+        }
+      ],
+      "next_probe": "Minimal probe with only `function f(string memory a, string memory c) public returns (string memory) { return string.concat(a, c); }` and `bytes.concat`, checking both compile success and return values on both chains."
+    },
+    {
+      "id": "h3",
+      "statement": "solang handles `string indexed` event parameters differently from solc (hashed topic encoding for indexed dynamic types), and event emission of dynamic payloads (empty string, short bytes) may diverge even when compile succeeds.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "strings-bytes-abi-boundaries",
+          "verdict": "DIVERGENCE",
+          "note": "The event-emit path was never reached because solang panicked at compile time; indexed-string event encoding remains untested."
+        },
+        {
+          "probe": "string-bytes-indexed-event-empty-unicode",
+          "verdict": "DIVERGENCE",
+          "note": "Contract compiled on both chains (no panic once cast/concat removed), and the indexed-string divergence is explicit: solc keccak256-hashes the indexed dynamic value into the topic (empty string -> 0xc5d24601...a470, the well-known keccak256(''), 'ascii' -> 0xf59e1d...6fde), while solang/pallet-contracts emits the raw decoded string ('', 'ascii', 'marker-\u96ea') with no hashing. Non-indexed values also differ in transport: EVM logs carry ABI-encoded hex, polkadot carries SCALE-decoded values. Dynamic payloads with empty string, ASCII and non-ASCII (\u96ea) all diverge identically."
+        }
+      ],
+      "next_probe": "Probe that removes the panic trigger (no bytes1 cast, no concat) but keeps `event Dyn(string indexed marker, string val, bytes data)` and emits with empty-string and non-ASCII values, comparing topics and event data."
+    },
+    {
+      "id": "h4",
+      "statement": "Beyond indexed parameters, ALL dynamic event payload values are transported differently: EVM event data fields are ABI-encoded (hex blobs with offset/length semantics, e.g. 0x0102 for two bytes), whereas pallet-contracts events expose SCALE-decoded values (e.g. bytes 0x0001..20 rendered as the character string). Byte-level event comparison therefore always diverges for non-indexed string/bytes/array args even when semantics are identical; only semantic (decoded-value) comparison is meaningful, and the RETURN_MISMATCH on lastData (identical bytes, hex vs decoded-string rendering) shows the same rendering gap affects return-value oracles.",
+      "status": "confirmed",
+      "confidence": "high",
+      "evidence": [
+        {
+          "probe": "string-bytes-indexed-event-empty-unicode",
+          "verdict": "DIVERGENCE",
+          "note": "Non-indexed 'data' arg and lastData() return: EVM side 0x000102...1f20 hex vs polkadot side the same 33 bytes decoded as a literal character string. Val 'hello' matched semantically; empty 0x matched; the mismatch is purely encoding/rendering, confirming the two chains transport event/return data in different formats (ABI hex vs SCALE decoded)."
+        },
+        {
+          "probe": "strings-bytes-abi-boundaries-m3-arrevent",
+          "verdict": "DIVERGENCE",
+          "note": "emitTup(42, '\u65e5\u672c\u8a9e', 0x0102) succeeded on both chains and matched semantically on every field except bytes rendering: EVM reports '0x0102' (ABI hex) vs polkadot '\\u0001\\u0002' (SCALE-decoded chars) \u2014 the exact transport/rendering gap h4 predicts for non-indexed dynamic payloads, now reproduced with a mixed tuple (uint256 + string + bytes), not just string/bytes fields. The planned dynamic-array comparison (uint256[]/string[] event args) could not complete because solang reverted at runtime (see new h6), so universality across arrays remains open but the string/bytes/tuple cases are confirmed."
+        }
+      ],
+      "next_probe": "Probe with a dynamic array event parameter (`event Arr(uint256[] vals)` and a tuple) emitted from one function, comparing semantically decoded values on both chains \u2014 confirms whether the SCALE-vs-ABI transport difference is universal for dynamic types or specific to string/bytes, and whether uint arrays (no string rendering ambiguity) expose any true semantic divergence."
+    },
+    {
+      "id": "h5",
+      "statement": "The bytes1(bytes32) explicit truncation cast is the more likely panic trigger than string.concat/bytes.concat: lowering a truncating fixed-bytes cast requires an emit-level instruction (truncation) that solang's emitter may not implement, whereas concat of dynamic types lowers to buffer copy/append that solang likely supports. If true, a concat-only contract compiles cleanly on solang while a bytes1-cast-only contract panics.",
+      "status": "refuted",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "strings-bytes-abi-boundaries-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Both candidate constructs present together; panic location in emit/instructions.rs points at instruction lowering for a cast or builtin. The exonerated event/storage/array paths contain no truncating instruction, leaving the bytes1(bytes32) cast (which semantically requires truncation of 32->1 bytes) as the strongest single candidate."
+        },
+        {
+          "probe": "strings-bytes-abi-boundaries-m2-concat",
+          "verdict": "DIVERGENCE",
+          "note": "The concat-only contract (string.concat stored to state + bytes.concat stored to state, NO bytes1 cast anywhere) panicked with the exact same 'called Option::unwrap() on a None value' at src/emit/instructions.rs:774:54. This contradicts h5's prediction that a concat-only contract compiles cleanly; the truncating fixed-bytes cast is no longer the strongest candidate \u2014 concat alone is a sufficient trigger."
+        }
+      ],
+      "next_probe": "Two minimal probes run separately: (a) only `function f(bytes32 x) public returns (bytes1) { return bytes1(x); }` \u2014 expect panic if this is the trigger; (b) only `function g(string memory a, string memory c) public returns (string memory) { return string.concat(a, c); }` plus a bytes.concat twin \u2014 expect clean compile, which would exonerate concat and pin the bug on fixed-bytes truncation casts."
+    },
+    {
+      "id": "h6",
+      "statement": "solang/pallet-contracts reverts at runtime (host trap hex in dry-run, committed status=revert, no decoded reason, zero events) only when an emitted event carries a uint256[] parameter of LENGTH >= 2; the revert is independent of both the numeric values (u64-max/0, shuffled senders) and the string[] companion contents (31-char and 32-char ASCII strings both reproduce identically), making the trigger purely the length of the numeric dynamic array in the event signature. Single-element uint256[] events, string[]-only events, scalar dynamics, mixed non-array tuples, and array storage push all still work on both chains; the failure is consistent with a host-side SCALE Vec<U256> encoding path that is only exercised past one element.",
+      "status": "refuted",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "strings-bytes-abi-boundaries-m3-arrevent",
+          "verdict": "DIVERGENCE",
+          "note": "Step 2 emitArr() reverted on polkadot (dry-run status error with pallet-contracts trap hex, committed tx status=revert, zero events) but succeeded on EVM with the full Arr event. Step 3 emitTup with non-array dynamic args succeeded on both, isolating the failure to dynamic-array event parameters. Steps 0-1 (string[] push into storage) succeeded on both, so the revert is specific to event emission encoding, not array storage or push."
+        },
+        {
+          "probe": "string-bytes-indexed-event-stringarr",
+          "verdict": "DIVERGENCE",
+          "note": "The contract (Dyn event + StrArr(string[]) event, no cast/concat) compiled cleanly on solang, and both logArr calls \u2014 ['hello',''] and [] \u2014 succeeded on polkadot with events matching EVM semantically (no divergence flagged at steps 1-2). The sole divergence was step 0's Dyn event, the known h3 indexed-string-hash pattern (empty marker: keccak256('') 0xc5d246...a470 on EVM vs raw '' on polkadot). The emitCount query agreed. This directly contradicts h6's general claim for string[]; the m3 revert must be tied to uint256[] or the mixed array event, not dynamic-array event params per se."
+        },
+        {
+          "probe": "strings-bytes-abi-boundaries-m3-arrevent-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Mutated reproduction of m3: push(2^64-1,'hello') and push(0,'') succeeded on both chains (storage counts 4 vs 4, the known short-value h7 coincidence regime), but emitArr on the mixed event Arr(uint256[] vals, string[] items) dry-run-errored with the same pallet-contracts trap hex and committed as revert on polkadot while EVM succeeded and emitted the full event. The two emitTup calls (uint256+string+bytes, non-array dynamics) succeeded on both with only the known h4 bytes-rendering difference (0x0150 vs '\\u0001P', 0x0102 vs '\\u0001\\u0002'). This third independent failure of any event carrying uint256[] \u2014 now with a mixed signature and entirely different values/senders \u2014 pins the trigger to numeric dynamic array event parameters; string[] remains exonerated by the stringarr probe."
+        },
+        {
+          "probe": "strings-bytes-abi-boundaries-m3-arrevent-p3",
+          "verdict": "DIVERGENCE",
+          "note": "emitArr was called after only ONE push (vals=[2^64-1], items=['hello']) and SUCCEEDED on polkadot: no EVENT_MISMATCH at step 1, no revert, events matched EVM semantically. This directly contradicts h6's 'deterministic whenever uint256[] appears' clause \u2014 the same function reverted in m3/m3-p0 where emitArr ran over 2-element arrays. The only divergences were the known h4 Tup bytes-rendering gap at step 4 (0x0102 vs '\\u0001\\u0002') and h7 storage-layout mismatches with coinciding nonzero-entry counts (4 vs 4 and 5 vs 5, all stored strings short). The revert trigger is refined from 'numeric dynamic array event param present' to 'numeric dynamic array event param with length >= 2'."
+        },
+        {
+          "probe": "strings-bytes-abi-boundaries-m3-arrevent-mut1-len32",
+          "verdict": "DIVERGENCE",
+          "note": "Fifth independent reproduction of the uint256[]-event revert: emitArr over vals=[2^64-1, 0], items=['aaa...a'(31 chars), 'bbb...b'(32 chars)] dry-run-errored with the same pallet-contracts trap hex and committed as revert on polkadot while EVM succeeded and emitted the full Arr event. The string lengths (one crossing the 32-byte boundary) changed nothing about the revert, so string[] content is exonerated as a co-trigger; the failure tracks only the 2-element uint256[]. emitTup at step 3 succeeded on both with only the known h4 bytes-rendering gap (0x0102 vs '\\u0001\\u0002'). Step-1 storage counts diverged 6 vs 5 (EVM long-string split of the 32-char entry), a further h7-consistent artifact, not a new behavioral divergence."
+        },
+        {
+          "probe": "strings-bytes-abi-boundaries-m3-arrevent-mut2-uarr-only",
+          "verdict": "DIVERGENCE",
+          "note": "emitArr over a 2-element uint256[] with SMALL values [1, 2] SUCCEEDED on polkadot: no revert, no EVENT_MISMATCH at step 2, events matched EVM semantically. This directly refutes h6's refined trigger 'length >= 2 suffices' \u2014 length alone is not the trigger. Combined with prior data ([2^64-1, 0] reverts; single [2^64-1] succeeds), the revert requires BOTH length >= 2 AND at least one value exceeding the 64-bit range, consistent with a host-side SCALE Vec<U256> multi-limb encoding path only exercised past one element with a large limb."
+        }
+      ],
+      "next_probe": "Minimal contract with three separate events and emitters: `event U(uint256[] vals)`, `event UF(uint256[2] vals)`, and `event S(string[] items)`. Call each with small and empty payloads. Expected: S and UF succeed on both chains; U reverts on polkadot even when empty (0-length may take a different SCALE encoding path and could expose a length-threshold nuance). This isolates numeric dynamic arrays as the sole trigger and rules out fixed-size arrays."
+    },
+    {
+      "id": "h7",
+      "statement": "Raw storage layout for dynamic string/bytes values is architecturally different and storage comparisons always diverge; moreover nonzero-entry COUNTS coincide only while every stored dynamic value fits EVM's short-string packing (\u226431 bytes) and diverge starting exactly at 32 bytes: with a 31-char string + 31-byte bytes stored, EVM and polkadot both show 3 nonzero entries (counts match); at 32 chars + 32 bytes EVM splits into long-string layout (5 entries: header slot + keccak-derived data slots) while polkadot still packs into 3 SCALE cells; at 33 it is 7 vs 3. Count-mode storage oracle is therefore reliable only when ALL stored dynamic values are \u226431 bytes; anything \u226532 bytes makes even counts a layout artifact, and only semantic oracles (public getters, decoded values) are meaningful for string/bytes contracts.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "strings-bytes-abi-boundaries-m3-arrevent",
+          "verdict": "DIVERGENCE",
+          "note": "STORAGE_MISMATCH at every step in count mode despite identical nonzero-entry counts (4 vs 4); the diverging 4th entry is the keccak-hash slot (EVM) vs packed SCALE value 478560413032 (polkadot) holding 'hello'. The push calls and array lengths behave identically on both chains, so the mismatch is purely physical layout, confirming raw storage oracles are not meaningful for string-containing contracts."
+        },
+        {
+          "probe": "string-bytes-indexed-event-empty-unicode-p1",
+          "verdict": "DIVERGENCE",
+          "note": "STORAGE_MISMATCH in count mode at step 2 with matching nonzero-entry counts (3 vs 3: emitCount, 'hello' string slot, 0x0102 bytes slot) but step 6 after storing a 35-char string and 33-byte bytes shows EVM 7 nonzero entries vs polkadot 3 \u2014 the count itself diverges once values exceed 31 bytes due to EVM long-string keccak-slot splitting. Combined with h7's earlier 4-vs-4 result, this bounds when count mode is meaningful and confirms all raw storage diffs are physical-layout artifacts, not behavioral divergence (all semantic getters and event string fields agree)."
+        },
+        {
+          "probe": "string-bytes-indexed-event-len31-32-33",
+          "verdict": "DIVERGENCE",
+          "note": "Boundary pinned exactly: step 1 (31-char string 'aaa...a', 31-byte bytes 0x00..1e) gave matching nonzero-entry counts 3 vs 3 despite value-level STORAGE_MISMATCH (physical layout differs even below the threshold). Step 2 (32 chars + 32 bytes) gave 5 vs 3 \u2014 EVM crossed into long-string layout at the exact 32-byte short-string limit while polkadot stayed at 3. Step 3 (33/33) gave 7 vs 3. The count-coincidence regime ends precisely at 32 bytes, confirming and sharpening the \u226431-byte bound in h7."
+        },
+        {
+          "probe": "string-bytes-indexed-event-len31-32-33",
+          "verdict": "DIVERGENCE",
+          "note": "Systematic length sweep (31/32/33 for both string and bytes) reproduced h7's exact prediction: counts match at 31 (3 vs 3), diverge at 32 (5 vs 3) and 33 (7 vs 3). All getters (lastVal, lastData) returned semantically identical values on both chains, so every raw storage diff is a physical-layout artifact, not behavioral divergence. Count-mode storage oracle is confirmed safe only when all stored dynamic values are \u226431 bytes."
+        }
+      ],
+      "next_probe": "Probe that stores the same string[] via push on both chains, then reads back items(0) and items(1) through the public getter and compares decoded values, alongside the raw storage diff \u2014 confirms getter-level agreement and formally classifies the raw storage mismatch as an oracle artifact to be filtered in triage."
+    },
+    {
+      "id": "h8",
+      "statement": "The identical ICE location for concat (proven sufficient, m2) and the full contract containing also the bytes1(bytes32) cast (m0, m4) suggests both constructs lower to the same broken instruction-emission path in solang \u2014 e.g., a buffer-copy/resize/slice builtin whose size operand resolves to None when one or both sides have dynamic or mismatched widths. If true, a minimal bytes1(bytes32)-cast-only contract will ALSO panic at instructions.rs:774:54; if it compiles cleanly, concat and the cast hit different paths and the line number coincidence is accidental.",
+      "status": "refuted",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "strings-bytes-abi-boundaries-m4-seqboundary",
+          "verdict": "DIVERGENCE",
+          "note": "All four panicking contracts (m0 original, p0 mutation, m2 concat-only, m4 maximal) fail at src/emit/instructions.rs:774:54 despite differing construct sets. m2 proves concat alone suffices, so the cast is not required for the crash; whether the cast alone also crashes at the same line is the discriminating experiment for a shared emit-path bug."
+        },
+        {
+          "probe": "string-bytes-indexed-event-empty-unicode-fixedbytes-cast",
+          "verdict": "DIVERGENCE",
+          "note": "A cast-only contract containing bytes1(bytes32) truncation AND bytes16(bytes32) truncation AND bytes32(bytes16) widening compiled cleanly on solang and executed correctly on both chains (no ICE, no RETURN_MISMATCH on cast() or widen()). This is the discriminating experiment h8 called for: the fixed-bytes cast does NOT panic at instructions.rs:774:54, so concat and the cast lower through different emit paths and the identical panic line across the concat panics was accidental, not evidence of a shared broken buffer-copy/resize builtin. The concat ICE remains concat-specific."
+        }
+      ],
+      "next_probe": "Run a same-session source-shape bisection of the concat ICE rather than only testing the bytes1 cast: compile minimal variants differing one feature at a time from (A) store-only `lastVal=string.concat(a,b); lastData=bytes.concat(x,y);` to (B) store-then-emit Dyn(marker,lastVal,lastData) as in the successful concat probe, to (C) direct `return string.concat(a,b)` / `return bytes.concat(x,y)`, and separately (D) `bytes1(bytes32)` cast-only. Record solang version/options and exact ICE presence/line for each. This determines whether the earlier same-line panic is reproducible under identical compiler state and which syntactic context (store vs return vs event) actually flips concat from ICE to success."
+    },
+    {
+      "id": "h9",
+      "statement": "The storage count-coincidence bound from h7 is measured in BYTES of UTF-8, not characters: a 5-character string 'h\u00e9llo' (6 UTF-8 bytes, \u226431 bytes) is still packed into EVM short-string layout, so raw storage nonzero-entry counts matched (4 vs 4) even though the string is non-ASCII multi-byte. Corollary: EVM's 32-byte long-string threshold can be crossed by fewer than 32 characters when they are multi-byte (e.g., 16 two-byte chars = 32 bytes), so the safe-count regime is 'total UTF-8 byte length \u226431 for every stored dynamic value', and character count alone is not a safe predictor. Additionally, explicit bytes(string) conversion + .length semantics agree across chains for non-ASCII input (tag = uint8(bytes('h\u00e9llo').length) = 6 on both EVM and pallet-contracts), so byte-length computation over multi-byte UTF-8 is not a divergence source.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "string-bytes-indexed-event-storage-shuffle",
+          "verdict": "DIVERGENCE",
+          "note": "Stored 'h\u00e9llo' (5 chars, 6 UTF-8 bytes) and 0x0102 \u2014 both well under 31 bytes. STORAGE_MISMATCH in count mode but with matching nonzero-entry counts (4 vs 4) at both steps, exactly the h7 \u226431-byte coincidence regime even though the string is multi-byte non-ASCII. tag = 6 (UTF-8 byte length) on both chains, so bytes(string).length semantics agree for non-ASCII. The EVENT_MISMATCH (indexed marker hashed vs raw, non-indexed data hex vs decoded chars) and lastData RETURN_MISMATCH are exact reproductions of the known h3/h4 patterns under a mutated input set (marker-\u96ea, h\u00e9llo, senders shuffled), confirming those divergences are input-independent."
+        },
+        {
+          "probe": "utf8-byte-vs-char-storage-boundary",
+          "verdict": "DIVERGENCE",
+          "note": "Stored three strings with nearly identical CHARACTER counts (16 ASCII chars = 16 bytes; 16x '\\u00e9' = 32 bytes; 17x '\\u00e9' = 34 bytes). STORAGE_MISMATCH in count mode: EVM 6 nonzero entries vs polkadot 3. EVM entries decompose exactly by UTF-8 byte length (shortAscii 16B -> 1 slot; wide16 32B -> header+1 data slot = 2; wide17 34B -> header+2 data slots = 3; total 6), while polkadot packs one cell per string regardless of length (3). Identical character counts but divergent slot counts prove the EVM short/long-string boundary tracks UTF-8 BYTES, not characters. All semantic queries agreed: getters shortAscii/wide16/wide17 returned identical values on both chains, and the Stored event's byte-length tags (16, 32, 34) matched, confirming bytes(string).length semantics and event transport agree for multi-byte input. Storage mismatch triaged as oracle_artifact, consistent with h7/h9."
+        }
+      ],
+      "next_probe": "Probe storing three strings with identical CHARACTER counts but different UTF-8 byte lengths: (a) 16 ASCII chars (16 bytes), (b) 16 two-byte chars like '\u00e9' (32 bytes), (c) 17 two-byte chars (34 bytes) \u2014 then read raw storage counts on both chains. Expect counts to match at step (a) and diverge at (b) and (c), proving the boundary tracks UTF-8 bytes rather than characters; also query a uint8 tag = bytes(val).length for each to confirm byte-length semantic agreement at the boundary."
+    },
+    {
+      "id": "h10",
+      "statement": "The pallet-contracts event-encoding revert for uint256[] event parameters has a compound trigger and is INDEPENDENT of the `indexed` modifier: marking both array params `indexed` (uint256[] indexed vals, string[] indexed items) leaves the revert unchanged \u2014 polkadot still dry-run-errors with the same trap hex and commits status=revert for vals=[2^64-1, 0] (length>=2 with one u64-overflowing element), while EVM succeeds because indexed dynamics are merely keccak-hashed into topics. The trigger still requires length >= 2 AND at least one value exceeding the u64 range: [1,2] succeeds, single [2^64-1] succeeds, empty succeeds, string[] unaffected. Indexed-ness only changes the EVM side (hash vs full encode), not the polkadot SCALE Vec<U256> trap, consistent with pallet-contracts ignoring the indexed keyword and always SCALE-encoding event args.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "strings-bytes-abi-boundaries-m3-arrevent-mut2-uarr-only",
+          "verdict": "DIVERGENCE",
+          "note": "push(1), push(2), emitArr over vals=[1,2] succeeded on polkadot with no revert and no event mismatch \u2014 the sole divergence was the known h4 empty-bytes rendering gap (0x vs '') at emitTup. The Arr(uint256[]) event with a 2-element array of small u64-range values is therefore safe, isolating the revert trigger of h6 to large-magnitude elements combined with length >= 2."
+        },
+        {
+          "probe": "strings-bytes-abi-boundaries-m3-arrevent-mut3-empty-first",
+          "verdict": "DIVERGENCE",
+          "note": "emitArr called as the very first transaction (fresh contract, vals=[] and items=[]) SUCCEEDED on polkadot with no revert and no event mismatch \u2014 a 0-length uint256[] event parameter is fully safe, so the length-0 corner suggested in h6's next_probe is exonerated. After push(1,'x'), emitArr over vals=[1], items=['x'] also succeeded with events matching EVM semantically. Only known divergences appeared: h4 empty-bytes rendering (EVM '0x' vs polkadot '' at emitTup step 3, empty string '' matched on both) and h7 storage count-mode mismatch with coinciding 4-vs-4 counts (all stored values short). This isolates the revert even further: neither empty nor single-element nor call-order effects can trigger it, reinforcing the compound trigger of h10."
+        },
+        {
+          "probe": "strings-bytes-abi-boundaries-m3-arrevent-mut4-indexed-dyn",
+          "verdict": "DIVERGENCE",
+          "note": "With both array params declared `indexed`, emitArr over vals=[2^64-1, 0], items=['hello',''] produced the identical pallet-contracts trap hex in dry-run and committed status=revert on polkadot while EVM succeeded and emitted Arr with two keccak-hash topics (0x4529...f09, 0xadb9...4a0). Sixth independent reproduction of the numeric-array revert with a mutated signature (indexed arrays) and shuffled senders; the trigger is unchanged by indexed-ness, so the broken SCALE encoding path is in the event argument encoding, not topic handling."
+        }
+      ],
+      "next_probe": "Minimal contract with `event U(uint256[] vals)` and emitters; call push then emitArr for these payloads in sequence: (1) [2^64-1] single big (expect success, replicating m3-p3); (2) [1, 2^64-1] one big one small (expect revert if any big element at length>=2 triggers); (3) [2^63, 2^63] values just under 2^64 (expect success if the threshold is exactly the u64 boundary, narrowing which SCALE limb path breaks); (4) [0, 0] all small length 2 (expect success). This pins whether any single big element suffices and where the magnitude threshold sits."
+    },
+    {
+      "id": "h11",
+      "statement": "Had the h10 revert not masked it, indexed dynamic ARRAY event parameters would show the same hash-vs-raw topic divergence as indexed scalars: EVM must keccak-hash an indexed uint256[]/string[] into a single topic, while pallet-contracts (which ignores indexed) would expose the SCALE-encoded array, making indexed-array topics irreconcilable even when the event succeeds. Supporting sign: in this probe EVM emitted keccak topics for the indexed arrays while polkadot never got far enough to emit anything.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "strings-bytes-abi-boundaries-m3-arrevent-mut4-indexed-dyn",
+          "verdict": "DIVERGENCE",
+          "note": "The Arr event with indexed dynamic arrays could not be compared because polkadot reverted at step 2 (h10 trigger); EVM side showed keccak-hash topics for both indexed arrays. The divergence in indexed-array topic encoding remains untested and is only observable with h10-safe (small/short) payloads."
+        },
+        {
+          "probe": "string-bytes-indexed-event-empty-unicode-stringarray-indexed",
+          "verdict": "DIVERGENCE",
+          "note": "The discriminating experiment succeeded: `event ArrIdx(string[] indexed items)` compiled on solang and emitted fine on both chains (string[] payloads dodge the h10 uint256[] trap). EVM keccak-hashes the indexed dynamic array into a single topic (['x','y'] -> 0x6de3...22ff8, ['\\u96ea\\u96ea',''] -> 0xbecf...745b9) while pallet-contracts exposes the raw SCALE-decoded array in the args. The hash-vs-raw topic divergence for indexed dynamic parameters is therefore confirmed to extend to arrays, exactly as h11 predicted for scalars. Empty string[] ([]) and non-ASCII content also emitted successfully on both chains with matching non-indexed values, so string[] event params remain exonerated from the h10 revert regardless of length/content."
+        }
+      ],
+      "next_probe": "Emit an event with an indexed dynamic array using SMALL values that dodge the h10 trap: `event A(uint256[] indexed vals)` with vals=[1,2], plus `event B(string[] indexed items)` with items=['a','b']. If polkadot emits raw array values where EVM shows keccak hashes, the indexed-array divergence is confirmed; if both somehow hash, indexed arrays follow a different pallet path than scalars."
+    },
+    {
+      "id": "h12",
+      "statement": "Event and return-value encodings are state- and repetition-independent on both chains: emitting the identical Dyn event twice in a row (steps 4 and 5, same sender 'charlie', same args) produced byte-identical encodings on EVM (same keccak topic 0xb831...b6cc, same ABI hex data) and on pallet-contracts (same raw marker, same decoded strings), so event transport has no nonce/ordering/replay asymmetry between the two chains. Additionally, a 33-byte payload 0x00..0x20 containing control bytes 0x00-0x1f and a trailing 0x20 (space) renders on the polkadot side as an escape-sequence-plus-space character string that superficially resembles readable text; triage of bytes event/return fields must hex-compare rather than eyeball rendered strings, or low-byte divergences can be misread as matching ASCII.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "string-bytes-indexed-event-empty-unicode-p2",
+          "verdict": "DIVERGENCE",
+          "note": "All divergences triaged to known patterns (h3 indexed marker keccak vs raw at steps 0/2/4/5; h4 bytes hex vs decoded chars including lastData RETURN_MISMATCH; h7 storage count match 3 vs 3 with short values, 7 vs 3 once the 35-char string / 33-byte bytes crossed 32 bytes). Steps 4 and 5 emitted identical events twice and both chains reproduced byte-identical encodings both times, showing no replay/ordering asymmetry. The 0x00..0x20 payload renders with escape sequences plus a trailing literal space, a triage hazard worth recording."
+        },
+        {
+          "probe": "string-bytes-indexed-event-dup-unicode-step-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Steps 1 and 2 were identical calls (same sender 'bob', same non-ASCII marker 'marker-\u96ea', same 35-char val, same 33-byte 0x00..0x20 payload) and produced byte-identical encodings on both chains: EVM emitted the same keccak topic 0xb831...b6cc both times, polkadot emitted the same raw marker and same decoded payload. The 0x00..0x20 payload again rendered on the polkadot side as escape sequences plus a trailing literal space ('\\u001f '), reproducing the h12 triage hazard exactly. Storage nonzero-entry counts stayed stable at 7 vs 3 across the duplicate write (no count growth on same-length repeat of a >31-byte value), and step 0 (empty val/data) produced no STORAGE_MISMATCH (1 vs 1, emitCount only). All divergences triage to known h3 (indexed marker keccak 0xc5d246...a470 for '' vs raw), h4 (bytes hex vs decoded chars), and h7 (7 vs 3 count split at 35 chars / 33 bytes) patterns \u2014 no replay/ordering asymmetry, fully consistent with h12's two clauses."
+        }
+      ],
+      "next_probe": "Emit one event with a fully printable bytes payload (e.g. data = 0x4142434445, 'ABCDE') and one with identical bytes embedded mid-string among non-printables, then check whether the comparator's decoded-string rendering could ever compare equal to the EVM hex side (it should not) and whether a human triager misclassification is possible; confirms the hex-compare-triage rule."
+    },
+    {
+      "id": "h13",
+      "statement": "Raw storage nonzero-entry counts diverge for ANY all-zero bytes payload of length >= 1, regardless of length: EVM short-bytes layout always writes a nonzero slot (length prefix in the low byte, e.g. 0x02 for 0x0000), while the polkadot SCALE cell for an all-zero payload is identically zero and excluded from the count (EVM 3 vs polkadot 2 for both 0x00 and 0x0000 alongside a short string). Presence of a single nonzero byte anywhere in the payload restores count coincidence (0x0001 -> 3 vs 3), so the count-coincidence regime requires every stored dynamic value be <=31 UTF-8 bytes AND no bytes value be all-zero. The polkadot cell value for 0x0001 is 256 (= 0x0100 little-endian), confirming the cell holds the raw SCALE Vec<u8> layout including compact length prefix.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "string-bytes-indexed-event-empty-unicode-boundary31-32",
+          "verdict": "DIVERGENCE",
+          "note": "Step 2 stored lastVal = 16x '\u00e9' (32 UTF-8 bytes, reconfirming h9 byte-not-char boundary: EVM 5 entries with long-string header+data slots vs polkadot packing) and lastData = 0x00 (single zero byte). Polkadot nonzero count dropped to 2 (emitCount=3 + lastVal SCALE cell) with no cell for lastData, while EVM kept 5 nonzero entries including a short-bytes slot whose low byte is the length prefix. Steps 0-1 reproduced h7 exactly (31-byte payload: 3 vs 3 counts matching; 32-byte ASCII: 5 vs 3). Remaining diffs (keccak-hashed indexed marker vs raw, ABI-hex vs decoded-char bytes rendering, lastData return rendering) are known h3/h4 patterns."
+        },
+        {
+          "probe": "string-bytes-indexed-event-stringarr-m3-zerobytes",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0 (lastData=0x00) and step 1 (lastData=0x0000) both gave STORAGE_MISMATCH with EVM 3 nonzero entries vs polkadot 2 (the all-zero bytes cell is excluded from polkadot's count while EVM's short-bytes slot carries the length prefix), exactly as h13 predicted, even though every stored value is <=31 bytes. Step 2 (lastData=0x0001) restored count coincidence at 3 vs 3, isolating all-zero content \u2014 not length, not leading zeros \u2014 as the count-breaker. The polkadot cell value 256 for 0x0001 (= 0x0100 LE, SCALE Vec<u8> layout) corroborates the mechanism. Remaining divergences triage to known patterns: h3 indexed marker keccak256('') 0xc5d246...a470 vs raw '', h4 bytes hex vs decoded chars including the lastData RETURN_MISMATCH (0x0001 vs '\\u0000\\u0001')."
+        }
+      ],
+      "next_probe": "Minimal contract with only `bytes public lastData; function set(bytes memory d) external { lastData = d; }`: call set(0x00) then set(0x01) in separate fresh deployments (or interleave with a fixed short string) and compare raw storage nonzero-entry counts plus the lastData getter on both chains. Expect: counts match for 0x01 but diverge for 0x00 (EVM nonzero slot vs polkadot zero cell), isolating zero-content bytes as the count-breaker independent of length."
+    },
+    {
+      "id": "h14",
+      "statement": "When solang successfully compiles string.concat/bytes.concat, runtime concatenation semantics agree with solc for empty and ASCII operands: string.concat is ordinary append with empty identity, and bytes.concat preserves exact byte order/length. In this probe the only divergences were already-known transport/oracle artifacts: indexed marker keccak-vs-raw (h3), bytes hex-vs-decoded rendering including lastData return (h4), and raw storage layout/count mode (h7). Concat itself is therefore not currently evidenced as a semantic miscompilation, only as a compile-time fragility in other contexts.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "string-bytes-indexed-event-empty-unicode-concat",
+          "verdict": "DIVERGENCE",
+          "note": "Steps 0-1 and queries 2-4 show semantic agreement for concat results: val '' and 'foobar' matched; EVM data 0x01020304 corresponds to polkadot decoded bytes '\\u0001\\u0002\\u0003\\u0004'; lastData returned the same bytes in EVM hex vs polkadot decoded rendering. Reported mismatches triage to h3 indexed-string hashing, h4 bytes rendering, and h7 storage layout, not to concat semantics."
+        }
+      ],
+      "next_probe": "Minimal concat-only runtime probe with operand matrix: string pairs ('',''), ('foo','bar'), ('\\u96ea',''), ('a'.repeat(31),'b'.repeat(32)); bytes pairs (0x,0x), (0x0102,0x0304), (0x00,0xff), and 31/32/33-byte payloads. Compare decoded lastVal/lastData and emitted values semantically on both chains to confirm concat agreement at boundaries and zero-content bytes while checking whether any source-shape still triggers the h1/h8 ICE."
+    },
+    {
+      "id": "h15",
+      "statement": "solang correctly supports explicit fixed-bytes truncation casts (bytes1(bytes32), bytes16(bytes32) take the leftmost bytes) and widening casts (bytes32(bytes16) right-pads) with semantics identical to solc, so the earlier concat-only ICE is not part of a general fixed-bytes cast bug. Separately, raw storage nonzero-entry counts diverge for fixed-bytes state variables even when values are tiny: EVM tightly packs multiple fixed-bytes variables into one 32-byte slot (bytes1 + bytes16 => 1 nonzero entry) while polkadot allocates one SCALE cell per variable (2 nonzero entries), so count-mode storage oracle is unreliable for ANY contract with multiple packable state variables, not only dynamic string/bytes contracts; only semantic getter comparison is meaningful.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "string-bytes-indexed-event-empty-unicode-fixedbytes-cast",
+          "verdict": "DIVERGENCE",
+          "note": "cast(0x0102...1f20) stored bytes1(0x01-truncation) and bytes16(0x01..10-truncation) and returned bytes1(x) with no RETURN_MISMATCH against solc; widen(0xdeadbeef...cdef) returned the right-padded bytes32 with no mismatch \u2014 truncation/widening semantics agree. The only divergences were STORAGE_MISMATCH in count mode at steps 0 and 3: EVM 1 nonzero entry (both fixed-bytes vars tightly packed in one slot, value 342956481330728537355412814650493833217) vs polkadot 2 entries (1 and 1339673755198158349044581307228491536), triaged as a physical packing/layout oracle artifact, matching h7's conclusion that raw storage oracles are not meaningful for value-carrying contracts."
+        }
+      ],
+      "next_probe": "Minimal contract `bytes8 public x; bytes8 public y; function set(bytes8 a, bytes8 b) external { x=a; y=b; }`: deploy fresh, call set(0x0102030405060708, 0x090a0b0c0d0e0f10), then query x and y and diff raw storage counts. Expect getters to match semantically while counts show 1 (EVM packed slot) vs 2 (polkadot one cell per var), isolating the packing divergence from any value effect."
+    },
+    {
+      "id": "h16",
+      "statement": "EVM nonzero-entry storage counts accumulate stale keccak-derived data slots while polkadot counts reflect only live state: once a >31-byte string/bytes value is written, overwriting it with a shorter (even <=31-byte) value does NOT zero the old long-string data slots, so EVM counts stay elevated (here 5 after a 32-char write, 7 after a 33-char write, with the stale '65','65' slots from the prior 32-char write still present at step 2 alongside the new '67','67' slots), whereas polkadot overwrites its packed SCALE cells in place and stays flat at 3 entries throughout. Practical consequence: the h7 count-coincidence safety condition (all dynamic values <=31 bytes) must be evaluated over the contract's entire write HISTORY, not just final values \u2014 a contract that ever stored a long value will show inflated EVM counts forever after.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "string-bytes-indexed-event-stringarr-m1-len32",
+          "verdict": "DIVERGENCE",
+          "note": "Sequential log calls storing 31/32/33-char 'a' strings with 31/32/33-byte payloads reproduced h7's exact count boundary (3 vs 3 at step 0, 5 vs 3 at step 1, 7 vs 3 at step 2), but the value lists reveal stale-slot persistence: at step 2 the EVM side still contains the previous step's 32-char artifacts (string header ...00289, bytes header ...1808, data slots '65','65') alongside the new 33-char entries ('67','67'), while polkadot stays flat at 3 cells (emitCount + lastVal cell + lastData cell, each overwritten in place). Events diverged only via known h3 (empty marker: keccak256('') 0xc5d246...a470 on EVM vs raw '' on polkadot) and h4 (bytes hex vs decoded chars, with the 0x20/0x21 trailing bytes rendering as literal ' '/'!') patterns; lastVal and emitCount queries agreed semantically."
+        },
+        {
+          "probe": "string-bytes-indexed-event-stringarr-m4-reset-reorder",
+          "verdict": "DIVERGENCE",
+          "note": "The EVM-side nonzero-entry count never decreased across the whole run (3 at steps 0-1, still 3 after reset() emptied lastVal/lastData at step 2 and after a subsequent log at step 3, with slot values byte-identical to the pre-reset 'value'/0x0102 contents), while polkadot counts tracked live state exactly (3 -> 1 after reset -> 1 after re-log with empty values). This is the reset-direction counterpart of h16's stale-slot claim: polkadot zeroes/reuses its SCALE cells in place so counts fall when values are cleared, whereas the EVM count is monotone non-decreasing here even for short-string slots being overwritten with empties. Combined with the step-4 lastVal query agreeing semantically ('' on both chains), every storage diff is again a physical-layout/oracle artifact, not behavioral divergence."
+        }
+      ],
+      "next_probe": "Minimal contract `string public s; function set(string memory v) external { s = v; }`: in one deployment call set(33-char string) then set(5-char string), and diff raw storage nonzero counts. Expect EVM count to remain at the 33-char level (header + stale data slots + short slot, ~4-5 nonzero) while polkadot returns to its short-value baseline (~2 nonzero), isolating stale-slot persistence from the monotonic-growth artifact seen here. A second deployment storing only the 5-char string should show matching counts, confirming history-dependence."
+    },
+    {
+      "id": "h17",
+      "statement": "After a state variable holding a short (<=31-byte) string/bytes value is overwritten with an empty value, the polkadot-side raw storage nonzero-entry count drops to reflect only live nonzero cells while the EVM-side count stays elevated with byte-identical pre-clear slot values even though the public getter reads back '' on both chains. The disjunction is now resolved: because the elevated EVM counts were read in the SAME run as successful '' getter queries (steps 2-4 after the clear at step 1), this is genuine EVM committed-state behavior (cleared short-string/bytes slots retain their old contents in the oracle's storage read) rather than a stale-snapshot artifact. With a second counter (tag) added, the step-1 arithmetic is exact: EVM = 2 live counters + 2 stale dynamic slots = 4 entries vs polkadot = 2 live counters = 2 entries. Therefore count-mode storage oracles can never confirm 'cleared' state on the EVM side, and the h7/h13 count-coincidence rule fails for any contract whose history includes clearing a previously nonempty dynamic value.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "string-bytes-indexed-event-stringarr-m4-reset-reorder",
+          "verdict": "DIVERGENCE",
+          "note": "reset() set lastVal='' and lastData='' (step-4 lastVal query returned '' with no RETURN_MISMATCH, so semantics agree), yet the EVM storage diff at steps 2 and 3 still reported 3 nonzero entries with the exact pre-reset slot values (455846... and 535450...), while polkadot dropped to 1 entry (emitCount only). The asymmetry is reproducible across two reset-affected steps; all EVENT_MISMATCH entries were the known h3 (keccak topic 0x23dc.../0x332c... vs raw 'one'/'two') and h4 (0x0102 vs decoded chars) patterns, and the logArr(['x','']) call at step 1 produced no event divergence, further exonerating string[] events."
+        },
+        {
+          "probe": "string-bytes-indexed-event-clear-overwrite-step",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0 stored short 'value'/0x0102 (count coincidence 3 vs 3, known h7 regime). After clear() at step 1 set lastVal='' and lastData='', the EVM storage diff reported 4 nonzero entries \u2014 emitCount=1, tag=1, plus the two byte-identical pre-clear slot values (455846...92212 for the string slot, 535450...525066 for the bytes slot) \u2014 while polkadot dropped to 2 entries (emitCount=1, tag=1 only). Steps 2-4 queried lastVal ('' both chains, no mismatch), lastData (only the known h4 0x-vs-'' RETURN_MISMATCH), and tag (1, no mismatch) in the same run, proving the EVM getter reads cleared state while the EVM storage oracle still sees the stale slot contents: genuine committed-state behavior, not a snapshot artifact. The extra tag counter makes the arithmetic exact (2 live + 2 stale = 4 EVM vs 2 live polkadot). Step-0 EVENT_MISMATCH triages to known h3 (indexed marker keccak 0x692e3fbb...4d2d vs raw 'first') and h4 (0x0102 vs '\\u0001\\u0002') patterns. Triage category oracle_artifact, confirming h17."
+        }
+      ],
+      "next_probe": "Minimal contract `string public s; bytes public b; function set(string memory x, bytes memory y) external { s=x; b=y; }`: deploy, call set('value', 0x0102), snapshot raw storage on both chains, call set('', 0x), then in the SAME step query s and b getters AND raw storage nonzero counts. If EVM counts drop to baseline while getters read '', the elevated counts in m4-reset were a snapshot artifact; if EVM counts stay at 3 with unchanged slot values while getters read '', genuine EVM empty-overwrite behavior diverges from the short-string-clears model and the oracle is reading committed state correctly."
+    },
+    {
+      "id": "h18",
+      "statement": "The raw-storage oracle renders polkadot SCALE cells as SIGNED integers while EVM slots render unsigned: uint8 tag=255 appears as -1 on polkadot vs 255 on EVM, and the 2-byte 0x00ff bytes cell appears as -256 (two's-complement of the 0xff00 limb) vs EVM's positive short-bytes slot. Counts are unaffected (both entries are still counted as nonzero), so this is a pure value-rendering hazard for triage: any inspection or comparator that diffs raw values instead of counts/nonzero-patterns would report false positives for any stored value whose high byte >= 0x80 (uint8 >127, bytes with trailing 0xff, large uint256), even though semantic getters agree.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "string-bytes-indexed-event-dup-unicode-step-p1-m2-layout-tag",
+          "verdict": "DIVERGENCE",
+          "note": "Step 1 (tagStep(255)) produced STORAGE_MISMATCH value lists with polkadot '-1' vs EVM '255' for the same uint8, and step 2 showed polkadot '-256' vs a positive EVM slot for the 0x00ff bytes cell. Entry counts were unaffected (both cells counted nonzero), and the step-3/4 queries lastVal/emitCount matched semantically, so this is a signed-vs-unsigned rendering artifact in the value listing, on top of the known h7/h16 count divergence (7 vs 3, 8 vs 4 with stale '67' slots)."
+        }
+      ],
+      "next_probe": "Minimal contract `uint8 public a; uint256 public b; function set(uint8 x, uint256 y) external { a=x; b=y; }`: call set(200, 2**255 + 1) on both chains, then diff raw storage in VALUE mode (not just count). Expect polkadot cells to render negative (a -> -56, b -> a negative bignum) while EVM shows positive values, with semantic getters a/b agreeing on both chains; confirms signed-vs-unsigned rendering is an oracle artifact independent of dynamic types."
+    },
+    {
+      "id": "h19",
+      "statement": "EVM stale keccak-derived data slot cleanup on overwrite of a long dynamic value depends on the NEW value's size/content: overwriting with a short NONEMPTY value (e.g., 2-byte 0x00ff) zeroes exactly one of the two stale data slots (partial cleanup, count stays flat), while overwriting with an EMPTY value (0x) zeroes NONE \u2014 all stale slots persist (headers plus both '65' and '67' data slots remain nonzero, count flat at 6 after a 33-char string + 32-byte bytes value was cleared to ''/0x), whereas polkadot drops to its live counter cells only (1 entry, emitCount=2). Clearing a long value thus leaves 100% of stale slots; only short non-empty overwrites trigger any cleanup, and even then it is partial. Per-slot EVM storage prediction therefore remains unreliable beyond the count level, and count-mode oracles cannot confirm a clear on the EVM side even when the clear succeeded semantically (getters read ''/0x on both chains).",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "string-bytes-indexed-event-dup-unicode-step-p1-m2-layout-tag",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0 wrote the 33-byte 0x00..0x20 payload (EVM 7 nonzero: string header + 2 string data + bytes header + 2 bytes data '67','67' + emitCount). Step 2 overwrote lastData with 2-byte 0x00ff: EVM count stayed at 8 but the value list lost one '67' slot and gained the new short-bytes slot 450546001518488004043740862689444221536008393703282834321009581329618042884, showing one stale keccak data slot was zeroed and one persisted. Polkadot stayed flat at 4 cells with in-place overwrite (-256 for the new bytes cell)."
+        },
+        {
+          "probe": "string-bytes-indexed-event-dup-unicode-step-p1-m3-clear-history",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0 stored a 33-char string and 32-byte payload: EVM 6 nonzero entries (emitCount + string header + 2 string data slots '65','67' region + bytes header + 1 bytes data slot) vs polkadot 3 packed cells, exactly the h7/h9 byte-length regime. Step 1 overwrote with '' and 0x: polkadot dropped to 1 cell (emitCount=2) but EVM stayed flat at 6 with ALL prior slot values unchanged (both stale '65'/'67' data slots and the header values persist), while same-run getter queries confirmed lastVal='' (no RETURN_MISMATCH at step 2) and lastData=''/0x (only the known h4 rendering mismatch at step 3) and emitCount=2 agreed. This is the empty-overwrite counterpart to h19's short-overwrite partial cleanup: clearing zeroes NO stale slots, so cleanup only occurs for short non-empty overwrites and is partial even then. Step-0/1 EVENT_MISMATCH entries triage to known h3 (indexed empty marker keccak256('') 0xc5d246...a470 vs raw '') and h4 (bytes hex vs decoded chars) patterns."
+        },
+        {
+          "probe": "string-bytes-indexed-event-dup-unicode-step-p1-m4-sender-dup-reorder",
+          "verdict": "DIVERGENCE",
+          "note": "After three 33-char/33-byte writes (EVM 7 nonzero: headers + both '67' data slots + emitCount) the clear step ('' and 0x) left the EVM side flat at 7 with every prior slot value byte-identical \u2014 zero stale slots cleaned \u2014 while polkadot dropped to 1 cell (emitCount=4 only). Same-run queries agreed semantically (lastVal='' both chains, emitCount=4 both), triaging the whole diff to oracle_artifact. This is the third independent reproduction of h19's empty-overwrite clause (clearing a long value zeroes NO stale slots) and it extends it: the stale set persists across duplicate writes and sender shuffling, so cleanup behavior is content-dependent, not call-history-dependent."
+        }
+      ],
+      "next_probe": "Minimal contract `bytes public d; function set(bytes memory v) external { d = v; }` on EVM only: snapshot full per-slot values at addresses base/base+1/keccak(base)/keccak(base)+1/keccak(base)+2 after set(33-byte), then after set(31-byte), then after set(0x). Mapping exactly which keccak slots are zeroed at each transition determines whether cleanup follows old-length, new-length, or some other rule."
+    },
+    {
+      "id": "h20",
+      "statement": "Event encoding on both chains is a pure function of (contract, event signature, argument values): the identical Dyn('marker-\\u96ea', 33-char val, 0x00..0x20) emitted three times from senders alice, alice, bob produced the byte-identical keccak topic 0xb831...b6cc and ABI-hex data on EVM and the byte-identical raw marker/decoded payload on polkadot, and the empty-args clear from charlie produced the canonical keccak256('') 0xc5d246...a470 vs raw '' pair. Sender identity, call ordering, and repetition are fully exonerated as divergence sources; combined with the h12 replay-independence result, only argument values affect event bytes, so any future EVENT_MISMATCH with differing args can be attributed to encoding rules (h3/h4), not to transaction context.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "string-bytes-indexed-event-dup-unicode-step-p1-m4-sender-dup-reorder",
+          "verdict": "DIVERGENCE",
+          "note": "Steps 0-2 were identical args from alice/alice/bob: EVM emitted the same topic 0xb8316818...b6cc and same hex data all three times; polkadot emitted the same raw 'marker-\\u96ea' and the same escape-sequence-plus-trailing-space payload all three times. Step 3 (charlie, empty args) reproduced the known keccak256('') vs raw '' pattern. All mismatches triage to known h3/h4/h7/h19 patterns; lastVal and emitCount queries matched semantically. No sender- or order-dependent encoding variance observed."
+        }
+      ],
+      "next_probe": "Minimal contract B with the Dyn event and a log() function, plus contract A with a function that external-calls B.log('x','y',0x0102) (and a payable variant forwarding 1 wei). Compare the emitted event bytes for the internal call against a direct call on both chains. If they are byte-identical, call context and msg.value are also exonerated, closing the transaction-context question entirely; if the polkadot side renders the internally-emitted event differently (e.g., different contract-address attribution), event provenance is a new divergence axis."
+    }
+  ],
+  "updated_ts": 1794317064.8888001
+}

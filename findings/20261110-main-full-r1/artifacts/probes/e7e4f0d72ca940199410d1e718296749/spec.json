@@ -1,0 +1,50 @@
+{
+  "name": "events-indexed-vs-unindexed-dyn-addridx-fixed",
+  "solidity": "pragma solidity >=0.8.0;\ncontract EventAddrIdx {\n    event AddrIdx(address indexed who, address indexed fixedAddr);\n    uint256 public n;\n    function ping() external {\n        n += 1;\n        emit AddrIdx(msg.sender, address(uint160(0x1234)));\n    }\n    function getN() external view returns (uint256) {\n        return n;\n    }\n}",
+  "contract": "EventAddrIdx",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "ping",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "ping",
+      "args": [],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "ping",
+      "args": [],
+      "sender": "charlie",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "getN",
+      "args": []
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "6854ac7686913cd9",
+    "origin": "mutated_llm"
+  }
+}

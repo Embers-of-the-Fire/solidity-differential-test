@@ -1,0 +1,351 @@
+{
+  "seed_id": "value-transfers",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "Contract-initiated outgoing native value transfers to an EOA via low-level call{value} revert on solang/pallet-contracts while succeeding on solc/EVM, even when the contract has recorded receiving msg.value and its balance covers the amount. The polkadot revert carries no reason string (trap-like, not a require failure), no Sent event is emitted, and storage is left unchanged.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "value-payable-forward",
+          "verdict": "DIVERGENCE",
+          "note": "Step 3 withdraw(600) succeeded on EVM (Sent event, withdrawn=600) but reverted on polkadot with null error despite require(amount<=balance) passing (no 'insufficient'/'send-failed' reason, unlike step 5 where require reasons matched). Deposits of 1000/2500 were credited identically on both chains, so receipt of msg.value agrees; only the outgoing transfer diverges."
+        },
+        {
+          "probe": "value-payable-forward-p0",
+          "verdict": "PASS",
+          "note": "Prediction replicated exactly: step 3 withdraw(600) succeeded on EVM (Sent event, withdrawn=600, storage {1000,600}) but reverted on polkadot with error=null (trap-like, no reason string), no Sent event, and storage unchanged at {1000}. Deposits of 1000 (step 0) and 2500 (step 4) were credited identically (totalReceived=3500 on both), so msg.value receipt and balance accounting agree; only the outgoing call{value} transfer diverges. Step 6 RETURN_MISMATCH (evm 600 vs polkadot 0) is a downstream consequence of the same revert."
+        }
+      ],
+      "next_probe": "Minimal forwarder: payable deposit() then forward(to, amount) that records address(this).balance before the send, performs (bool ok,) = to.call{value:amount}(\"\"), stores ok, and does NOT require(ok) so the call result is observable. Compare ok flag, pre-send balance, and revert reason across chains to isolate whether the trap is in the outgoing transfer itself or in balance accounting."
+    },
+    {
+      "id": "h2",
+      "statement": "Event payloads for value-bearing calls agree across chains in non-address arguments: msg.value amounts (1000, 2500) and totalReceived storage matched exactly on both chains at steps 0 and 4. The EVENT_MISMATCH entries at those steps are purely the sender address encoding (EVM hex vs SS58), an environmental difference, not a semantic one.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "value-payable-forward",
+          "verdict": "DIVERGENCE",
+          "note": "Steps 0 and 4 EVENT_MISMATCH entries differ only in the 'from' address representation; 'value' args (1000, 2500) matched and storage counters agreed at those steps, indicating payable receipt and event value semantics agree."
+        },
+        {
+          "probe": "value-payable-forward-p0",
+          "verdict": "PASS",
+          "note": "Steps 0 and 4 EVENT_MISMATCH entries differ only in the 'from' address encoding (EVM 0x90f7.../0x3c44... vs SS58 5DAAnr.../5FLSig...); the uint256 'value' args (1000, 2500) matched exactly, confirming event value payloads agree and only address representation (environmental) differs."
+        },
+        {
+          "probe": "value-payable-forward-eventref-p3",
+          "verdict": "DIVERGENCE",
+          "note": "The Detailed event (indexed address + uint256 value + bytes32 ref) was emitted at steps 0, 1, and 4 on both chains, and every mismatch differed ONLY in the sender address encoding (0x7099... vs 5FHneW..., 0x3c44... vs 5FLSig...); the uint256 values (1000, 1000, 2500) AND the full bytes32 ref payloads (0xdeadbeef...00, 0xdeadbeef...e3, 0x...01) matched exactly. This directly fulfilled h2's standing next_probe prediction: with a bytes32 field added, only address fields mismatch pre-normalization. Event value/ref payload semantics agree completely."
+        }
+      ],
+      "next_probe": "Emit the same address-bearing event (indexed address + uint256 + bytes32) from identical calls on both chains and compare AFTER normalizing sender addresses (SS58 -> AccountId20 hex, lowercase). Prediction: zero mismatches post-normalization, proving the only difference is environmental address encoding and the oracle should normalize addresses before flagging EVENT_MISMATCH."
+    },
+    {
+      "id": "h3",
+      "statement": "Require-based revert semantics for over-large withdrawals agree: withdraw(9999) reverted on both chains with matching revert reasons, so explicit require(...) failure paths with reason strings behave identically and revert reasons are captured on both sides.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "value-payable-forward",
+          "verdict": "DIVERGENCE",
+          "note": "Step 5 withdraw(9999) produced no STATUS or REVERT_REASON mismatch, meaning both chains reverted with the same 'insufficient' reason; the only unexplained revert is the null-reason trap at step 3's outgoing send."
+        },
+        {
+          "probe": "value-payable-forward-p0",
+          "verdict": "PASS",
+          "note": "Step 5 withdraw(9999) produced no STATUS or REVERT_REASON mismatch: both chains reverted with the same 'insufficient' reason, confirming require-with-reason failure paths propagate identically from solang. The only unexplained revert remains the null-reason trap at step 3's outgoing send."
+        }
+      ],
+      "next_probe": "Probe require-with-reason on other value paths (e.g., require(msg.value == expected, 'wrong-value') in a payable function) to confirm reason strings propagate identically from solang; also test an assert() and an explicit revert() with reason for parity."
+    },
+    {
+      "id": "h4",
+      "statement": "The call{value} silent trap is amount-independent AND remainder-independent: it fires at amount 3499 against balance 3500 (consuming nearly the entire balance, leaving remainder 1) exactly as it did at amount 1 against balance 1000 (leaving remainder 999). Six magnitudes now span 1..3499 with ratios to balance from 0.001 to ~1.0, all trapping identically (error=null, no Sent event, storage unchanged) on pallet-contracts while succeeding on EVM under require guards that demonstrably passed. This eliminates 'post-transfer remainder below ED' as an alternative trigger alongside magnitude thresholds: neither the sent amount's absolute scale nor the contract's remaining balance after the transfer explains the trap. The mechanism attribution to the call{value} codepath (seal-call plumbing) versus the builtin transfer()/send() paths, which succeed at the same magnitudes, stands. Any 'escape hatch' threshold above 3499 is unproven.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "value-payable-forward-p0",
+          "verdict": "DIVERGENCE",
+          "note": "The only differing quantity in the step-3 outgoing transfer is its magnitude (600 and 2500 are far below typical existential deposits on Substrate chains), while require(amount<=balance) demonstrably passed on polkadot (the revert carried no 'insufficient'/'send-failed' reason). This is consistent with a silent ED/dust trap in pallet-contracts balance transfer rather than a logic or accounting difference."
+        },
+        {
+          "probe": "value-payable-forward-p1",
+          "verdict": "DIVERGENCE",
+          "note": "Amount mutated from 600 to 512 and the divergence signature is byte-identical: polkadot step 3 reverts with error=null (trap-like, no 'insufficient'/'send-failed' reason), no Sent event, storage stays at {1000} while EVM reaches {1000,512}. TotalReceived at step 2 matched (1000 on both) and bob's deposit of 2500 credited identically at step 4, so the trap is amount-independent among dust values and tied only to the outgoing transfer being below ED scale."
+        },
+        {
+          "probe": "value-payable-forward-p2",
+          "verdict": "DIVERGENCE",
+          "note": "Third deterministic replication with amount 600 (returning to the original value after p1's 512): polkadot step 3 reverts with error=null, no Sent event, storage stays {1000} while EVM reaches {1000,600}. totalReceived at step 2 and bob's step-4 deposit matched, so balance accounting agrees and the trap is not flaky or amount-specific among dust values."
+        },
+        {
+          "probe": "value-payable-forward-send",
+          "verdict": "DIVERGENCE",
+          "note": "Step 1 withdraw(600) via payable(msg.sender).transfer(600) succeeded on BOTH chains: Sent(to,600) emitted on polkadot with value matching EVM exactly (only SS58-vs-hex address encoding differed, per h2). No STATUS/TX_STATUS mismatch at step 1. This directly contradicts the dust/ED-scale trap seen for call{value:600} in value-payable-forward-p0/p1/p2: identical amount, identical balance context, different transfer mechanism, different outcome. Balance magnitude cannot be the cause; the trap is in the call{value} codepath specifically."
+        },
+        {
+          "probe": "value-transfer-balance-baseline-boundary",
+          "verdict": "DIVERGENCE",
+          "note": "donateBuiltin(2500) via payable(msg.sender).transfer(2500) succeeded on BOTH chains at step 4: Donated(recipient,2500) emitted on polkadot with value matching EVM exactly (only SS58-vs-hex address encoding differed, per h2), no STATUS mismatch, and the step-5 getBalance query matched at 1000 on both chains \u2014 proving the transfer actually moved value identically. This is a second, larger dust magnitude (after 600 in value-payable-forward-send) where the builtin path succeeds while call{value} at comparable scale traps, further pinning the divergence to the call{value} codepath rather than amount or balance context. The run's only mismatches were the three known address-encoding EVENT_MISMATCH entries (steps 0, 2, 4), consistent with h2."
+        },
+        {
+          "probe": "value-payable-forward-p1-m-boundary",
+          "verdict": "DIVERGENCE",
+          "note": "Step 3 withdraw(1) against a 1000 balance passed require(amount<=balance) on both chains (no 'insufficient'/'send-failed' reason on polkadot) yet polkadot reverted with error=null (trap-like), emitted no Sent event, and kept storage at {1000} while EVM reached {1000,1}. This extends amount-independence to the minimum nonzero unit (1), eliminating any magnitude-threshold reading of the dust-scale results: EVM happily sends 1 wei, solang/pallet-contracts traps on the identical executed call{value:1}. Step 5 withdraw(2^256-1) and step 2 totalReceived matched identically, confirming require-failure paths and msg.value accounting still agree."
+        },
+        {
+          "probe": "value-payable-forward-p1-m-strict-ineq",
+          "verdict": "DIVERGENCE",
+          "note": "Step 2 withdraw(3500) with balance exactly 3500 failed require(amount < balance, 'insufficient') identically on both chains (no STATUS/REVERT_REASON mismatch), replicating h9's strict-inequality boundary. Step 4 withdraw(3499) with balance 3500 passed the strict require on both chains (no 'insufficient'/'send-failed' reason on polkadot) yet polkadot reverted with error=null (trap-like), emitted no Sent event, and kept storage at {3500} while EVM reached {3500,3499}; step 5 RETURN_MISMATCH (3499 vs 0) is the standard downstream echo (h6/h10). The trap now fires at 3499/3500 (remainder 1) as well as 1/1000 (remainder 999), so neither amount magnitude nor post-transfer remainder explains it. Steps 0 and 1 EVENT_MISMATCH entries differed only in sender address encoding with value args (1000, 2500) matching (h2)."
+        },
+        {
+          "probe": "value-payable-forward-p1-m-layout",
+          "verdict": "DIVERGENCE",
+          "note": "Step 2 withdrawAll() sends the FULL contract balance (3500/3500, post-transfer remainder 0) via call{value} and polkadot trapped with error=null (no 'empty'/'send-failed' reason) while EVM succeeded: Sent(3500) emitted, storage {nonce 3, withdrawn 3500, totalReceived 3500} vs polkadot {2, 3500}. This is the trap at remainder 0, extending the remainder-independence sweep (remainders 999, 1, and now 0 all trap) and the amount sweep to the exact full balance. Deposits of 1000/2500 credited identically (totalReceived=3500 both, only address-encoding EVENT_MISMATCH per h2), so accounting still agrees. The trap cannot be explained by any post-transfer remainder or magnitude threshold."
+        }
+      ],
+      "next_probe": "Rerun the same contract with wei-scale amounts replaced by realistic 18-decimal amounts: deposit 10^18 and 2.5*10^18, then withdraw 6*10^17 (above any plausible ED). Prediction: polkadot step 3 succeeds and emits Sent with value 6*10^17 and storage {10^18, 6*10^17}, refuting the trap; if it still traps, the issue is any outgoing contract-initiated transfer on pallet-contracts and h1's forwarder probe is needed instead."
+    },
+    {
+      "id": "h5",
+      "statement": "Non-payable function called with msg.value behaves identically on both chains: solang enforces the Solidity payable modifier, so calling a non-payable function with value reverts with the same status and reason on pallet-contracts as on EVM, and does not credit any value. This contrasts with the silent trap on outgoing call{value} \u2014 value enforcement at function entry produces a normal reasoned revert, while the ED/dust trap in the transfer itself produces no reason.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "value-payable-forward-p1",
+          "verdict": "PASS",
+          "note": "Step 1 called noValue() (external pure, non-payable) with value=5 and produced NO divergence of any kind: totalReceived at step 2 read 1000 on both chains, so no value was credited and behavior (including any revert reason, since revert_reasons oracle was on) agreed exactly. This isolates the silent trap to the outgoing transfer path, not value handling in general."
+        },
+        {
+          "probe": "value-payable-forward-boundary",
+          "verdict": "PASS",
+          "note": "Step 1 called noValue() (non-payable) with value=1 and produced NO status or revert-reason mismatch; EVM deterministically reverts non-payable-with-value, so solang must have matched the revert and credited nothing (totalReceived agreed at steps 2 and 4, and step 2's query matched). This confirms solang enforces the Solidity payable modifier at function entry with an identical reasoned revert, in contrast to the silent null-reason trap on the outgoing call{value} path (h1/h4)."
+        }
+      ],
+      "next_probe": "Probe payable enforcement directly: contract with a non-payable function g() that stores a sentinel and emits an event; call it with value=7 on both chains and compare status + revert_reason. Prediction: both revert with identical reason string and sentinel/event absent. Also call a payable function with value and confirm both succeed and credit, to bracket the enforcement boundary."
+    },
+    {
+      "id": "h6",
+      "statement": "Storage and return-value mismatches at steps after the first divergent revert are downstream echoes, not independent divergences: once step 3 traps on polkadot, EVM state keeps withdrawn=512 while polkadot keeps withdrawn=0, so every later query (steps 4, 5) and final return (step 6) mismatches automatically. Triage should attribute the divergence to the root step's STATUS mismatch only; later EVENT/STORAGE/RETURN mismatches carry no new signal.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "value-payable-forward-p1",
+          "verdict": "DIVERGENCE",
+          "note": "All mismatches at steps 3-6 trace to the single step-3 revert: step 3 STATUS/TX_STATUS/EVENT/STORAGE mismatches, then steps 4 and 5 STORAGE mismatches ({3500,512} vs {3500}) and step 6 RETURN_MISMATCH (512 vs 0) are mechanically implied by polkadot never having executed the withdraw. Event payloads at steps 0 and 4 differed only in address encoding (matches h2)."
+        },
+        {
+          "probe": "value-payable-forward-p2",
+          "verdict": "DIVERGENCE",
+          "note": "The echo pattern replicated identically for a third time: the only root divergence is step 3's STATUS/TX_STATUS mismatch (withdraw(600) succeeds on EVM, traps with error=null on polkadot); step 3's EVENT (Sent absent) and STORAGE ({1000,600} vs {1000}) mismatches, steps 4-5 STORAGE mismatches, and step 6 RETURN_MISMATCH (600 vs 0) are all mechanically implied by polkadot never executing the withdraw. Step 4's deposit(0) by bob emitted Received(value=0) on both chains, differing only in address encoding (consistent with h2). No mismatch appeared anywhere that was not downstream of step 3, so attributing the whole divergence signature to the single root revert is validated."
+        }
+      ],
+      "next_probe": "Rerun the identical step sequence but with step 3's withdraw amount raised above any plausible ED (e.g., 10^17): prediction is that the step-3 STATUS mismatch disappears AND all downstream mismatches (steps 4, 5 storage; step 6 return) vanish simultaneously, proving they were echoes. If any downstream mismatch persists after step 3 agrees, the echo model is wrong and an independent divergence exists."
+    },
+    {
+      "id": "h7",
+      "statement": "Downstream mismatches after a divergent revert are conditional, not automatic: they appear only when the reverted step would have mutated observable state. withdraw(0) diverged at step 3 (success on EVM, null-reason trap on polkadot) yet the final withdrawn query at step 6 MATCHED (0 vs 0) and step 5 showed no mismatch, because the skipped step was state-neutral (withdrawn += 0). A divergent step that only emits events or adds zero likewise leaves later storage/return oracles silent; echo attribution must verify the root step actually mutates compared state.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "value-payable-forward-eventref-p2",
+          "verdict": "DIVERGENCE",
+          "note": "Natural (unconstructed) demonstration of echo conditionality: step 2 withdraw(600) trapped on polkadot (error=null, no Sent, storage {1000} vs {1000,600}), and the subsequent queries split exactly along mutation lines. Step 3 withdrawn query RETURN_MISMATCH (600 vs 0) and step 7 withdrawn query RETURN_MISMATCH (600 vs 0) mismatch because the trapped step would have mutated withdrawn; but step 6 totalReceived query MATCHED (3500 vs 3500) after bob's 2500 deposit, because totalReceived is incremented only by deposits and the trapped call never writes it. Even after the trap plus a later deposit, the untouched slot stays cross-chain identical. This is exactly h7's prediction \u2014 echoes track whether the divergent step actually mutates the compared state \u2014 observed without needing the two-arm construction."
+        }
+      ],
+      "next_probe": "Construct a two-arm probe: (a) a divergent-prone step that mutates storage (expect downstream STORAGE/RETURN mismatches per h6), and (b) the same step wrapped so its only observable effect is an event emission with no storage write (expect status mismatch at the step but NO downstream mismatches). Prediction: echoes track state mutation, not mere execution divergence; arm (b) shows a clean single-point divergence signature."
+    },
+    {
+      "id": "h8",
+      "statement": "Solidity's non-reverting send() builtin agrees across chains even on failure: sendNoCheck(9999) with balance 400 returns false (no revert) on both solc/EVM and solang/pallet-contracts, execution continues identically (withdrawn += 9999, Sent(9999) emitted, ok=false returned), and downstream queries match. So pallet-contracts does not trap on failed/zero-payout transfer attempts via builtins \u2014 only the low-level call{value} path produces the silent trap (h1). Additionally, send() returning false (rather than trapping) when the transfer cannot complete is itself confirmation that seal transfer handles the insufficient-balance case as a boolean failure, not a trap.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "value-payable-forward-send",
+          "verdict": "DIVERGENCE",
+          "note": "Step 2 sendNoCheck(9999) with only 400 balance produced NO status, revert-reason, or storage divergence: both chains continued past the failing send, emitted Sent(9999), incremented withdrawn by 9999, and agreed at the step-3 withdrawn query and step-5 totalReceived query. The only mismatches in the whole run were the four EVENT_MISMATCH entries whose value args (1000, 600, 9999, 2500) all matched and whose only differing field was address encoding. This shows (a) failed sends do not trap on polkadot, and (b) post-failure continuation semantics agree exactly."
+        },
+        {
+          "probe": "value-payable-forward-p1-m-transfer",
+          "verdict": "PASS",
+          "note": "The identical step sequence that traps with call{value:512} (value-payable-forward-p1) ran clean when withdraw used the builtin transfer(): step 3 withdraw(512) succeeded on BOTH chains \u2014 Sent(512) emitted with only SS58-vs-hex address encoding differing, withdrawn incremented identically, and the final withdrawn query at step 6 matched with NO storage or return mismatch anywhere. Combined with the earlier sendNoCheck(9999)-returns-false evidence, the builtin transfer/send paths now agree on both success (512, 600, 2500) and graceful failure (9999) across four magnitudes, while the same amounts trap via call{value} (h1/h4). Pallet-contracts never traps on the builtin seal-transfer path; the silent trap is exclusive to the low-level call{value} codepath."
+        }
+      ],
+      "next_probe": "Call sendNoCheck/withdraw targeting a CONTRACT recipient instead of an EOA on both chains (recipient contract with a receive() that reverts, and one with no payable fallback). Prediction: transfer() to a rejecting contract reverts on both with matching behavior (EVM 2300-gas stipend semantics vs solang), while send() returns false on both \u2014 isolating whether the h1 trap interacts with recipient type rather than mechanism alone."
+    },
+    {
+      "id": "h9",
+      "statement": "address(this).balance reads agree across chains at require-check time, so strict-inequality boundary conditions on balance trigger identical reasoned reverts: withdraw(1000) with contract balance exactly 1000 failed require(amount < balance, 'insufficient') on BOTH chains with no STATUS or REVERT_REASON mismatch, and the subsequent identical deposits put both chains in a 3500-balance context where withdraw(2999) passed the require on both (the divergence is again the null-reason trap in call{value} itself). Balance reads \u2014 not just event-recorded msg.value sums \u2014 are a cross-chain-consistent oracle value up to the point of the outgoing-transfer trap.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "value-payable-forward-strict",
+          "verdict": "DIVERGENCE",
+          "note": "Step 1 withdraw(1000) with balance exactly 1000 reverted identically on both chains (no STATUS/REVERT_REASON mismatch at all in the run until step 4), proving address(this).balance agreed at that checkpoint and the strict-inequality require failure path propagates identically. Steps 0-3 matched except address encoding (h2). At step 4, withdraw(2999) against a 3500 balance passed require on both chains (no 'insufficient' reason on polkadot) yet polkadot trapped with error=null on the outgoing call{value:2999} while EVM succeeded \u2014 replicating h1/h4 at a fourth magnitude."
+        },
+        {
+          "probe": "value-transfer-balance-baseline-boundary",
+          "verdict": "PASS",
+          "note": "takeStrict(1000) at step 6 with contract balance exactly 1000 (after the 2500 donate) reverted identically on both chains: no STATUS or REVERT_REASON mismatch, so both failed require(amount < balance, 'strict-insufficient') with the same reason string. Conversely donateBuiltin(2500) at step 4 passed require(amount <= balance) on both and its transfer() succeeded (Donated emitted on both, only address encoding differed). This replicates h9 at a second boundary checkpoint with an exact-equality strict inequality, and confirms address(this).balance is a cross-chain-consistent oracle value up to (and through successful builtin transfers, per h10) the call{value} trap point."
+        }
+      ],
+      "next_probe": "Expose a plain getter for address(this).balance (and address(recipient).balance) and query it after each deposit on both chains; compare raw values. Prediction: balances match exactly at every step before any call{value} trap, and after the trap they diverge only by the trapped amount (EVM balance lower by the sent value). Also test require(amount <= balance) vs require(amount < balance) at exact equality to confirm boundary reverts match reason-for-reason."
+    },
+    {
+      "id": "h10",
+      "statement": "Balance accounting is quantitatively consistent across chains modulo the call{value} trap: depositRef's returned address(this).balance was 2900 on EVM and 3500 on polkadot at step 3, and the difference equals exactly the trapped withdraw amount (3500 - 2900 = 600 = the value EVM sent and polkadot did not). This means (a) msg.value crediting and balance reads agree arithmetically on both chains through multiple deposits, and (b) any RETURN_MISMATCH from a balance-returning function is a pure downstream echo of the trapped transfer, carrying zero independent signal. A balance-read divergence would show a difference NOT equal to the sum of trapped transfers.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "value-payable-forward-eventref",
+          "verdict": "DIVERGENCE",
+          "note": "Step 3 RETURN_MISMATCH values 2900 (EVM) vs 3500 (polkadot) differ by exactly 600 \u2014 the amount of the step-2 withdraw that succeeded on EVM and trapped on polkadot. Given both chains received identical deposits (1000, 2500), the only possible source of the 600 gap is the trapped transfer itself, so balance crediting/reading must agree arithmetically; the mismatch is a quantitative echo, not a balance-semantics divergence."
+        },
+        {
+          "probe": "value-transfer-balance-baseline-boundary",
+          "verdict": "PASS",
+          "note": "getBalance() returned matching values at every query on both chains: 1000 after alice's deposit (step 1), 3500 after bob's deposit (step 3), and 1000 after donateBuiltin(2500) via transfer() succeeded on BOTH chains (step 5). No RETURN_MISMATCH appeared anywhere in the run. This exactly fulfills h10's next_probe prediction: with no call{value} trap, the balance baseline matches at every step, and balance arithmetic tracks the successful outgoing transfer() identically (3500 -> 1000 on both). The h10 mechanism claim \u2014 RETURN mismatches from balance-returning functions are pure echoes of the trap \u2014 is now supported by a positive control showing exact agreement when no trap occurs."
+        },
+        {
+          "probe": "value-payable-forward-eventref-p3",
+          "verdict": "DIVERGENCE",
+          "note": "Step 4 depositRef RETURN_MISMATCH values 3900 (EVM) vs 4500 (polkadot) differ by exactly 600 \u2014 the step-3 withdraw amount that succeeded on EVM and trapped on polkadot \u2014 now at a fresh 2000 balance baseline (two alice deposits of 1000 each, both credited identically, totalReceived=2000 agreed at step 2). The difference-equals-trapped-amount invariant holds at a second, independent baseline (previously 2900 vs 3500 at the 3500 baseline), and the trap fired with post-transfer remainder 1400 (ratio 0.3), adding another remainder point consistent with h4. Balance reads remain a quantitatively consistent cross-chain oracle modulo the trapped transfer."
+        }
+      ],
+      "next_probe": "Deposit 1000, attempt withdraw(600) (traps on polkadot), deposit 2500, attempt a SECOND withdraw(300) (also expected to trap per h12 first-call-after-redeposit selection), then query a balance-returning getter. Prediction: cumulative RETURN divergence equals exactly the SUM of trapped amounts (600+300=900), confirming balance arithmetic stays synchronized modulo each trapped transfer and each trap's echo is independently additive."
+    },
+    {
+      "id": "h11",
+      "statement": "The call{value} silent trap is conditional on the outgoing transfer actually executing: when a require guard fails first, both chains revert identically and no divergence appears. In this control run, deposit(0) left the contract balance at 0, so withdraw(512) failed require(amount<=balance,'insufficient') on BOTH chains with matching reason strings (no STATUS/REVERT_REASON mismatch), the trap never fired, and all downstream echo mismatches (h6) were absent. Zero-value payable deposits were also credited and emitted identically (Received(value=0) on both chains). The trap therefore cannot be triggered by call-path or dispatch differences alone - it requires the seal transfer to actually execute, strengthening the h1/h4 mechanism attribution.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "value-payable-forward-p1-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Triage category=oracle_artifact: the only mismatches were EVENT_MISMATCH entries at steps 0 and 4 differing solely in sender address encoding (hex vs SS58) with value args (0, 2500) matching exactly (consistent with h2). Critically, step 3 withdraw(512) against a zero balance produced NO status or revert-reason mismatch - both chains failed require(amount<=balance,'insufficient') identically, so the call{value} trap (h1/h4) never executed and the usual downstream echo mismatches (h6: steps 4-5 storage, step 6 return) were completely absent. Step 5 withdraw(9999) likewise matched. This is a clean control: removing the executed transfer removes the entire divergence signature."
+        },
+        {
+          "probe": "value-payable-forward-p1-p3",
+          "verdict": "DIVERGENCE",
+          "note": "Second clean replication of the h11 control: deposit(0) left balance 0, so step 3 withdraw(512) failed require(amount<=balance,'insufficient') identically on both chains (no STATUS/REVERT_REASON mismatch) and the call{value} trap never executed; step 5 withdraw(9999) also matched. The only mismatches were EVENT_MISMATCH entries at steps 0 and 4 differing solely in sender address encoding (h2) with value args (0, 2500) matching exactly, and all downstream echo mismatches (h6) were absent. Zero-value payable deposits were credited and emitted identically (Received(value=0) on both). Confirmed: the trap requires the outgoing seal transfer to actually execute; require-guard reverts fire identically before it."
+        }
+      ],
+      "next_probe": "deposit(0) then withdraw(0): require(0<=0) passes, so call{value:0} to an EOA is actually executed on both chains. Prediction: EVM succeeds (Sent(0), withdrawn stays 0). If polkadot succeeds too, zero-value outgoing calls are safe and the trap scales with executed transfer semantics; if polkadot traps with error=null, the trap fires on ANY executed call{value} regardless of amount - including zero - and the mechanism is call execution itself, not amount, refuting the remaining ED/dust magnitude angle of h4 entirely."
+    },
+    {
+      "id": "h12",
+      "statement": "The call{value} bimodality selector is positional, recurring, and exclusive to the call{value} codepath: every first EXECUTED call{value} after each balance (re)establishment traps silently while consecutive call{value} calls without an intervening deposit return ok=false. A call{value} that never executes because a require guard fails first does NOT consume the trap position and produces no divergence: the trap re-arms after the next deposit and fires on the next actually-executed call{value}, regardless of whether the depositor and withdrawer are the same account. The builtin send()/transfer() path shows no positional behavior at all (first and consecutive sends succeed, including full-balance drains to remainder 0). Recipient-independence (h12/h13), caller-independence (h13), and amount/remainder-independence (h4) all hold; every contextual variable tested is eliminated except positional call context relative to balance (re)establishment.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "value-payable-forward-p1-m-layout",
+          "verdict": "DIVERGENCE",
+          "note": "Steps 2 and 4 executed the identical withdrawAll() (call{value: address(this).balance}=3500, same storage state on polkadot since step 2's trap changed nothing) with divergent failure modes: step 2 silent trap (STATUS+TX_STATUS mismatch, error=null, no Sent), step 4 reasoned revert 'send-failed' (REASON_MISMATCH vs EVM's 'empty', meaning polkadot's call returned ok=false and executed the require path). Same amount, same state, same codepath, different failure mode \u2014 bimodality demonstrated within a single run."
+        },
+        {
+          "probe": "value-payable-forward-eventref-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Step 2 withdraw(600): EVM success (Sent(600), storage {1000,600}) vs polkadot silent trap (error=null, no Sent, storage {1000}) \u2014 h1 signature. Step 3 withdraw(599): REASON_MISMATCH evm='insufficient' vs polkadot='send-failed'. Same sender, same codepath, consecutive calls: on polkadot balance was still 1000 (step 2 trapped without transferring), so require(599<=1000) passed, call{value:599} executed and returned ok=false \u2192 'send-failed'; on EVM balance was 400, so require failed \u2192 'insufficient'. This is the second within-run demonstration that the first executed call{value} traps while the next one returns ok=false, and the first where the recipient is identical across both modes \u2014 refuting recipient-selection and supporting positional/context selection."
+        },
+        {
+          "probe": "value-payable-forward-eventref-forward-recipient",
+          "verdict": "DIVERGENCE",
+          "note": "Step 1 forwardTo(alice,600) trapped (error=null, no Sent, storage {1000} vs EVM {1000,600}); step 2 deposit(1000) re-established balance; step 3 forwardTo(bob,600) trapped identically; step 4 deposit(1000); step 5 forwardTo(alice,600) trapped identically \u2014 three deposit->forward cycles, three silent traps, same recipient trapping twice, different recipient in between. Every trapped step shows the byte-identical h1 signature (STATUS+TX_STATUS mismatch, error=null, Sent absent, storage unchanged). No ok=false mode appeared because every forward was the first call after a fresh deposit, exactly matching the refined selector. RETURN_MISMATCH values are perfectly additive echoes (h10): step 2 depositRef returned 1400 vs 2000 (diff 600 = one trapped transfer), step 4 returned 1800 vs 3000 (diff 1200 = 600+600 cumulative), step 6 withdrawn query 1800 vs 0 (diff 1800 = 3*600) \u2014 balance arithmetic stays synchronized modulo each trapped transfer."
+        },
+        {
+          "probe": "value-payable-forward-eventref-send-builtin",
+          "verdict": "DIVERGENCE",
+          "note": "Using send() instead of call{value} on the standard probe: step 1 withdraw(1) succeeded on BOTH chains (Sent(1) emitted on polkadot, value matching exactly, only SS58-vs-hex address encoding differed per h2) despite being the first executed outgoing transfer after the deposit of 4294967295 \u2014 exactly the position where call{value} traps under the h12 selector. Step 2 withdraw(4294967294) also succeeded on BOTH chains, draining the entire balance via builtin send() (remainder 0) and emitting Sent(4294967294) on polkadot, contrasting with call{value} withdrawAll trapping at remainder 0 (h4). msg.value crediting at 2^32-1 scale matched exactly (event value arg 4294967295 both chains, no overflow/scale divergence). Step 4 withdraw(9999) with balance 1000 produced no STATUS/REVERT_REASON mismatch (both failed require identically, per h3), and the final withdrawn query matched (4294967295 on both) \u2014 no echoes (h6/h10) because no trap occurred. The only mismatches were the four known address-encoding EVENT_MISMATCH entries (h2). This directly refutes any positional/dust selector for the builtin path and pins the h12 bimodality to the call{value} codepath alone."
+        },
+        {
+          "probe": "value-payable-forward-eventref-strict-layout",
+          "verdict": "DIVERGENCE",
+          "note": "Step 1 withdraw(1000) at balance exactly 1000 failed require(amount < balance, 'insufficient') identically on both chains (no STATUS/REVERT_REASON mismatch), so the call{value} never executed and no trap fired. After bob's deposit re-established the balance at 3500, step 3 withdraw(3499) -- the first actually-executed call{value}, by a different account (alice) than the depositor (bob) -- trapped with error=null (no 'send-failed' reason, no Sent event, storage {3500} vs EVM {3499,3500}), replicating the h1 signature at remainder 1 (h4). This shows a guard-skipped call{value} does not consume the trap slot; the next deposit re-arms it and the first executed call traps regardless of depositor identity. Step 4 totalReceived query matched (3500 both) and step 5 RETURN_MISMATCH (3499 vs 0) is the standard h6/h10 echo; the only other mismatches were the two known address-encoding EVENT_MISMATCH entries at steps 0 and 2 with value args (1000, 2500) and bytes32 refs matching exactly (h2)."
+        },
+        {
+          "probe": "value-payable-forward-full-drain",
+          "verdict": "DIVERGENCE",
+          "note": "Step 2 withdraw(1000) was the first executed call{value} after a single 1000 deposit -- a same-account deposit->full-drain shape (remainder 0) -- and trapped with the byte-identical h1 signature (STATUS+TX_STATUS mismatch, error=null, no Sent event, storage count {1000} vs EVM {1000,1000}), confirming the selector fires at first-position full-drain just as at partial amounts. Step 4 withdraw(9999) failed require identically on both chains (balances 2500 vs 3500, both below 9999) so it never executed and did not consume a trap slot, consistent with the refined selector. The step-3 depositRef RETURN_MISMATCH (2500 vs 3500) differed by exactly the trapped 1000 (h10 echo), and the step-5 totalReceived query matched at 3500 on both because the trapped step never writes that slot (h7) -- no mismatch appeared that was not downstream of the single root trap."
+        }
+      ],
+      "next_probe": "Run the untested half of the selector: fresh contract, ONE deposit of 1000 from alice, then THREE consecutive forwardTo calls with NO redeposit \u2014 forwardTo(alice,600), forwardTo(bob,500), forwardTo(charlie,400). Prediction under the refined selector: call 1 traps (error=null), calls 2 and 3 both return ok=false with 'send-failed' reason (since no balance re-establishment occurs) and no value moves on polkadot, while EVM succeeds all three and storage/returns diverge by cumulative sums. If call 2 or 3 instead traps, the selector is wrong in the consecutive direction; if call 2 succeeds, balance depletion semantics differ from the eventref-p0 single-consecutive observation."
+    },
+    {
+      "id": "h13",
+      "statement": "The call{value} silent trap is caller-independent: it fires identically when the withdrawing EOA is a fresh account that never deposited (charlie) as when it is a prior depositor (alice/bob). Step 2 withdraw(600) by charlie \u2014 who had no prior interaction with the contract \u2014 trapped on polkadot with error=null (no 'insufficient'/'send-failed' reason), no Sent event, storage unchanged, exactly the h1 signature. Caller identity/history is therefore not a parameter of the trap; combined with h12's recipient-independence and h4's amount/remainder-independence, every contextual variable tested so far (caller, recipient, amount, remainder, balance scale) is eliminated, leaving only the positional/call-index context of h12 as the open selector.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "value-payable-forward-eventref-p1",
+          "verdict": "DIVERGENCE",
+          "note": "Step 2 withdraw(600) was executed by charlie, an account with no prior deposits or interactions with the contract, yet polkadot trapped with error=null (STATUS+TX_STATUS mismatch, no Sent event, storage {1000} vs EVM {1000,600}) \u2014 byte-identical to the h1 signature seen when alice/bob (prior depositors) called withdraw. Steps 3-4 storage echoes and step 7 RETURN_MISMATCH (600 vs 0) follow h6 mechanically. Step 4 withdraw(9999) by alice produced no STATUS/REVERT_REASON mismatch: both chains failed require(9999<=balance) identically (EVM balance 2900, polkadot 3500, both below 9999), so the guard fired before any transfer and no bimodality data was generated for h12."
+        },
+        {
+          "probe": "value-payable-forward-eventref-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Step 3 withdraw(600) was executed by alice, who never deposited (deposits were by deployer 1000 and bob 2500), yet polkadot trapped with the byte-identical h1 signature (error=null, no Sent event, storage {3500} vs EVM {3500,600}). This is the second independent non-depositor caller (after charlie in eventref-p1) to trap identically, strengthening caller-independence; the only untested caller case is a depositor withdrawing their own deposit."
+        },
+        {
+          "probe": "value-payable-forward-eventref-p1",
+          "verdict": "DIVERGENCE",
+          "note": "h13's standing next_probe is directly fulfilled: alice deposited 1000 via depositRef at step 0, then alice herself called withdraw(600) at step 3 as the first executed call{value} -- and polkadot trapped with the byte-identical h1 signature (STATUS+TX_STATUS mismatch, error=null, no Sent event, storage {3500} vs EVM {3500,600}). This was the last untested caller dimension (depositor withdrawing their own deposit); it traps exactly like non-depositor callers (charlie in eventref-p1, alice-after-others-deposited in eventref-p0), so caller-deposit history is confirmed not to be a parameter of the trap. Steps 4-5 storage echoes and step 7 RETURN_MISMATCH (600 vs 0) follow h6/h10 mechanically."
+        }
+      ],
+      "next_probe": "Untested remaining caller dimension: same-account deposit-then-withdraw. alice deposits 1000 via depositRef, then alice herself calls withdraw(600) as the first executed call{value}. All prior trap runs had the withdrawer differ from the depositor (deployer/bob deposited, alice/charlie withdrew). Prediction under caller-independence: alice's first call traps identically (error=null, no Sent, storage unchanged). If instead it succeeds or returns ok=false, depositor-self-withdrawal is a distinct mode and the h12 selector must incorporate caller-deposit history."
+    },
+    {
+      "id": "h14",
+      "statement": "Require-guard failure paths are insensitive to cross-chain balance divergence when the guard threshold exceeds both chains' balances: withdraw(9999) at step 4 reverted identically on both chains (no STATUS/REVERT_REASON mismatch) even though EVM balance was 2900 and polkadot balance was 3500, because 9999 exceeded both. A matched guard-failure revert therefore cannot be used as evidence that balances agree; balance divergence is only revealed by guards whose threshold falls BETWEEN the two balances (evm='insufficient' vs polkadot='send-failed', as in the original eventref-p0's withdraw(599)), or by balance-returning getters. Triage should treat guard-failure agreement as carrying zero information about balance state after a trapped transfer.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "value-payable-forward-eventref-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Step 4 withdraw(9999) produced NO STATUS/REVERT_REASON mismatch despite the chains' balances differing by exactly the trapped 600 (EVM 2900, polkadot 3500) \u2014 9999 exceeded both, so require(amount<=balance) failed identically on both and the call{value} never executed. This is a clean demonstration that guard-failure agreement masks balance divergence, and that only thresholds between the two balances (or balance getters) reveal it."
+        },
+        {
+          "probe": "value-payable-forward-eventref-p1",
+          "verdict": "DIVERGENCE",
+          "note": "Step 5 withdraw(9999) produced NO STATUS/REVERT_REASON mismatch despite the chains' balances differing by exactly the trapped 600 at that point (EVM 5400 = 3500-600+2500, polkadot 6000 = 3500+2500): 9999 exceeded both, so require(amount<=balance) failed identically on both and the call{value} never executed. This is the second clean replication (after eventref-p0) of h14's core claim that guard-failure agreement carries zero information about balance divergence -- only thresholds falling between the two balances or balance-returning getters (step 4 depositRef RETURN_MISMATCH 5400 vs 6000, diff=600, per h10) reveal it."
+        }
+      ],
+      "next_probe": "After a trapped withdraw(600) at balance 3500/2900, call withdraw(3000) \u2014 above EVM's 2900 but below polkadot's 3500. Prediction: EVM reverts 'insufficient' while polkadot's require passes and the call{value} returns ok=false -> 'send-failed' (REASON_MISMATCH), directly demonstrating that only between-balances thresholds expose the divergence, and replicating the h12 second-call ok=false mode."
+    },
+    {
+      "id": "h15",
+      "statement": "Non-strict equality guards evaluate identically across chains on the PASSING side of the exact balance boundary: withdraw(1000) guarded by require(amount <= balance) at balance exactly 1000 passed the guard on both chains (EVM proceeded to a successful send; polkadot's revert carried no 'insufficient' reason, only the null trap), complementing h9's failing-side result for strict < at equality. Guard evaluation/comparison itself -- not just revert-reason propagation -- is cross-chain consistent at equality, so boundary mismatches would indicate a solang comparison bug rather than balance-read divergence.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "value-payable-forward-full-drain",
+          "verdict": "DIVERGENCE",
+          "note": "Step 2 withdraw(1000) ran require(1000 <= balance) at balance exactly 1000: the guard passed on EVM (call succeeded, Sent(1000), withdrawn=1000) and demonstrably also passed on polkadot, since its revert carried error=null with no 'insufficient' reason -- the trap is in the outgoing transfer, not the guard. This is the passing-side counterpart to h9's strict-< failing-side observation, showing boundary guard evaluation agrees at equality for the <= operator."
+        },
+        {
+          "probe": "value-payable-forward-strict-ineq",
+          "verdict": "DIVERGENCE",
+          "note": "Step 2 withdraw(1000) guarded by require(amount < address(this).balance, 'insufficient') at balance exactly 1000 produced NO STATUS or REVERT_REASON mismatch: both chains reverted with the identical 'insufficient' reason, directly fulfilling the strict-< failing-side half of h15's next_probe prediction. This brackets equality on the failing side of the strict operator (complementing full-drain's passing-side <= result), showing guard comparison at the exact equality boundary evaluates identically across chains. Step 4 withdraw(2999) against 3500 then passed the guard on both chains (no 'insufficient' reason on polkadot) but trapped with error=null (STATUS+TX_STATUS mismatch, no Sent event, storage {3500} vs EVM {3500,2999}) \u2014 the standard h1/h4 signature at remainder 1 \u2014 and step 6 RETURN_MISMATCH (2999 vs 0) is the h6/h10 echo. Steps 0 and 3 EVENT_MISMATCH entries differed only in sender address encoding with value args (1000, 2500) and bytes32 refs matching exactly (h2)."
+        }
+      ],
+      "next_probe": "Contract with two guard variants: strictW(uint a) with require(a < balance, 'lt-insufficient') and looseW(uint a) with require(a <= balance, 'le-insufficient'). Deposit 1000, then call strictW(1000) (prediction: both revert 'lt-insufficient' identically) and looseW(1001) (prediction: both revert 'le-insufficient' identically), bracketing equality on both sides of both operators. Any reason/status mismatch at the boundary would refute symmetric guard evaluation and point to a solang comparison defect at equality."
+    }
+  ],
+  "updated_ts": 1794303495.2540758
+}

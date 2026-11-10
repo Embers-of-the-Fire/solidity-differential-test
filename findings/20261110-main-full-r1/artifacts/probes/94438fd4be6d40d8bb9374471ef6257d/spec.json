@@ -1,0 +1,60 @@
+{
+  "name": "crypto-hash-packed-vs-encode-static-p2-nearmax",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract CryptoHashPackedStatic {\n    bytes32 public packedKeccak;\n    bytes32 public encodedKeccak;\n    bytes32 public packedSha;\n    bytes32 public encodedSha;\n    bytes20 public packedRipemd;\n    bytes20 public encodedRipemd;\n\n    event Hash32(bytes32 packedKeccak, bytes32 encodedKeccak, bytes32 packedSha, bytes32 encodedSha);\n    event HashRipemd(bytes20 packedRipemd, bytes20 encodedRipemd);\n\n    function set(uint8 a, uint16 b, uint64 c, uint256 d) public {\n        packedKeccak = keccak256(abi.encodePacked(a, b, c, d));\n        encodedKeccak = keccak256(abi.encode(a, b, c, d));\n        packedSha = sha256(abi.encodePacked(a, b, c, d));\n        encodedSha = sha256(abi.encode(a, b, c, d));\n        packedRipemd = ripemd160(abi.encodePacked(a, b, c, d));\n        encodedRipemd = ripemd160(abi.encode(a, b, c, d));\n        emit Hash32(packedKeccak, encodedKeccak, packedSha, encodedSha);\n        emit HashRipemd(packedRipemd, encodedRipemd);\n    }\n\n    function getPackedKeccak() public view returns (bytes32) { return packedKeccak; }\n    function getEncodedKeccak() public view returns (bytes32) { return encodedKeccak; }\n    function getPackedSha() public view returns (bytes32) { return packedSha; }\n    function getEncodedSha() public view returns (bytes32) { return encodedSha; }\n    function getPackedRipemd() public view returns (bytes20) { return packedRipemd; }\n    function getEncodedRipemd() public view returns (bytes20) { return encodedRipemd; }\n}",
+  "contract": "CryptoHashPackedStatic",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "set",
+      "args": [
+        254,
+        65534,
+        18446744073709551614,
+        115792089237316195423570985008687907853269984665640564039457584007913129639934
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "getPackedKeccak"
+    },
+    {
+      "action": "query",
+      "function": "getEncodedKeccak"
+    },
+    {
+      "action": "query",
+      "function": "getPackedSha"
+    },
+    {
+      "action": "query",
+      "function": "getEncodedSha"
+    },
+    {
+      "action": "query",
+      "function": "getPackedRipemd"
+    },
+    {
+      "action": "query",
+      "function": "getEncodedRipemd"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "616d62146f82ef8e",
+    "origin": "mutated_llm"
+  }
+}

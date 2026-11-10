@@ -1,0 +1,81 @@
+{
+  "name": "value-payable-forward-eventref-p3",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract ValueForward {\n    uint256 public totalReceived;\n    uint256 public withdrawn;\n\n    event Received(address indexed from, uint256 value);\n    event Sent(address indexed to, uint256 value);\n    event Detailed(address indexed from, uint256 value, bytes32 ref);\n\n    receive() external payable {\n        totalReceived += msg.value;\n        emit Received(msg.sender, msg.value);\n    }\n\n    function depositRef(bytes32 ref) external payable returns (uint256) {\n        totalReceived += msg.value;\n        emit Detailed(msg.sender, msg.value, ref);\n        return address(this).balance;\n    }\n\n    function withdraw(uint256 amount) external {\n        require(amount <= address(this).balance, \"insufficient\");\n        (bool ok, ) = payable(msg.sender).call{value: amount}(\"\");\n        require(ok, \"send-failed\");\n        withdrawn += amount;\n        emit Sent(msg.sender, amount);\n    }\n}",
+  "contract": "ValueForward",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "depositRef",
+      "args": [
+        "0xdeadbeef00000000000000000000000000000000000000000000000000000000"
+      ],
+      "sender": "alice",
+      "value": 1000
+    },
+    {
+      "action": "call",
+      "function": "depositRef",
+      "args": [
+        "0xdeadbeef000000000000000000000000000000000000000000000000000000e3"
+      ],
+      "sender": "alice",
+      "value": 1000
+    },
+    {
+      "action": "query",
+      "function": "totalReceived"
+    },
+    {
+      "action": "call",
+      "function": "withdraw",
+      "args": [
+        600
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "depositRef",
+      "args": [
+        "0x0000000000000000000000000000000000000000000000000000000000000001"
+      ],
+      "sender": "bob",
+      "value": 2500
+    },
+    {
+      "action": "call",
+      "function": "withdraw",
+      "args": [
+        9999
+      ],
+      "sender": "deployer",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "totalReceived"
+    },
+    {
+      "action": "query",
+      "function": "withdrawn"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "87325560becdcb52",
+    "origin": "mutated_prog"
+  }
+}

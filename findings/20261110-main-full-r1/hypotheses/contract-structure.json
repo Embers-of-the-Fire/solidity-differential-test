@@ -1,0 +1,515 @@
+{
+  "seed_id": "contract-structure",
+  "hypotheses": [
+    {
+      "id": "h1",
+      "statement": "Solang's overload resolution fails on external self-calls (this.f(x)) to an overridden function when overloads share the same name: it treats both the base virtual function and the derived override as separate ambiguous candidates, whereas solc resolves to the most-derived override. Solang may reject this pattern at compile time where solc accepts it.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "overload-inherit-dispatch",
+          "verdict": "DIVERGENCE",
+          "note": "solang rejected the source: 'function call can be resolved to multiple functions' listing Base.f and Child.f as separate candidates for this.f(x), plus 'function expects 2 arguments, 1 provided' pointing at the overload. solc accepted and compiled cleanly."
+        },
+        {
+          "probe": "overload-override-selfcall-dispatch",
+          "verdict": "DIVERGENCE",
+          "note": "Reproduced independently: solang rejected the source at compile time with 'function call can be resolved to multiple functions' listing both Base.f (line 6) and Child.f (line 16) as candidates for this.f(x), plus the arity error against the f(uint256,uint256) overload; solc accepted and compiled cleanly. The override+overload self-call pattern reliably causes solang compile rejection where solc succeeds."
+        }
+      ],
+      "next_probe": "Compile-only probe with the same Base/Child virtual/override pair but WITHOUT the two-arg overload f(uint256,uint256); then a variant keeping the overload but calling this.f(x,y) with two args. This isolates whether solang's failure requires the override+overload combination or fails on any overridden external self-call."
+    },
+    {
+      "id": "h2",
+      "statement": "Solang may not collapse a virtual/override pair into a single visible function for name-based overload resolution in external (this.) call contexts, suggesting its dispatch/mangling keeps base and override symbols distinct rather than overriding the base entry as solc's dispatcher does.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "overload-inherit-dispatch",
+          "verdict": "DIVERGENCE",
+          "note": "The ambiguity error listed both Base.f (line 6) and Child.f (line 21) as 'candidate function's for the this.f(x) call, indicating solang's resolver sees inherited and overriding definitions as coexisting candidates."
+        },
+        {
+          "probe": "overload-override-selfcall-dispatch",
+          "verdict": "DIVERGENCE",
+          "note": "The candidate list in solang's ambiguity error again contains both the inherited Base.f and the overriding Child.f, showing solang's name-based overload resolver treats virtual/override pairs as coexisting visible symbols rather than collapsing them to the most-derived override as solc's dispatcher semantics require."
+        }
+      ],
+      "next_probe": "Probe calling an overridden virtual externally from ANOTHER contract (external contract C calls child.f(1) via an interface declaring f(uint256)) with and without same-name overloads present in Child, to see if ambiguity only arises for this.-style self-calls or for all external dispatch."
+    },
+    {
+      "id": "h3",
+      "statement": "Solang's ambiguity between Base.f and Child.f for this.f(x) arises from the override itself (both symbols visible to the external resolver), independent of whether a same-name overload exists; the overload only adds spurious arity/cannot-find-overload diagnostics on top. This bundled override+overload+this.-self-call pattern has now reproduced four times deterministically (identical 3-error set, same line localization), so the failure is a stable solang behavior rather than a flake \u2014 but causality between override-alone and overload-assisted failure is still not isolated. The internal-call path (plain f(x) in h) is unaffected, so the isolation probe must keep the this.-style call while dropping the overload.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "overload-override-selfcall-dispatch",
+          "verdict": "DIVERGENCE",
+          "note": "This probe bundled override and overload together, so causality is not yet isolated; the new probe removes the overload to separate the two error contributions."
+        },
+        {
+          "probe": "overload-inherit-dispatch-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Third reproduction of the bundled override+overload+this.-self-call failure; solang's error set is unchanged and again localizes to the this.f(x) call site only. Causality between override-alone and overload-assisted failure is still not isolated by this probe."
+        },
+        {
+          "probe": "overload-inherit-dispatch-p2",
+          "verdict": "DIVERGENCE",
+          "note": "Fourth reproduction across mutated variants (parent 317d3e15715b50c4): solang emitted the identical error set \u2014 'function call can be resolved to multiple functions' listing Base.f (line 6) and Child.f (line 21) plus 'cannot find overloaded function which matches signature' and 'function expects 2 arguments, 1 provided' against the f(uint256,uint256) candidate (line 27) \u2014 all localized to this.f(x) at line 34. solc accepted. Determinism of the failure signature is now well established; the override-only control probe remains unrun."
+        },
+        {
+          "probe": "overload-inherit-dispatch-no-overload",
+          "verdict": "DIVERGENCE",
+          "note": "Override-only control (virtual+override of f(uint256), this.f(x) self-call, NO same-name overload): solang rejected with a single error 'function call can be resolved to multiple functions' listing Base.f (line 6) and Child.f (line 20) as candidates, localized to this.f(x) at line 27. solc accepted. The override pair ALONE is sufficient to trigger the ambiguity; the overload was never necessary. Additionally, the plain internal call f(x) inside Base.h (line 12) produced no errors, re-confirming the internal path is clean. The error signature cleanly separates: override-only -> exactly 1 ambiguity diagnostic; override+overload -> 3 diagnostics."
+        }
+      ],
+      "next_probe": "Compile-only override-only control: Base/Child with virtual+override of f(uint256), callSelf1 doing this.f(x), and NO overload \u2014 if solang still errors 'resolved to multiple functions', override alone suffices. Additionally, because h4 is now confirmed (internal path clean), include in the same compile a Base.h(uint256) doing plain f(x) and confirm solang accepts it, yielding a single probe that isolates causality AND provides a this.-free control in one compilation unit."
+    },
+    {
+      "id": "h4",
+      "statement": "Solang's overload-resolution failure for overridden functions is specific to this.-style external self-calls: plain internal calls to a virtual function (f(x) inside Base.h) that dynamically dispatches to the derived override trigger no ambiguity errors even when the same contract also has a same-name overload and a virtual/override pair. The 'resolved to multiple functions' ambiguity arises only in the external this.f(x) resolution path, suggesting solang keeps internal dispatch (mangled internal symbols, dynamic via vtable) separate from its external name/signature-based resolver, and only the latter fails to collapse Base.f/Child.f.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "overload-inherit-dispatch-p0",
+          "verdict": "DIVERGENCE",
+          "note": "solang rejected the source again with 'function call can be resolved to multiple functions' (Base.f line 6, Child.f line 21) and arity errors, all pointing exclusively at line 34 (this.f(x) in runDispatch). The plain internal call f(x) at line 12 inside Base.h produced no resolver errors despite coexisting override + overload, indicating internal virtual dispatch resolution is unambiguous in solang and the defect is confined to external this.-style self-call name resolution."
+        },
+        {
+          "probe": "overload-inherit-dispatch-p0",
+          "verdict": "DIVERGENCE",
+          "note": "The contract contains BOTH an internal virtual call f(x) at line 12 (inside Base.h, which must dynamically dispatch to Child.f) and an external self-call this.f(x) at line 34. Solang's three errors all localize exclusively to line 34; the internal call at line 12 produced zero resolver errors despite coexisting virtual/override pair and same-name overload. This confirms the defect is confined to solang's external this.-style self-call name resolution path, while its internal virtual dispatch compiles cleanly. Note this source has no this.-free control (the contract is rejected wholesale), so runtime confirmation of internal dispatch equivalence is still pending."
+        }
+      ],
+      "next_probe": "Compile-only probe with Base/Child virtual+override of f(uint256) plus the two-arg overload f(uint256,uint256), but with Base.h(x) doing a plain internal call f(x) and NO this.f(x) self-call anywhere. If solang compiles this cleanly (whereas the this.-call variant failed), the bug is isolated to external self-call resolution; then add runtime steps to verify h(1) dispatches to Child.f and storage (childState vs baseState) matches solc."
+    },
+    {
+      "id": "h5",
+      "statement": "Solang's ambiguity for this.f(x) requires the virtual/override pair contributing two arity-compatible candidates: the override-only control probe proved Base.f+Child.f alone (no overload) still yields 'resolved to multiple functions'. What remains untested is the converse: whether a same-name overload differing only in arity, WITHOUT any inheritance, is benign in this.-style self-calls. If a flat contract with f(uint256), f(uint256,uint256), and g(x) doing this.f(x) compiles cleanly in solang, then overloads are entirely innocent and the entire failure class reduces to the override-collapse defect; if it rejects, overloads alone also break this.-style self-call resolution.",
+      "status": "refuted",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "overload-inherit-dispatch-p2",
+          "verdict": "DIVERGENCE",
+          "note": "solang's error set shows the two-arg overload (line 27) listed only as the target of the 'expects 2 arguments, 1 provided' arity diagnostic, never as an ambiguity candidate \u2014 the ambiguity candidates are exclusively Base.f and Child.f, both arity-compatible with this.f(x). This implies candidate collection is name-based, ambiguity is arity-compatible-only, and the arity error is a secondary diagnostic."
+        },
+        {
+          "probe": "overload-inherit-dispatch-flat-arity-selfcall",
+          "verdict": "DIVERGENCE",
+          "note": "The h5 converse probe ran: flat contract (no inheritance) with f(uint256), f(uint256,uint256), and g(x) doing this.f(x). solang COMPILED the source (deployment succeeded, so no compile-time rejection) but the g(5) call REVERTED at runtime on pallet-contracts, while solc executed it and stored hits=6, lastResult=205. Therefore arity-only same-name overloads are NOT benign in this.-style self-calls: overloads alone break solang's external self-call path even without any virtual/override pair. The failure mode differs from the inheritance case (runtime revert instead of compile-time ambiguity rejection), suggesting two distinct defects: compile-time resolver ambiguity (override pair) and runtime dispatcher selection failure (overloads)."
+        }
+      ],
+      "next_probe": "Compile-only probe: single flat contract (no inheritance) with f(uint256), f(uint256,uint256), and g(uint256 x) public returns (uint256) { return this.f(x); }. If solang compiles (whereas the override variant fails), arity-only overloads are benign in this.-self-calls and the ambiguity is attributable solely to the virtual/override pair; if solang rejects, overloads alone break this.-style self-call resolution."
+    },
+    {
+      "id": "h6",
+      "statement": "Solang's resolver emits cascading diagnostics for a single ambiguous this.f(x) call site: after flagging 'resolved to multiple functions' for the two arity-compatible candidates (Base.f, Child.f), it additionally reports 'cannot find overloaded function which matches signature' plus an arity error against the remaining non-matching overload candidate (f(uint256,uint256)). The three-error set therefore reflects one root defect (failure to collapse the virtual/override pair) plus downstream fallout, not three independent bugs \u2014 so fixing override collapse should eliminate the entire error set.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "overload-inherit-dispatch-p0",
+          "verdict": "DIVERGENCE",
+          "note": "All three solang errors point at the same call site (line 34, this.f(x)): the ambiguity error lists only the two arity-compatible candidates (Base.f line 6, Child.f line 21), while 'cannot find overloaded function' and 'expects 2 arguments, 1 provided' are attached to the two-arg overload (line 27) which was never an ambiguity candidate. One unresolved call site generated all three diagnostics."
+        },
+        {
+          "probe": "overload-inherit-dispatch-no-overload",
+          "verdict": "DIVERGENCE",
+          "note": "With the two-arg overload removed, solang emitted ONLY the single 'resolved to multiple functions' ambiguity diagnostic for this.f(x); the 'cannot find overloaded function' and arity errors present in all overload-bearing probes disappeared entirely. This demonstrates the arity/cannot-find diagnostics in the 3-error set are pure downstream fallout emitted only when a non-matching-arity overload candidate exists, and the sole root defect is solang's failure to collapse the virtual/override pair in external self-call resolution."
+        }
+      ],
+      "next_probe": "Runtime+compile probe: flat contract with f(uint256) and f(uint256,uint256) and g(uint256 x,uint256 y) doing this.f(x,y) with an exactly arity-matching call, executed on-chain (not compile-only). The previous compile-only plan is insufficient because the flat one-arg probe showed solang's failure surfaces at RUNTIME (revert) even when compilation succeeds. If this.f(x,y) also reverts at runtime, the 'cannot find overloaded function' cascade seen in the inheritance probes likely corresponds to a runtime dispatcher inability to select among overloads rather than pure compiler diagnostics; if it executes, the revert is arity-specific."
+    },
+    {
+      "id": "h7",
+      "statement": "Solang's external this.-style overload resolution matches candidates by argument count only and ignores parameter types: a same-name overload differing solely in parameter type (e.g. f(uint8) alongside f(uint256)) called via this.f(x) with a uint256 argument would be reported as ambiguous 'resolved to multiple functions' even though solc resolves it to the exact-type match f(uint256). This follows from the width-edge probe, where the uint8-typed overload was never an ambiguity candidate (count mismatch excluded it) and no type-directed filtering of the Base.f/Child.f pair was observable.",
+      "status": "refuted",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "overload-inherit-dispatch-width-edge",
+          "verdict": "DIVERGENCE",
+          "note": "The width mutation (uint8 vs uint256 second arg) changed nothing in the error signature: candidate collection and the arity diagnostic behaved exactly as in the uint256 overload variants, suggesting solang's resolver filters candidates by count alone. The pure-type-overload variant (same count, different types) is the untested converse that would expose whether any type-directed disambiguation exists."
+        },
+        {
+          "probe": "overload-inherit-dispatch-typed-arity-selfcall",
+          "verdict": "DIVERGENCE",
+          "note": "The pure type-overload converse ran: flat contract with f(uint256) and f(uint8) (same arg count, different types), g(255) doing this.f(x). Solang did NOT emit a compile-time 'resolved to multiple functions' ambiguity as h7 predicted \u2014 it compiled the source and instead REVERTED at runtime on pallet-contracts (all storage empty on polkadot), while solc executed and stored wideHits=256, lastResult=455, i.e. dispatched to the exact-type match f(uint256) (200+255=455, 255+1=256) with narrowHits=0 untouched. Solang's compile-time resolver therefore does apply type-directed filtering (no same-count ambiguity), and its failure mode for type-differing overloads is the same runtime dispatcher revert seen for arity-differing overloads."
+        }
+      ],
+      "next_probe": "Compile-only probe: flat contract (no inheritance) with f(uint256) and f(uint8), plus g(uint256 x) public returns (uint256) { return this.f(x); }. If solang reports 'resolved to multiple functions', its this.-resolver is arity-only and ignores types; if it compiles and dispatches to f(uint256), type-aware overload resolution is intact for non-inherited cases."
+    },
+    {
+      "id": "h8",
+      "statement": "Solang compiles flat contracts with arity-only same-name overloads called via this.f(x), but its external runtime dispatcher reverts on the self-call, while solc correctly dispatches to the one-arg overload. The defect is therefore twofold: a compile-time failure to collapse virtual/override pairs in name-based self-call resolution (h1/h3), and a separate runtime failure of the external dispatcher to select among overloads by arity, independent of inheritance.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "overload-inherit-dispatch-flat-arity-selfcall",
+          "verdict": "DIVERGENCE",
+          "note": "Flat, inheritance-free Child with two f overloads: solang runtime reverted the g(5) call (TX_STATUS_MISMATCH success-vs-revert, all storage queries empty on polkadot), while solc stored lastResult=205 and hits=6, proving correct one-arg overload dispatch on EVM. This is the first probe in this area where solang failed at RUNTIME rather than at compile time, cleanly separating the runtime dispatcher defect from the compile-time resolver defect."
+        },
+        {
+          "probe": "overload-inherit-dispatch-typed-arity-selfcall",
+          "verdict": "DIVERGENCE",
+          "note": "Second independent reproduction of the runtime-dispatcher defect, now with type-differing (same-count) overloads: solang compiled cleanly but the this.f(x) self-call reverted at runtime (TX_STATUS_MISMATCH success-vs-revert, zero storage), while solc selected the type-exact f(uint256). Together with the arity-differing flat probe this shows the runtime revert is triggered by ANY multiple-candidate same-name situation in external self-calls, not specifically by arity mismatch \u2014 strengthening the twofold-defect model (compile-time override-collapse failure + runtime dispatcher selection failure)."
+        }
+      ],
+      "next_probe": "Runtime probe: flat contract with f(uint256), f(uint256,uint256), g2(uint256 x,uint256 y) doing this.f(x,y), and g1(uint256 x) doing this.f(x), plus a control contract Single with only f(uint256) and g(x) doing this.f(x). If Single.g works in solang, single-function self-calls are fine and the revert is overload-specific; if g2 (exact two-arg match) works but g1 (one-arg match) reverts, the dispatcher mispicks arity; if both revert, solang's runtime dispatcher ignores the call's argument count entirely for overloaded names."
+    },
+    {
+      "id": "h9",
+      "statement": "Solang's runtime revert on overloaded this.-style self-calls is independent of how the overloads differ: both arity-differing (f(uint256)/f(uint256,uint256)) and type-differing (f(uint256)/f(uint8)) same-name pairs cause a runtime revert where solc dispatches correctly. Solang's external runtime dispatcher fails whenever more than one same-named candidate exists at the self-call, regardless of count or type discriminators. The remaining untested boundary is the degenerate single-function case: whether a this.f(x) self-call in a contract with exactly one f compiles AND executes at runtime in solang.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "overload-inherit-dispatch-typed-arity-selfcall",
+          "verdict": "DIVERGENCE",
+          "note": "Type-differing same-count overloads revert at runtime in solang just as arity-differing ones did, so the revert generalizes across both discriminator dimensions; only the single-candidate baseline remains unrun."
+        },
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime",
+          "verdict": "DIVERGENCE",
+          "note": "The degenerate single-function baseline REVERSED in solang: contract Single has exactly one f(uint256) and both g(5) (returns-typed this.f(x)) and h(7) (this.f(x) assigned to storage) reverted at runtime on pallet-contracts (TX_STATUS_MISMATCH success-vs-revert, zero storage), while solc stored result=205 and direct=207. Crucially, the direct external call f(3) at step 4 succeeded on BOTH chains (no STATUS_MISMATCH at that step), proving plain inbound external calls are healthy in solang. The failure is therefore not overload-multiplicity-specific at all: solang's external this.-style self-call path is broken even for a single non-overloaded function, implicating this.-call ABI plumbing/codegen itself rather than dispatcher selection among overloads."
+        }
+      ],
+      "next_probe": "Runtime probe: minimal contract Single with only function f(uint256 x) public returns (uint256) and g(uint256 x) public returns (uint256) { return this.f(x); }, calling g(5). If solang executes and stores matching values (f returns 205-style result), non-overloaded external self-calls are fully healthy and the runtime defect is strictly overload-multiplicity-specific; if it reverts, solang's external self-call path is broken even for a single function, which would implicate this.-call ABI plumbing itself rather than dispatcher selection."
+    },
+    {
+      "id": "h10",
+      "statement": "Solang's runtime failure is specific to the this.-style external self-call mechanism itself, not to overload or override resolution: a contract with a single function f(uint256) reverts whenever a public function internally performs this.f(x), while (a) the same function called directly from outside succeeds, and (b) solc executes both paths. The defect likely lies in solang's codegen for address(this).call-style self-calls (encoding, sender/allowance handling, or re-entrancy guard in pallet-contracts dispatch), since compilation always succeeds and only execution of the self-call reverts. If confirmed, all prior runtime reverts in this area (h5, h7, h8) reduce to this single root cause rather than distinct dispatcher bugs.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime",
+          "verdict": "DIVERGENCE",
+          "note": "Minimal single-function contract: this.f(x) self-calls reverted at runtime on pallet-contracts in both a returns-context (g) and a storage-assignment context (h), while direct external f(3) succeeded on both chains and solc stored result=205, direct=207. This isolates the runtime failure to the this.-self-call mechanism per se, independent of overloads, overrides, or inheritance."
+        },
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-p1",
+          "verdict": "DIVERGENCE",
+          "note": "Mutation of the minimal single-function contract (g body changed from 'return this.f(x)' to 'uint256 r = this.f(x); result = r; return r;') reproduced the identical failure: g(5) and h(7) self-calls reverted at runtime on pallet-contracts (TX_STATUS_MISMATCH success-vs-revert, all storage queries empty on polkadot), while solc stored result=205 and direct=207. The plain external f(3) call at step 4 succeeded on BOTH chains (only a STORAGE_MISMATCH from prior committed state, no status divergence). This second reproduction across a body/statement-shape mutation confirms the runtime self-call defect is deterministic and insensitive to how the this.-call result is used, while inbound external dispatch remains healthy in solang."
+        }
+      ],
+      "next_probe": "Runtime probe with g3(uint256 x) doing low-level address(this).call(abi.encodeWithSignature(\"f(uint256)\", x)) in the Single contract and storing success/return (the g2 internal-control arm has now passed: plain f(x) inside g succeeded on polkadot with result=205). If g3 succeeds, this.-codegen specifically is broken while raw self-call plumbing works; if g3 reverts, pallet-contracts rejects self-call recursion at dispatch regardless of encoding."
+    },
+    {
+      "id": "h11",
+      "statement": "Solang's external this.-style self-call overload/override ambiguity is purely declaration-site driven and insensitive to function-body content: mutating override bodies (unchecked blocks, different storage assignments) and call arguments (including values exceeding uint32, e.g. 2^32) does not alter the error signature, which remains fixed at the candidate declarations (Base.f, Child.f) and the this.f(x) call site. Therefore body-level fuzzing will never escape this failure class; only structural mutations (removing the override pair or the same-name overload) change the outcome.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "overload-inherit-dispatch-unchecked",
+          "verdict": "DIVERGENCE",
+          "note": "Body mutation (unchecked around childState = x + 2) and a 2^32 argument in runDispatch produced byte-for-byte the same error set and localization as all prior reproductions; solc accepted. The defect lives entirely in solang's external-call name/arity resolution over declarations, so fuzzing bodies or values within this pattern is unproductive."
+        },
+        {
+          "probe": "overload-inherit-dispatch-layout",
+          "verdict": "DIVERGENCE",
+          "note": "Layout mutation (new 'extra' state variable, reordered/renumbered declarations: Base.f at line 6, Child.f override at line 21, two-arg overload at line 27, this.f(x) at line 33) produced the identical 3-error set with the same candidate localization \u2014 ambiguity between Base.f and Child.f plus 'cannot find overloaded function'/'expects 2 arguments' fallout on the two-arg overload, all pointing at this.f(x). solc accepted. Combined with the unchecked-body probe, this shows the failure signature is invariant across body content AND storage/declaration layout: the defect lives purely in solang's declaration-site name/arity resolution, so layout-level fuzzing within this pattern is as unproductive as body-level fuzzing."
+        }
+      ],
+      "next_probe": "Mutate only the call-site shape, not the bodies: keep Base/Child virtual+override plus the two-arg overload, but change runDispatch to do 'uint256 r = this.f(x); return r;' (call in return-expression position instead of storage assignment). If the error set is identical, the failure is call-shape independent too; if it changes, solang's resolver behavior depends on the assignment context of the this.-call."
+    },
+    {
+      "id": "h12",
+      "statement": "Solang's runtime revert on this.-style self-calls produces NO Solidity-level revert reason on either failing step, and the two failures (g and h) carry byte-identical pallet error prefixes (0x030816000000...) in their encoded errors. This is consistent with a single pallet-contracts dispatch-level trap (e.g., callee re-entry rejection or self-call routing failure) rather than distinct per-call-site selector errors, supporting h10's single-root-cause model. It also implies the oracle's revert_reasons channel cannot distinguish trap types here, so triage should rely on the encoded error blob.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-p1",
+          "verdict": "DIVERGENCE",
+          "note": "Neither the g(5) nor the h(7) revert produced a REVERT_REASON divergence entry despite oracle.revert_reasons=true, meaning both chains reported identical (empty) reasons; the raw polkadot error blobs for steps 0 and 2 share the identical prefix 0x030816000000... with only length/count bytes differing, suggesting the same pallet-level error enum instance for both self-calls rather than per-call-site variation."
+        },
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-p2",
+          "verdict": "DIVERGENCE",
+          "note": "Third reproduction of the silent self-call revert: with revert_reasons=true, neither the g(0) nor the h(7) self-call produced a REVERT_REASON divergence entry, so both chains again reported identical (empty) Solidity-level reasons. The raw polkadot error blobs for steps 0 and 3 again share the identical prefix 0x030816000000... with only length/payload bytes differing, re-confirming a single pallet-level error enum instance for all self-call traps. Triage via encoded error blob rather than revert_reasons remains the correct strategy."
+        }
+      ],
+      "next_probe": "Probe that forces a deliberate Solidity revert inside f (require(false, 'BOOM')) called two ways: directly from outside (step A) and via this.f(x) from g (step B). If the direct call surfaces 'BOOM' as a revert reason but the self-call does not, the empty reason in self-calls confirms a pre-Solidity trap location; if both surface 'BOOM', the self-call reaches contract code and the trap is elsewhere (e.g., after execution in return-data handling)."
+    },
+    {
+      "id": "h13",
+      "statement": "Solang's runtime revert on this.-style self-calls is argument-value independent and caller independent: calling g with x=0 (where the callee would return 200 regardless) reverts identically to x=5, and the reverts occur for senders alice and bob alike, while direct external calls from the same senders succeed. The trap therefore fires at the self-call routing/ABI level before argument semantics or caller identity matter, consistent with a pallet-contracts dispatch-level barrier (e.g., re-entry denial) rather than anything in contract logic.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-p2",
+          "verdict": "DIVERGENCE",
+          "note": "g(0) by alice and h(7) by bob both reverted at runtime on pallet-contracts with the same silent trap and identical error prefix as all prior self-call probes, while the direct external f(3) call by charlie at step 5 succeeded on BOTH chains (only a STORAGE_MISMATCH from prior committed state, no status divergence). The revert is fully insensitive to argument value and caller; only the this.-self-call mechanism itself triggers it."
+        },
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-lowlevel-h-control",
+          "verdict": "DIVERGENCE",
+          "note": "g(5) by alice (high-level this.f(x)) and h(7) by bob (low-level address(this).call(abi.encodeWithSignature(...))) both reverted silently on pallet-contracts with the same 0x030816... trap prefix, while the inbound external f(3) by charlie at step 4 succeeded on both chains (only carried-over STORAGE_MISMATCH, no status divergence). The trap fires at the self-call routing level regardless of argument value, caller, or call-encoding mechanism, fully supporting the dispatch-barrier model over any callee-logic explanation."
+        }
+      ],
+      "next_probe": "Localize the trap pre- vs post-Solidity-code: add require(false, 'BOOM') as the first statement of f and call it two ways \u2014 directly from outside (expect solc-style revert reason 'BOOM' on both chains) and via this.f(x) from g (expect revert with NO reason on polkadot). If the self-call surfaces 'BOOM', execution reaches contract code and the trap is in return-data handling; if it stays silent while the direct call surfaces 'BOOM', the trap precedes callee execution, pinning the defect to pallet-contracts self-call routing."
+    },
+    {
+      "id": "h14",
+      "statement": "Solang's runtime this.-self-call defect is fully isolated within a single contract across three invocation paths of the same function: a plain internal call f(x) inside g executes correctly on pallet-contracts (stores result=205, matching EVM), an inbound external call f(3) succeeds on both chains, yet this.f(x) inside h reverts silently with the same 0x030816 trap. Solang's function codegen, internal dispatch, and inbound external dispatch are therefore all healthy at runtime; the defect is confined strictly to the high-level this.-external-self-call code path (address(this).call plumbing or pallet self-call recursion dispatch), ruling out any callee-body explanation.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-internal-g-control",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0 g(5) performs a plain internal call f(x) (no this.) and produced NO status divergence \u2014 polkadot stored result=205, identical to EVM's 205 \u2014 proving solang's internal call path executes correctly at runtime even in the same contract that fails self-calls. Step 2 h(7) (this.f(x)) reverted on polkadot only (TX_STATUS_MISMATCH success-vs-revert, direct stays 0 vs 207). Step 4 inbound external f(3) succeeded on BOTH chains (only a STORAGE_MISMATCH from the prior uncommitted direct slot, no status divergence). All three paths to the same f coexist in one contract: internal and inbound-external healthy, this.-self-call broken \u2014 the runtime isolation of the defect to the this.-call path is now complete."
+        },
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-lowlevel-h-control",
+          "verdict": "DIVERGENCE",
+          "note": "The low-level control ran and RESOLVED the fork in h14's statement: h(7) using raw address(this).call with hand-encoded calldata ALSO reverted on polkadot (TX_STATUS_MISMATCH success-vs-revert, direct never set to 1 or 2), proving solang's high-level this.-codegen is NOT the culprit. Since even hand-constructed self-calls hit the identical 0x030816 trap, the defect is pallet-contracts rejecting contract-to-self call recursion at the dispatch level, independent of encoding. The runtime isolation is now absolute: internal f(x), inbound external f(3), and... all healthy; every self-call path (high-level or low-level) traps."
+        }
+      ],
+      "next_probe": "Runtime probe adding a fourth path in the same Single contract: g2(uint256 x) using low-level address(this).call(abi.encodeWithSelector(bytes4(keccak256(\"f(uint256)\")), x)) and storing both the success flag and the decoded return value. If g2 succeeds in solang, raw self-call ABI plumbing works and only solang's high-level this.-codegen is broken; if g2 also reverts with the same trap, pallet-contracts rejects self-call recursion at the dispatch level regardless of how the call is encoded."
+    },
+    {
+      "id": "h15",
+      "statement": "Pallet-contracts rejects contract-to-self external calls at the dispatch level regardless of how the call is constructed or when it occurs: high-level this.f(x), hand-encoded address(this).call(...), first-call, and repeated-call variants all revert silently with the same 0x030816 trap prefix family, and the step-2 error blob of this probe again embeds a second 0x030816 sequence mid-payload \u2014 a nested-dispatch error signature that recurs across orderings and is inconsistent with a callee-side trap (which would vary with callee body/selector). The recursion barrier fires before callee selection or argument decoding, so no Solidity-level revert reason is ever produced and storage is never touched. Still open: whether the trap precedes callee execution entirely or occurs during return-data handoff; the BOOM localization probe remains the decisive test.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-lowlevel-h-control",
+          "verdict": "DIVERGENCE",
+          "note": "Low-level address(this).call self-reverted identically to the high-level this.f(x) path (same 0x030816 prefix, silent, zero storage), proving the failure is encoding-independent dispatch-level self-call rejection. The step-2 error blob embeds a second 0x030816000000 sequence mid-payload, consistent with a nested/recursive dispatch error rather than a per-call-site selector trap."
+        },
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-slot-pad",
+          "verdict": "DIVERGENCE",
+          "note": "Slot-padded mutation of Single (added uint8 tiny and direct slots, h() writes tiny=1 BEFORE the self-call): g(5) and h(7) self-calls reverted silently on pallet-contracts with the same 0x030816 trap prefix; the step-2 blob again embeds a nested 0x030816000000... sequence at its tail. Critically, polkadot storage shows ZERO nonzero entries after h \u2014 the caller-side write tiny=1 preceding this.f(x) was rolled back, so the trap manifests as a full transaction-level abort, not a callee-side revert. h15's dispatch-barrier model (trap precedes callee execution, storage never committed) is directly supported."
+        }
+      ],
+      "next_probe": "Trap-localization probe: Single contract where f(uint256) begins with require(false, 'BOOM') and g does this.f(x). Call f directly from outside (step A) and g(x) (step B). If the direct call surfaces revert reason 'BOOM' on both chains but the self-call stays silent, the trap precedes callee execution, pinning the defect to pallet-contracts self-call routing; if the self-call surfaces 'BOOM', execution reaches contract code and the trap is in return-data handling."
+    },
+    {
+      "id": "h16",
+      "statement": "Solang's pallet-contracts self-call trap is order- and history-independent and leaves no poisoned state: this.f(x) self-calls revert identically whether they are the very first transaction (h before any direct call) or follow other calls, revert again on repeated invocation (g by alice at steps 2 and 5 both trap), and the failed self-calls do not corrupt subsequent traffic \u2014 the direct inbound f(3) at step 4 succeeded on both chains immediately after two reverted self-calls, and all self-call error blobs across the three trap sites share the same 0x030816 prefix family (step 2's blob again embeds a nested 0x030816 sequence mid-payload). The defect is a stable per-call dispatch barrier, not a stateful or first-call-only failure.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-bounce-order",
+          "verdict": "DIVERGENCE",
+          "note": "Step order was mutated so the self-call h(7) runs FIRST: it reverted with the same silent 0x030816 trap (TX_STATUS_MISMATCH success-vs-revert, zero storage). g(5) at step 2 also reverted (its error blob again contains an embedded nested 0x0308160000008aaa07eb... sequence), then direct f(3) at step 4 succeeded on BOTH chains (only STORAGE_MISMATCH from uncommitted slots, no status divergence), then g(9) reverted again at step 5. Three self-call traps across two senders and two distinct call orders all share the 0x030816 prefix, and the successful inbound call after prior reverts shows no state poisoning."
+        },
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-slot-pad",
+          "verdict": "DIVERGENCE",
+          "note": "Storage-layout mutation (extra padded slots, three public getters) changed nothing: both self-calls trapped identically with the 0x030816 prefix family across two senders, and the failed transactions left no poisoned state. The defect is stable across layout mutations, adding storage-padding to the list (body, layout, argument values, callers, orderings, encodings) of dimensions along which the failure signature is invariant."
+        }
+      ],
+      "next_probe": "Cross-contract probe: deploy two instances A and B of a simple contract with f(uint256) storing x+200; have A.g(x) perform an external call to B's f(x) (via an interface/address parameter, NOT address(this)). If A->B succeeds on pallet-contracts while A->A (self) traps, the recursion barrier is strictly self-call-specific; if A->B also reverts with the same 0x030816 prefix, pallet-contracts rejects all contract-to-contract external call recursion through this path, which would make the defect far broader than self-calls."
+    },
+    {
+      "id": "h17",
+      "statement": "The pallet-contracts self-call trap has a stable encoded-error fingerprint usable as an oracle signature: every trapped self-call's error blob begins with 0x030816000000 and, for self-calls that execute after other prior calls/steps, embeds a SECOND 0x030816 sequence near the blob tail \u2014 a nested dispatch-error encoding that recurs across orderings, senders, layouts, and call encodings. This fingerprint distinguishes the pallet self-call recursion barrier from ordinary Solidity reverts (which carry a 4-byte selector + reason or no error at all), so triage can auto-classify silent pallet self-call reverts by regex on the error blob rather than relying on the empty revert_reason channel.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-slot-pad",
+          "verdict": "DIVERGENCE",
+          "note": "Step-2 error blob for h(7) begins 0x0308160000000114... and ends with an embedded nested 0x030816000000ea46b2eb5a1a0300000000 sequence; identical prefix structure seen in all prior self-call traps (p0, p1, p2, lowlevel, bounce-order). Step-0 blob begins with the same prefix. No Solidity revert reason was surfaced despite revert_reasons=true."
+        },
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Fifth reproduction of the fingerprint: g(7) step-0 error blob begins 0x030816000000012c000000... (no nested second sequence, matching h17's claim that the first trap in a trace lacks the tail), while h(7) step-2 blob begins 0x0308160000000114... AND embeds a second 0x0308160000001ae617eb461403... sequence near its tail. Despite revert_reasons=true, no REVERT_REASON divergence entry was produced for either trap, so Solidity-level reasons remain empty and classification must use the encoded blob. The prefix/nested-tail signature has now recurred across 6+ probes spanning senders, orderings, layouts, encodings, and argument values; it is safe to promote to a hard oracle classification rule for silent pallet self-call traps."
+        }
+      ],
+      "next_probe": "Trigger a deliberate Solidity revert inside a DIRECT external call (require(false,'X') in f, called from outside) and capture the polkadot error blob; compare against the 0x030816-prefixed self-call blob. If the direct revert blob lacks both the prefix and the nested-tail sequence, the fingerprint cleanly separates pallet dispatch traps from in-contract reverts and can be promoted to a hard oracle classification rule."
+    },
+    {
+      "id": "h18",
+      "statement": "The pallet-contracts self-call trap precedes callee execution entirely: if f(uint256) begins with require(false, 'BOOM') and is invoked via this.f(x) from g, the self-call will revert silently (no 'BOOM' reason, 0x030816-style blob) while a direct external call to f surfaces the 'BOOM' revert reason on both chains. Direct proof of pre-callee routing failure would convert h15's dispatch-barrier model from strong circumstantial inference (rolled-back caller-side storage, invariant trap signature) into a mechanistic fact; if instead the self-call surfaces 'BOOM', execution reaches contract code and the trap must be in return-data handoff, reopening the mechanism question.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Both self-call traps (g at step 0, h at step 2) were fully silent with empty revert reasons despite revert_reasons=true, and polkadot storage stayed at zero nonzero entries even though a successful h would have written direct=207 \u2014 consistent with a trap that fires before any contract logic (callee or caller-past-the-call) executes. The healthy inbound f(3) at step 4 (no STATUS divergence, only carried-over STORAGE_MISMATCH) shows revert-reason plumbing works for direct calls, so a BOOM-in-callee probe can cleanly separate pre-callee routing traps from in-contract reverts."
+        }
+      ],
+      "next_probe": "Runtime probe with f(uint256) whose first statement is require(false, 'BOOM'), g(x) doing this.f(x), revert_reasons=true \u2014 but decide the outcome on RAW ERROR BLOBS, not the revert_reasons channel: capture polkadot's error blob for the direct external f(1) call (step A) and for the self-call g(1) (step B) and check for the ASCII 'BOOM' bytes (0x424f4f4d). The underflow probe showed a callee-reverting self-call yields matching revert statuses with NO REVERT_REASON divergence entry, so the reason channel alone may be inconclusive. If the direct-call blob contains 0x424f4f4d while the self-call blob is the bare 0x030816-prefix trap without those bytes, the trap provably precedes callee execution; if BOOM bytes appear in the self-call blob too, execution reaches contract code and the trap is in return-data handoff."
+    },
+    {
+      "id": "h19",
+      "statement": "Divergence detection for solang's pallet-contracts self-call trap is masked only when the callee would independently revert on EVM; with an unchecked (wrapping) callee body, EVM always succeeds regardless of argument value (x=max uint256 wraps to 199), so the trap is always visible at the self-call step. Masking therefore requires callee panics/reverts on EVM, not merely extreme values or boundary arguments \u2014 a single unchecked block anywhere in the callee is sufficient to make the defect undetectable-by-masking. Corollary: probes hunting this defect should prefer unchecked callees (guaranteed EVM success) so oracle masking is impossible, and any callee bug (panic, require) in a self-called function is invisible to the status/return channels because both chains 'revert' with no revert-reason divergence emitted.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-underflow",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0 g(5): this.f(5) computes 5-200, which reverts on EVM via 0.8 underflow panic AND on polkadot via the silent 0x030816 self-call trap \u2014 statuses match (revert=revert), so no divergence was reported at step 0 despite two completely different failure mechanisms. Step 2 h(250): callee succeeds on EVM (direct=50 stored) but polkadot trapped identically (TX_STATUS_MISMATCH, silent blob 0x0308160000000114..., zero nonzero storage entries), and the step-4 direct f(300) succeeded on both chains (STORAGE_MISMATCH is carryover). This is the first probe showing an EVM-side callee failure can fully mask the polkadot self-call trap from the oracle."
+        },
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-unchecked-overflow",
+          "verdict": "DIVERGENCE",
+          "note": "Exact counterpart of the underflow probe with only the callee body changed to unchecked: step-0 g(max uint256) now produced the FULL divergence signature (TX_STATUS_MISMATCH success-vs-revert, RETURN_MISMATCH 199 vs 0, STORAGE_MISMATCH, error blob 0x030816000000012c...) instead of being masked, because the EVM side no longer panics. This directly demonstrates that h19's masking is conditional on EVM-side callee failure and is neutralized by wrapping arithmetic."
+        },
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Baseline non-masking case: callee f(x)=x+200 always succeeds on EVM, so step 0 g(5) self-call produced the full divergence signature (STATUS_MISMATCH + TX_STATUS_MISMATCH + STORAGE_MISMATCH with 0x030816000000012c... trap blob) rather than being hidden. Consistent with h19's prediction that a callee incapable of EVM-side failure makes the pallet self-call trap unconditionally visible; extreme values or boundary arguments alone never mask it."
+        }
+      ],
+      "next_probe": "Re-run this exact contract but call g(250) instead of g(5) at step 0 (callee succeeds, 250-200=50): the divergence should resurface at step 0 with the standard fingerprint, confirming the masking is callee-failure-driven rather than layout-driven. Additionally capture polkadot's raw error blob for the failing g(5) case to check whether it still carries the 0x030816 prefix despite the masked verdict \u2014 if so, blob-level classification (h17) can detect traps even when the status/return channels report no divergence."
+    },
+    {
+      "id": "h20",
+      "statement": "The nested 0x030816 tail in pallet-contracts self-call error blobs does NOT track trap count in the trace: the second trap in this probe (step 4, h(7), after trap at step 0 plus a SUCCESSFUL bump() at step 2) produced a bare 0x030816000000011c... blob with no nested tail. Nesting therefore does not accumulate per-trap; it appears only when the immediately preceding transaction(s) in the trace themselves trapped (as in the consecutive-trap probes p0/p1/p2/order-swap where steps 3 and 5 followed traps directly). The fingerprint rule must be weakened to: nested tail present iff the previous transaction in the trace was itself a trap; bare prefix otherwise. Trap-count-based classification is unsafe and should be dropped from triage heuristics.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-order-swap",
+          "verdict": "DIVERGENCE",
+          "note": "Order mutated so the direct f(3) call runs FIRST: it succeeded on both chains (no divergence at step 0), then h(7) at step 1 trapped with a bare 0x0308160000000118... blob lacking any nested tail despite a prior successful transaction. Steps 3 and 5 (g by alice, g by deployer \u2014 the 2nd and 3rd traps) each carried the nested 0x030816000000... tail (8aaa07eb... and 1ae617eb... respectively), and no REVERT_REASON divergence entries were emitted despite revert_reasons=true. The trap is fully history-independent (fires after a healthy inbound call), repeated traps re-fire identically, and the nested-tail signature tracks trap count, not step index."
+        },
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-storage-perturb",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0 g(5) self-call trapped with bare 0x030816000000012c... blob (no nested tail \u2014 first trap, as predicted). Step 2 bump() SUCCEEDED on both chains. Step 4 h(7) self-call \u2014 the SECOND trap of the trace \u2014 produced 0x030816000000011c... with NO nested 0x030816 tail anywhere in the blob (verified by scanning for a second 030816 occurrence; tail is ...080f2da442e6a05...). This contradicts h20's prior refinement that subsequent traps carry one nested tail; the difference from bounce-order/p0/p1/p2 is that here a successful transaction intervened between the two traps. The tail thus encodes the previous transaction's error context (present only when the immediately preceding tx trapped), not a running trap counter."
+        },
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0 trap emitted a bare 0x030816000000012c... blob (no nested tail, first trap); step 1 was a dry-run QUERY (not a committed tx); step 2 trap emitted 0x0308160000000114... embedding the nested 0x0308160000001ae617eb46140300000000 tail. This supports the refined rule and sharpens it: dry-run queries are transparent to the tail signature \u2014 the tail is present iff the most recent COMMITTED transaction trapped, and interleaved queries neither clear it nor add to it. Only a successful committed transaction (as in storage-perturb's bump()) resets it."
+        }
+      ],
+      "next_probe": "Run a trace interleaving traps and successes: step 0 direct f(3) (success), step 1 g(5) self-call (trap, expect no tail), step 2 direct f(4) (success), step 3 g(6) self-call. If step 3's blob again carries the nested tail despite an intervening successful call, the prior-trap (not prior-tx) model holds; if it lacks the tail, the nested signature decays or depends on the immediately preceding step, invalidating the refined rule."
+    },
+    {
+      "id": "h21",
+      "statement": "A single pallet-contracts self-call trap causes a PERMANENT storage divergence for the rest of the trace: after step 0's trapped g(5), polkadot's result stays unset (EVM has 205), so the later bump() at step 2 succeeds on both chains but writes divergent values (polkadot result=10 vs EVM 215, counter=1 both), and every subsequent query and the step-4 h trap report STORAGE/RETURN mismatches. Successful transactions interleaved with self-call traps do not resynchronize state; the oracle therefore reports a growing cascade of divergences whose ROOT is a single trap step. Triage should attribute post-trap storage/return mismatches at healthy steps to the earliest trap, not to the callees that happen to read divergent slots.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-storage-perturb",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0 trap left polkadot result unset (STORAGE_MISMATCH: EVM {205} vs {} ). Step 2 bump() succeeded on BOTH chains (no STATUS mismatch) yet produced STORAGE_MISMATCH {1,215} vs {1,10} and RETURN_MISMATCH 215 vs 10 at step 3 \u2014 both chains executed identical, healthy logic over permanently divergent state. Step 4 h(7) trapped again and step 5 query shows direct=207 (EVM) vs 0. The counter slot (1) matched everywhere, proving the divergence is slot-specific (state written only via the trapped self-call path), and the successful bump() did not heal or mask it."
+        },
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-p0",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0 trap left polkadot result unset (STORAGE_MISMATCH: EVM {205} vs {}); the step 4 direct inbound f(3) call SUCCEEDED on both chains (no STATUS divergence) yet step 4 still reports STORAGE_MISMATCH {205,207} vs {} \u2014 a pure carryover divergence attributable to the single step-0 trap, not to f itself. Successful interleaved transactions neither heal nor mask the per-slot divergence created by one trap; triage attribution to the earliest trap is correct."
+        }
+      ],
+      "next_probe": "Probe with ordering trap->query->trap where the second self-call's callee path does NOT touch the divergent slot: add a separate result2 slot written only by h, call h first (trap on polkadot), then g. If step for g's query of result2 still diverges (0 vs set on EVM), divergence is trace-global from the trap; if result2 matches, divergence is strictly per-slot-history and cascades only through slots the trapped call would have written."
+    },
+    {
+      "id": "h22",
+      "statement": "The 4 bytes following the 0x030816000000 prefix in pallet self-call trap blobs encode trace position / pallet dispatch metadata, not anything contract-specific: every step-0 self-call trap across all probes in this area begins 0x030816000000012c000000..., while every step-2 trap begins 0x0308160000000114.... Moreover, the nested tail embedded in step-2 blobs also begins 03081600000012 (e.g., 0308160000001236edeb8e1b0300000000), consistent with the nested error inheriting the same position-encoded prefix grammar. If true, the blob fingerprint identifies WHICH trace step trapped but reveals nothing about the callee contract; prefix-based triage must key on step index, not contract identity. The causal test (mutated step order) is still unrun.",
+      "status": "refuted",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-unchecked-wrap-max",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0 trap blob: 0x030816000000012c00000000c2945c3f... \u2014 identical prefix (012c) to every prior step-0 self-call trap (p0, p1, p2, slot-pad, storage-perturb, bounce-order-mutated) despite this probe's distinct body (unchecked wrap) and extreme argument. Step 2 trap blob: 0x0308160000000114... with the nested 0x0308160000001a9bf0ea421203... tail \u2014 same 0114 prefix as all prior step-2 traps. The constant bytes per step index across 7+ probes strongly suggest position-encoded pallet metadata rather than contract-derived data."
+        },
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-result2-cascade",
+          "verdict": "DIVERGENCE",
+          "note": "8th reproduction of prefix stability despite a new contract variant (3 slots, h writes result2 instead of direct): step-0 trap blob begins 0x030816000000012c000000... and step-2 trap blob begins 0x0308160000000114000000... with the nested tail 0308160000001236edeb8e1b0300000000 \u2014 the nested sequence also carries the 12-prefix byte, supporting position-encoded metadata in both the outer and nested dispatch-error encodings. Contract body/layout/argument changes again left the prefix untouched."
+        },
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-interleaved-trap-success-p3",
+          "verdict": "DIVERGENCE",
+          "note": "h22 predicted every step-2 trap begins 0x0308160000000114. This probe placed self-call traps at steps 2 and 4, each preceded only by HEALTHY successful inbound f calls, and both trap blobs began 0x0308160000000118 \u2014 a third prefix value at the same step index that previously yielded 0114 (when step 2 followed a step-0 trap). The 4-byte field after 0x030816000000 is therefore NOT step-index/position encoded; it covaries with prior-trace context (012c first-ever trap, 0114 trap-after-trap, 0118 trap-after-healthy-txs, cf. order-swap step 1). Prefix-based triage must not key on step index."
+        }
+      ],
+      "next_probe": "Same Single contract (unchecked callee, g self-call, h self-call) but with step order mutated: step 0 = direct inbound f(3) (success), step 1 = g(5) self-call (trap), step 3 = h(7) self-call (trap). If step 1's trap blob begins with a prefix distinct from 012c/0114 (a third value), the prefix is position/step-index encoded; if it begins 012c, the prefix tracks trap ordinal, not step index. Cross-reference with h20's tail rule to build a complete (prefix=step, tail=prior-tx) fingerprint grammar."
+    },
+    {
+      "id": "h23",
+      "statement": "A pallet-contracts self-call trap creates storage divergence strictly in the slots the trapped call's caller-side code would have written; slots the trapped path never touches remain synchronized across chains. Evidence: at step 0 h(7) traps (would write only result2=207 on EVM), polkadot storage stays empty while EVM shows exactly {207} \u2014 the result slot that only g writes remains unset on BOTH chains, as does the never-written direct slot. Only when g itself traps at step 2 does result diverge. Divergence is therefore per-slot-attributable to the specific trapped call, and post-trap query mismatches at unrelated slots should NOT be attributed to an earlier trap unless the earlier trapped call's write-set included them (h21's cascade claim holds only through slots a trapped call would have written or that read divergent slots).",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-result2-cascade",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0 h(7) trapped with the standard 0x030816000000012c... blob; step-0 STORAGE_MISMATCH shows EVM nonzero=1 values=[207] (result2 only) vs polkadot {} \u2014 the result slot g would write stayed unset on both chains. Step 1 query result2 diverged 207 vs 0. Step 2 g(5) trapped separately (0x0308160000000114... blob with nested tail), after which result diverged 205 vs 0 and step 4 result2 still diverged 207 vs 0 (pure carryover from h's trap). Each divergence is attributable to the specific trapped call's intended write-set; no unrelated slot diverged."
+        },
+        {
+          "probe": "selfcall-single-per-slot-attribution-counter",
+          "verdict": "DIVERGENCE",
+          "note": "Trap-first ordering with an unrelated healthy writer: step 0 h(7) trapped (would write only direct=207), so query direct at step 1 diverged 207 vs 0, but the healthy storage-writing bump() at step 2 produced counter=10 on BOTH chains and step 3 query counter reported NO divergence entry \u2014 the slot the trapped call never touches stays synchronized. The step-2 STORAGE_MISMATCH {10,207} vs {10} is purely count-mode carryover of the direct divergence, not a bump() failure. Per-slot attribution is confirmed: divergence is scoped to the trapped call's write-set (and slots reading it), and post-trap mismatches at healthy steps must be attributed to the trap, not the healthy callee."
+        }
+      ],
+      "next_probe": "Trap-first ordering with a healthy unrelated writer: Single with result2 (written only by h via this.f), result (written only by g via this.f), and counter (written only by a plain setter bump() with NO self-call). Steps: 0) h(7) [trap on polkadot], 1) query result2 [expect divergence], 2) bump() [healthy, no self-call], 3) query counter [if counter matches across chains, per-slot attribution confirmed and h21's cascade is write-set/read-set scoped, not trace-global; if counter diverges, any post-trap healthy write inherits divergence]."
+    },
+    {
+      "id": "h24",
+      "statement": "The 4-byte field following the 0x030816000000 prefix in pallet self-call trap blobs encodes prior-transaction context, not step index or contract identity: first-ever trap in a trace yields 012c, a trap immediately following a trapped committed tx yields 0114, and a trap following healthy committed txs yields 0118 (observed at step 1 of order-swap and at steps 2 AND 4 of this probe, where two identical-context traps produced byte-identical prefix values). The field is deterministic per trace context; combined with h20's nested-tail rule (tail present iff immediately preceding committed tx trapped \u2014 absent here at both steps 2 and 4, correctly), the reliable fingerprint grammar is: 0x030816000000 prefix + context byte-quad + conditional nested tail. The one anomaly is storage-perturb's step-4 trap (011c after a healthy bump()), suggesting the field may further depend on preceding-tx gas/weight rather than outcome alone.",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "selfcall-single-nonoverloaded-runtime-interleaved-trap-success-p3",
+          "verdict": "DIVERGENCE",
+          "note": "Two self-call traps in one trace, both after healthy inbound f calls only: step-2 g(5) blob begins 0x0308160000000118 and step-4 g(6) blob also begins 0x0308160000000118 (identical context -> identical prefix), neither carrying a nested 030816 tail (consistent with h20: preceding committed txs succeeded). Direct f calls at steps 0,1,3 succeeded on both chains; step-3 STORAGE_MISMATCH (205 vs empty) and step-5 RETURN_MISMATCH (206 vs 0) are pure carryover from the step-2 trap, again matching h21's per-slot cascade attribution."
+        },
+        {
+          "probe": "selfcall-single-order-swap-prefix-step-index",
+          "verdict": "DIVERGENCE",
+          "note": "This probe IS the causal test h22 proposed and h24 awaited: with step order mutated so step 0 is a healthy direct f(3), the step-1 self-call trap produced blob prefix 0x0308160000000118 \u2014 the SAME context-byte value (0118) that interleaved-trap-success-p3 produced at steps 2 and 4, despite a different step index. The step-3 trap (immediately following the trapped committed tx at step 1) produced 0x0308160000000114 with the nested 0x0308160000001a9bf0ea421203... tail. Identical prefixes across different step indices with identical prior-tx context, and 0114-recurrence conditioned on a preceding trap, definitively kill step-index encoding and confirm prior-transaction-context encoding. The full grammar (prefix + context byte-quad + conditional nested tail iff preceding committed tx trapped) has now been validated by an order-swapped causal test."
+        }
+      ],
+      "next_probe": "Determinism + caller-independence test: (a) re-run this exact spec unchanged and check both trap blobs again begin 0118 \u2014 if so the field is deterministic per trace context; (b) then mutate ONLY the sender of the healthy step-0/step-1 f calls (charlie -> dave) keeping everything else identical; if the prefix field changes, it encodes caller/nonce metadata and the fingerprint grammar must drop the context-byte-quad from classification, keeping only the 6-byte prefix and nested-tail rule."
+    },
+    {
+      "id": "h25",
+      "statement": "The context byte-quad in pallet self-call trap blobs further covaries with the WEIGHT CLASS of the preceding healthy transaction, not just its outcome: every 0118 case was preceded by successful non-storage-mutating f(uint256) calls (pure computation, no writes), whereas storage-perturb's anomalous 011c followed a successful bump() that MUTATED two storage slots. If true, the context field encodes the dispatch weight/ref-time metadata of the prior committed tx, and a trap preceded by a healthy storage-writing call should yield a prefix distinct from 0118 (plausibly 011c). This would complete the fingerprint grammar: prefix = f(prior-tx outcome AND weight class), tail = f(prior-tx trapped).",
+      "status": "confirmed",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "selfcall-single-order-swap-prefix-step-index",
+          "verdict": "DIVERGENCE",
+          "note": "Step-1 trap prefix 0118 followed a healthy NON-mutating f(3) call, matching all prior 0118 cases (interleaved-trap-success-p3's f calls were also non-mutating). The only known deviation from the outcome-only grammar (storage-perturb's 011c) was preceded by a storage-MUTATING bump(), isolating weight/mutation class as the candidate covariate not yet controlled for."
+        },
+        {
+          "probe": "selfcall-single-per-slot-attribution-counter",
+          "verdict": "DIVERGENCE",
+          "note": "This probe is h25's arm B realized: step 4's self-call trap immediately followed a HEALTHY storage-mutating bump() (counter += 10) and its blob began 0x030816000000011c \u2014 byte-identical to storage-perturb's anomalous 011c after its mutating bump(), and distinct from the 0118 seen whenever the preceding healthy call was non-mutating f(uint256). The context byte-quad provably encodes prior-tx outcome AND weight/mutation class, resolving h24's anomaly and completing the four-value grammar."
+        }
+      ],
+      "next_probe": "Two-arm probe in the Single contract: arm A steps = direct f(3) [healthy, non-mutating], then g(5) self-call [trap] \u2014 expect prefix 0118 (replication); arm B steps = bump() [healthy, mutates storage], then g(5) self-call [trap]. If arm B's trap prefix is 011c (or any value != 0118), weight/mutation-class encoding is confirmed; if it is 0118, the storage-perturb 011c anomaly needs a different explanation (e.g., gas limit or slot-count-dependent metadata)."
+    },
+    {
+      "id": "h26",
+      "statement": "The pallet-contracts self-call trap blob's context byte-quad is a deterministic two-dimension grammar over the immediately preceding committed transaction: 012c = no prior tx (first trap in trace), 0114 = prior tx trapped, 0118 = prior tx healthy non-mutating, 011c = prior tx healthy storage-mutating. Each value has now been observed at least twice across independent probes (012c ~8x, 0114 ~4x, 0118 3x at steps 1/2/4, 011c 2x), and the value is invariant to step index, sender, callee body, and layout. The full fingerprint (6-byte prefix + context byte-quad + nested 030816 tail iff prior committed tx trapped) is therefore sufficient to reconstruct the prior-tx context of any silent trap from its blob alone, enabling automatic trace-context classification in triage.",
+      "status": "open",
+      "confidence": "medium",
+      "evidence": [
+        {
+          "probe": "selfcall-single-per-slot-attribution-counter",
+          "verdict": "DIVERGENCE",
+          "note": "Step 0 first-ever trap: 0x030816000000012c00000000000000c2945c3f... (012c, 9th reproduction). Step 4 trap after healthy mutating bump(): 0x030816000000011c000000... with NO nested 030816 tail (correct per h20: preceding committed tx succeeded). The 011c value now has two independent observations both following healthy storage-mutating calls, and 0118 has three following healthy non-mutating calls \u2014 no counterexample to the two-dimension grammar exists across all probes in this area."
+        }
+      ],
+      "next_probe": "Control for function identity vs weight class: in the Single contract add setCounter(uint256) that ONLY writes counter (no self-call), then run steps: 0) setCounter(3) [healthy storage-mutating], 1) g(5) self-call [trap]. If the trap blob prefix is 011c (matching bump()), the field encodes mutation/weight class, not which function ran; if it is a new fifth value, the field may hash the preceding call's dispatch metadata more specifically and the grammar table needs a per-function column."
+    }
+  ],
+  "updated_ts": 1794319201.8131468
+}

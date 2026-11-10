@@ -1,0 +1,77 @@
+{
+  "name": "int-semantics-sar256-mask-p0",
+  "solidity": "pragma solidity >=0.8.0;\ncontract Sar256Mask {\n    int256 public last;\n    uint256 public count;\n    event Did(int256 r, uint256 n);\n    function sar256(int256 x, uint256 n) public returns (int256) {\n        int256 r = x >> n;\n        last = r;\n        count += 1;\n        emit Did(r, n);\n        return r;\n    }\n    function getLast() public view returns (int256) {\n        return last;\n    }\n    function getCount() public view returns (uint256) {\n        return count;\n    }\n}",
+  "contract": "Sar256Mask",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "sar256",
+      "args": [
+        -57896044618658097711785492504343953926634992332820282019728792003956564819968,
+        256
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "getLast"
+    },
+    {
+      "action": "query",
+      "function": "getCount"
+    },
+    {
+      "action": "call",
+      "function": "sar256",
+      "args": [
+        -57896044618658097711785492504343953926634992332820282019728792003956564819968,
+        257
+      ],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "getLast"
+    },
+    {
+      "action": "call",
+      "function": "sar256",
+      "args": [
+        -1,
+        320
+      ],
+      "sender": "charlie",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "getLast"
+    },
+    {
+      "action": "query",
+      "function": "getCount"
+    }
+  ],
+  "meta": {
+    "parent_id": null,
+    "origin": "generated"
+  },
+  "execution": "on-chain"
+}

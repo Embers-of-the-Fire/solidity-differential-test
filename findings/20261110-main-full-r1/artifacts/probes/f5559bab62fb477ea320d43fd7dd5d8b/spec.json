@@ -1,0 +1,79 @@
+{
+  "name": "int-sar256-count-mask-char",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract SarProbe {\n    int256 public result;\n    uint256 public count;\n\n    function sarMin(uint256 n) public {\n        result = type(int256).min >> n;\n        count += 1;\n    }\n\n    function sarPos(uint256 n) public {\n        result = (int256(2) ** 254) >> n;\n        count += 1;\n    }\n\n    function getResult() public view returns (int256) {\n        return result;\n    }\n}",
+  "contract": "SarProbe",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "sarMin",
+      "args": [
+        192
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "getResult"
+    },
+    {
+      "action": "call",
+      "function": "sarMin",
+      "args": [
+        319
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "getResult"
+    },
+    {
+      "action": "call",
+      "function": "sarMin",
+      "args": [
+        256
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "getResult"
+    },
+    {
+      "action": "call",
+      "function": "sarPos",
+      "args": [
+        65
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "getResult"
+    }
+  ],
+  "meta": {
+    "parent_id": null,
+    "origin": "generated"
+  },
+  "execution": "on-chain"
+}

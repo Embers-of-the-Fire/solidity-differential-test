@@ -1,0 +1,54 @@
+{
+  "name": "env-gasleft-entry-vs-dryrun-m3-packed-layout-stamp",
+  "solidity": "pragma solidity >=0.8.0;\ncontract GasProbe {\n    uint8 public marker;\n    uint64 public stamp;\n    uint256 public entryGas;\n    uint256 public exitGas;\n    event GasRecorded(uint256 entryG, uint256 exitG);\n    function getGas() public view returns (uint256) {\n        return gasleft();\n    }\n    function recordEntry() public {\n        marker = 1;\n        stamp = uint64(block.number);\n        entryGas = gasleft();\n        uint256 s = 0;\n        unchecked {\n            for (uint256 i = 0; i < 20; i++) {\n                s += i * 7;\n            }\n        }\n        exitGas = gasleft();\n        emit GasRecorded(entryGas, exitGas);\n    }\n}",
+  "contract": "GasProbe",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "query",
+      "function": "getGas"
+    },
+    {
+      "action": "call",
+      "function": "recordEntry",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "marker"
+    },
+    {
+      "action": "query",
+      "function": "stamp"
+    },
+    {
+      "action": "query",
+      "function": "entryGas"
+    },
+    {
+      "action": "query",
+      "function": "exitGas"
+    }
+  ],
+  "execution": "on-chain",
+  "meta": {
+    "parent_id": "d808f126f6528201",
+    "origin": "mutated_llm"
+  }
+}

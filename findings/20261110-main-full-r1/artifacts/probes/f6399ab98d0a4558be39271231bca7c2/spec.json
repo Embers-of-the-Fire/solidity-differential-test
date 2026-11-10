@@ -1,0 +1,72 @@
+{
+  "name": "intdiv-shift-boundary-counts",
+  "solidity": "pragma solidity >=0.8.0;\n\ncontract IntDivShiftBoundaryCounts {\n    uint256 public count;\n\n    function sar8(int8 x, uint8 n) public returns (int8) {\n        int8 r = x >> n;\n        count++;\n        return r;\n    }\n\n    function shr256(uint256 x, uint256 n) public returns (uint256) {\n        uint256 r = x >> n;\n        count++;\n        return r;\n    }\n}",
+  "contract": "IntDivShiftBoundaryCounts",
+  "constructor": {
+    "args": []
+  },
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "execution": "on-chain",
+  "steps": [
+    {
+      "action": "call",
+      "function": "sar8",
+      "args": [
+        -8,
+        7
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "sar8",
+      "args": [
+        -8,
+        8
+      ],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "shr256",
+      "args": [
+        255,
+        255
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "shr256",
+      "args": [
+        255,
+        256
+      ],
+      "sender": "charlie",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "count",
+      "args": []
+    }
+  ],
+  "meta": {
+    "parent_id": "ab3a51096efb1c6c",
+    "origin": "mutated_llm"
+  }
+}

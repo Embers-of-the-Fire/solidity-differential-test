@@ -1,0 +1,48 @@
+{
+  "name": "events-overload-same-name-replay-key",
+  "solidity": "pragma solidity >=0.8.0;\ncontract EventOverloadSignature {\n    event Ping(uint256 a);\n    event Ping(uint256 a, string b);\n    uint256 public last;\n\n    function mix() public {\n        emit Ping(1);\n        emit Ping(2, \"x\");\n        emit Ping(3);\n        last = 7;\n    }\n\n    function getLast() public view returns (uint256) {\n        return last;\n    }\n}",
+  "contract": "EventOverloadSignature",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "mix",
+      "args": [],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "getLast",
+      "args": []
+    },
+    {
+      "action": "call",
+      "function": "mix",
+      "args": [],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "getLast",
+      "args": []
+    }
+  ],
+  "meta": {
+    "parent_id": null,
+    "origin": "generated"
+  },
+  "execution": "on-chain"
+}

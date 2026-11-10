@@ -1,0 +1,59 @@
+{
+  "name": "events-indexed-vs-unindexed-dyn",
+  "solidity": "pragma solidity >=0.8.0;\ncontract EventIdxDyn {\n    event Pair(string indexed sIdx, string sVal, bytes indexed bIdx, bytes bVal);\n    string public lastS;\n    bytes public lastB;\n    function emitPair(string memory s, bytes memory b) external {\n        lastS = s;\n        lastB = b;\n        emit Pair(s, s, b, b);\n    }\n    function getLast() external view returns (string memory, bytes memory) {\n        return (lastS, lastB);\n    }\n}",
+  "contract": "EventIdxDyn",
+  "solc": {
+    "optimizer": false
+  },
+  "solang": {
+    "opt_level": "default"
+  },
+  "oracle": {
+    "storage": "count",
+    "events": true,
+    "revert_reasons": true,
+    "gas": false
+  },
+  "steps": [
+    {
+      "action": "call",
+      "function": "emitPair",
+      "args": [
+        "hello",
+        "0xdeadbeef"
+      ],
+      "sender": "alice",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "emitPair",
+      "args": [
+        "",
+        "0x"
+      ],
+      "sender": "bob",
+      "value": 0
+    },
+    {
+      "action": "call",
+      "function": "emitPair",
+      "args": [
+        "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG",
+        "0x0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+      ],
+      "sender": "charlie",
+      "value": 0
+    },
+    {
+      "action": "query",
+      "function": "getLast",
+      "args": []
+    }
+  ],
+  "meta": {
+    "parent_id": null,
+    "origin": "generated"
+  },
+  "execution": "on-chain"
+}
