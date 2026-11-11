@@ -1,0 +1,206 @@
+{
+  "case": {
+    "case_id": "finding-13ac1d60f3568710",
+    "origin": "finding",
+    "spec": {
+      "name": "intdiv-layout-unchecked-reorder",
+      "solidity": "pragma solidity >=0.8.0;\n\ncontract IntDivLayoutUncheckedReorder {\n    int256 public min256;\n    int16 public min16;\n    uint8 public bump;\n    uint256 public count;\n\n    constructor() {\n        min256 = type(int256).min;\n        min16 = type(int16).min;\n        bump = 1;\n    }\n\n    function div256() public returns (int256) {\n        int256 r = min256 / int256(-1);\n        \n        return r;\n    }\n\n    \n\n    \n}",
+      "contract": "IntDivLayoutUncheckedReorder",
+      "constructor": {
+        "args": []
+      },
+      "solc": {
+        "optimizer": false
+      },
+      "solang": {
+        "opt_level": "default"
+      },
+      "oracle": {
+        "storage": "count",
+        "events": true,
+        "revert_reasons": true,
+        "gas": false
+      },
+      "execution": "on-chain",
+      "steps": [
+        {
+          "action": "call",
+          "function": "div256",
+          "args": [],
+          "sender": "alice",
+          "value": 0
+        }
+      ],
+      "meta": {
+        "parent_id": "ab3a51096efb1c6c",
+        "origin": "mutated_llm"
+      }
+    },
+    "verdict": "DIVERGENCE",
+    "earliest_divergence": {
+      "point": 0,
+      "signature": "STATUS_MISMATCH|0|div256|revert\u2260success"
+    },
+    "divergences": [
+      {
+        "kind": "STATUS_MISMATCH",
+        "step": 0,
+        "detail": "dry-run status differs",
+        "evm": {
+          "status": "revert",
+          "error": null
+        },
+        "polkadot": {
+          "status": "success",
+          "error": null
+        },
+        "point": 0,
+        "signature": "STATUS_MISMATCH|0|div256|revert\u2260success"
+      },
+      {
+        "kind": "TX_STATUS_MISMATCH",
+        "step": 0,
+        "detail": "committed transaction status differs",
+        "evm": "revert",
+        "polkadot": "success",
+        "point": 0,
+        "signature": "TX_STATUS_MISMATCH|0|div256|revert\u2260success"
+      },
+      {
+        "kind": "STORAGE_MISMATCH",
+        "step": 0,
+        "detail": "contract storage differs (mode=count)",
+        "evm": {
+          "nonzero_entries": 2,
+          "values": [
+            "-57896044618658097711785492504343953926634992332820282019728792003956564819968",
+            "98304"
+          ]
+        },
+        "polkadot": {
+          "nonzero_entries": 3,
+          "values": [
+            "-32768",
+            "-57896044618658097711785492504343953926634992332820282019728792003956564819968",
+            "1"
+          ]
+        },
+        "point": 0,
+        "signature": "STORAGE_MISMATCH|0|div256|multiset(count)"
+      }
+    ]
+  },
+  "screening": {
+    "case_id": "finding-13ac1d60f3568710",
+    "probe_id": "89bdef81f94e48b9b576c367d0e83a9d",
+    "finding_id": "13ac1d60f3568710",
+    "origin": "finding",
+    "ts": 1794376406.6699588,
+    "panel": [
+      {
+        "category": "bug_candidate",
+        "confidence": "high",
+        "evidence": "div256 evaluates type(int256).min / int256(-1). On the EVM oracle the transaction reverts, consistent with Solidity 0.8 checked arithmetic trapping signed division overflow. On Polkadot/Solang the same transaction commits with status success, apparently yielding the wrapped int256 minimum rather than reverting. The reported storage differences are not independently diagnostic: EVM count mode reports two packed nonzero entries including 98304 (0x18000, consistent with int16 minimum 0x8000 plus bump=1), while Polkadot reports -32768 and 1 as separate cells.",
+        "rationale": "Since Solidity 0.8, signed division of the minimum value by -1 is overflow and must panic/revert; it is not a chain-environment or oracle-projection difference. Solang's successful committed execution indicates that its checked signed-division path fails to detect this special case. The storage-count mismatch can be disregarded as packing/projection noise, but the transaction-status mismatch is a concrete semantic discrepancy.",
+        "historical_match_url": "",
+        "cluster_hint": "Solang fails to trap signed int256 division overflow for type(int256).min / -1 under checked Solidity semantics"
+      },
+      {
+        "category": "bug_candidate",
+        "confidence": "high",
+        "evidence": "div256 computes min256 / int256(-1) where min256 = type(int256).min = -2^255. Solidity >=0.8 specifies that the result (2^255) overflows int256 and must panic/revert. solc reverts (EVM status=revert) while solang succeeds (status=success). Storage count difference (2 vs 3 entries) is explained by packing: EVM packs min16 (0x8000) and bump (1<<16) into one slot giving 98304=0x18000, while Polkadot stores -32768 and 1 separately.",
+        "rationale": "The STATUS_MISMATCH is a genuine semantic defect, not an artifact: dividing type(int256).min by -1 overflows int256, and Solidity 0.8+ semantics require a checked-arithmetic revert (panic 0x11). solang returning success means its codegen omits the signed-division INT_MIN/-1 overflow check. The STORAGE_MISMATCH is a known oracle projection artifact (packing/endianness conflation in count mode) and does not independently indicate a defect.",
+        "historical_match_url": "",
+        "cluster_hint": "solang missing INT256_MIN / -1 signed-division overflow panic (checked arithmetic for int division)"
+      }
+    ],
+    "panel_bug_votes": 2,
+    "adversarial": {
+      "rebuttal_succeeds": false,
+      "category": "bug_candidate",
+      "evidence": "The contract computes type(int256).min / int256(-1) under `pragma solidity >=0.8.0`, where the true quotient 2^255 is not representable in int256. Solidity 0.8 checked-arithmetic semantics (panic 0x11) require this to revert, and the EVM oracle does revert. Solang/Polkadot commits the transaction with status success, indicating Solang's codegen performs the signed division without the INT_MIN/-1 special-case overflow check. The storage divergence is fully explainable as projection noise: the EVM packs min16 (0x8000) and bump (1<<16) into slot value 98304 (0x18000), while the Polkadot projection reports them as separate cells (-32768, 1); this packing artifact does not explain the status divergence.",
+      "rationale": "The status mismatch is a deterministic semantic difference in contract code, not a chain environment value, gas-model difference, or oracle projection artifact, so none of the documented known differences apply. Neither does any supplied historical record cover signed-division overflow checking, so this is not a demonstrated rediscovery, though independent verification against the Solang issue tracker would strengthen the report. The storage mismatch can be dismissed as packing noise, but the revert-vs-success status divergence survives scrutiny as a genuine Solang checked-arithmetic defect.",
+      "historical_match_url": ""
+    },
+    "status": "survivor",
+    "survives": true,
+    "cluster_hint": "Solang fails to trap signed int256 division overflow for type(int256).min / -1 under checked Solidity semantics",
+    "historical_match_urls": [],
+    "prompt_version": 1,
+    "model": "kimi-for-coding",
+    "temperature": 1.0,
+    "replay": {
+      "verdict": "DIVERGENCE",
+      "earliest_signature": "STATUS_MISMATCH|0|div256|revert\u2260success",
+      "tool_versions": {
+        "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+        "solang": "solang version v0.3.5",
+        "anvil": "anvil Version: 1.7.1-dev",
+        "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+      },
+      "oracle_runs": 1,
+      "stable": true
+    },
+    "usage": {
+      "calls": 3,
+      "errors": 0,
+      "prompt_tokens": 13026,
+      "cached_prompt_tokens": 4703,
+      "completion_tokens": 2011,
+      "total_tokens": 15037,
+      "cost_usd": 0.1597289,
+      "latency_ms": 60730.09813399995,
+      "avg_latency_ms": 20243.36604466665
+    }
+  },
+  "history": [
+    {
+      "title": "Inconsistent behaviour when calling function via contract type name",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1007",
+      "state": "CLOSED",
+      "text": "Given the following base contract:\r\n\r\n```solidity\r\ncontract Base {\r\n    uint256 public something = 0;\r\n\r\n    function nop() public pure {}\r\n\r\n    function set(uint256 val) public {\r\n        something = val;\r\n    }\r\n}\r\n```\r\nAnd the following case `A`:\r\n```solidity\r\ncontract A {\r\n    function a() public pure {\r\n        Base.nop();\r\n    }\r\n}\r\n```\r\nSolang compiles this just fine. Furthermore, consider the following case `B`:\r\n```solidity\r\ncontract B {\r\n    function b() public {\r\n        Base.set(1);\r\n    }\r\n}\r\n```\r\nSolang crashes during compilation (target either `substrate` or `solana`):\r\n```\r\nthread 'main' panicked at 'get_storage_slot called on non-storage variable', src/codegen/cfg.rs:1879:13\r\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\r\n```\r\nWhere as `solc` behaves more in a way I'd expect. For both cases it gets the same error:\r\n```\r\n\u276f solc --bin foo.sol\r\nError: Cannot call function via contract type name.\r\n  --> foo.sol:27:9:\r\n   |\r\n17 |         Base.nop();\r\n   |         ^^^^^^^^^^\r\n\r\nError: Cannot call function via contract type name.\r\n  --> foo.sol:33:9:\r\n   |\r\n23 |         Base.set(1);\r\n   |         ^^^^^^^^^^^\r\n```\r\nIs there a reason we allo"
+    },
+    {
+      "title": "llvm-dis fails to disassemble bitcode file generated by Solang for a smart contract",
+      "url": "https://github.com/hyperledger-solang/solang/issues/641",
+      "state": "CLOSED",
+      "text": "Hi,\r\n\r\nWhen testing Solang with this smart contract `FibonacciBalance.sol`, I observed that the output bitcode file `FibonacciBalance_deploy.bc` cannot be disassembled by `llvm-dis`.\r\n\r\nHere is the smart contract:\r\n\r\n``` Solidity\r\n// FibonacciBalance.sol1\r\npragma solidity ^0.8.11;\r\n\r\ncontract FibonacciBalance {\r\n\r\n    address public fibonacciLibrary;\r\n    // the current fibonacci number to withdraw\r\n    uint public calculatedFibNumber;\r\n    // the starting fibonacci sequence number\r\n    uint public start = 3;\r\n    uint public withdrawalCounter;\r\n    // the fibonancci function selector\r\n    bytes4 constant fibSig = bytes4(keccak256(\"setFibonacci(uint256)\"));\r\n\r\n    // constructor - loads the contract with ether\r\n    constructor(address _fibonacciLibrary) payable {\r\n        fibonacciLibrary = _fibonacciLibrary;\r\n    }\r\n\r\n    // function withdraw() {\r\n    function withdraw() public {\r\n        withdrawalCounter += 1;\r\n        // calculate the fibonacci number for the current withdrawal user\r\n        // this sets calculatedFibNumber\r\n        (bool success, bytes memory returndata) = fibonacciLibrary.delegatecall(abi.encode(fibSig, withdrawalCounter));\r\n        if (success == false) {\r\n "
+    },
+    {
+      "title": "Inkwell crashes when building for Solana and Substrate",
+      "url": "https://github.com/hyperledger-solang/solang/issues/813",
+      "state": "CLOSED",
+      "text": "The following contract crashes Solang when we target Solana or Substrate. It works however on solc and on Solang for ewasm.\r\n\r\n```solidity\r\ncontract DTron {\r\n\r\n    mapping(address => uint256) public depositedAmount;\r\n    event Received(address, uint);\r\n    event Withdrawn(address, uint);\r\n\r\n    function publicDeposit() public payable {\r\n        depositedAmount[msg.sender] = depositedAmount[msg.sender] + msg.value;\r\n        emit Received(msg.sender, msg.value);\r\n    }\r\n\t\r\n\r\n    function nm() external payable{\r\n        publicDeposit();\r\n    }\r\n    \r\n    function moneyDeposit(address[] memory thanksCash, uint256[] memory amount) public payable {\r\n        uint256 arrayLength = thanksCash.length;\r\n        for(uint256 i=0; i< arrayLength; i++){\r\n            address payable receiver = payable(address(uint160(thanksCash[i])));\r\n            receiver.transfer(amount[i]);\r\n        }\r\n    }\r\n}\r\n```\r\n\r\nThe error is the following:\r\n```\r\nthread 'main' panicked at 'Found ArrayType(ArrayType { array_type: Type { address: 0x55fc10bd7b10, llvm_type: \"[32 x i8]\" } }) but expected the IntType variant', /home/lucas/.cargo/registry/src/github.com-1ecc6299db9ec823/inkwell-0.1.0-beta.4/src/types/enums.rs:3"
+    },
+    {
+      "title": "Add Rename functionality",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1514",
+      "state": "2023-09-21T21:07:26Z",
+      "text": "This feature depends on having the right span information for identifiers in the parse tree. Currently, some changes are needed to either add the missing span information in some cases, or improve the already present spans (look for one-off errors). \r\n\r\nThe rest of the \"goto-*\" functions also depend on the availability of proper spans. But in their case, as no modification is made to the source code, lack of accurate spans is less of an issue. But `rename` does modify the source code and hence having incorrect spans can result in unintentionally overwriting pieces of source code, which is highly undesirable. \r\n\r\nThe changes made as part of this PR provide the necessary code for `rename` to work. Correcting the parse tree is expected to be done as part of future PRs\r\n\r\nA non-exhaustive list of changes to be made to parse tree:  (https://github.com/hyperledger/solang/pull/1411#issuecomment-1648031602)\r\n\r\n1. No loc for contract variables type - array_type_dynamic_push.sol L6\r\n2. No loc for constructor base call - abstract_contract_inheritance.sol L14\r\n3. No loc for function modifier arguments - function_modifier_arguments.sol L8\r\n4. No loc for function override base contracts - virtua"
+    },
+    {
+      "title": "LLVM crashes when building contract",
+      "url": "https://github.com/hyperledger-solang/solang/issues/776",
+      "state": "CLOSED",
+      "text": "While testing one of the contracts from #744 , I found that LLVM crashes in the following contract.\r\n\r\n\r\n```solidity\r\n//pragma solidity ^0.6.12;\r\n// SPDX-License-Identifier: Unlicensed\r\npragma experimental ABIEncoderV2;\r\n\r\n//pragma solidity ^0.8.0;\r\n\r\n/**\r\n * @dev Interface of the ERC20 standard as defined in the EIP.\r\n */\r\ninterface IERC20 {\r\n    /**\r\n     * @dev Emitted when `value` tokens are moved from one account (`from`) to\r\n     * another (`to`).\r\n     *\r\n     * Note that `value` may be zero.\r\n     */\r\n    event Transfer(address indexed from, address indexed to, uint256 value);\r\n\r\n    /**\r\n     * @dev Emitted when the allowance of a `spender` for an `owner` is set by\r\n     * a call to {approve}. `value` is the new allowance.\r\n     */\r\n    event Approval(\r\n        address indexed owner,\r\n        address indexed spender,\r\n        uint256 value\r\n    );\r\n\r\n    /**\r\n     * @dev Returns the amount of tokens in existence.\r\n     */\r\n    function totalSupply() external view returns (uint256);\r\n\r\n    /**\r\n     * @dev Returns the amount of tokens owned by `account`.\r\n     */\r\n    function balanceOf(address account) external view returns (uint256);\r\n\r\n    /**\r\n     * @dev Moves `amount`"
+    },
+    {
+      "title": "Solang does not allow the deletion of memory array",
+      "url": "https://github.com/hyperledger-solang/solang/issues/808",
+      "state": "OPEN",
+      "text": "This contract works on Solc, however fails on Solang:\r\n\r\n```solidity\r\ncontract Array{\r\n\r\n    function remove(uint256[] memory arr, uint256 e)\r\n    internal pure\r\n    {\r\n        unchecked {\r\n            uint idx = 0;\r\n            for(uint i = 0; i < arr.length; i++) {\r\n                if(arr[i] == e) {\r\n                    idx = i;\r\n                }\r\n            }\r\n            for (uint i = idx; i < arr.length-1; i++){\r\n                arr[i] = arr[i+1];        \r\n            }\r\n            delete arr[arr.length - 1];\r\n        }\r\n    }\r\n}\r\n```\r\n\r\nThe error is the following:\r\n\r\n```\r\nerror: argument to 'delete' should be storage reference\r\n   \u250c\u2500 /home/lucas/Documents/solang/examples/array.sol:16:13\r\n   \u2502\r\n16 \u2502             delete arr[arr.length - 1];\r\n   \u2502             ^^^^^^^^^^^^^^^^^^^^^^^^^^\r\n\r\n```"
+    },
+    {
+      "title": "LLVM crashes when building for Solana",
+      "url": "https://github.com/hyperledger-solang/solang/issues/845",
+      "state": "CLOSED",
+      "text": "The following contract crashes LLVM:\r\n```solidity\r\n// Ensure that subscript is assignable when member is array\r\ncontract C {\r\n\tfunction fixed() public {\r\n\t\tuint256[3][4] memory iPj;\r\n\t\tiPj[0] = [1,2,3];\r\n\t}\r\n\r\n\tfunction dynamic() public {\r\n\t\tuint256[][4] memory iPj;\r\n\t\tiPj[0] = new uint256[](4);\r\n\t}\r\n\r\n\tstruct Sfixed { uint[3] f1; }\r\n\tstruct Sdynamic { uint[] f1; }\r\n\r\n\tfunction fixed_struct() public {\r\n\t\tSfixed iPj;\r\n\t\tiPj.f1 = [1,2,3];\r\n\t}\r\n\r\n\tfunction dynamic_struct() public {\r\n\t\tSdynamic iPj;\r\n\t\tiPj.f1 = new uint256[](4);\r\n\t}\r\n}\r\n```\r\n\r\nThe error is the following:\r\n```\r\nllvm/lib/IR/Instructions.cpp:1480: void llvm::StoreInst::AssertOK(): Assertion `cast<PointerType>(getOperand(1)->getType()) ->isOpaqueOrPointeeTypeMatches(getOperand(0)->getType()) && \"Ptr must be a pointer to Val type!\"' failed.\r\n```"
+    },
+    {
+      "title": "Dynamic array of array fails when pushing",
+      "url": "https://github.com/hyperledger-solang/solang/issues/859",
+      "state": "CLOSED",
+      "text": "The following contract works on Solc, but fails on Solang:\r\n\r\n```solidity\r\ncontract c {\r\n\tuint256[3][] s_vec;\r\n\tfunction test() public returns (uint256 ret1) {\r\n\t\ts_vec.push([1, 2, 3]);\r\n\t\treturn s_vec[1][1];\r\n\t}\r\n}\r\n```\r\n\r\nThe error is the following:\r\n```\r\nthread 'main' panicked at 'deref on non-array', src/sema/types.rs:941:18\r\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\r\n\r\n```"
+    }
+  ]
+}

@@ -1,0 +1,202 @@
+{
+  "case": {
+    "case_id": "finding-75a9ff8a2bb5d43c",
+    "origin": "finding",
+    "spec": {
+      "name": "intdiv-shift-boundary-counts",
+      "solidity": "pragma solidity >=0.8.0;\n\ncontract IntDivShiftBoundaryCounts {\n    uint256 public count;\n\n    function sar8(int8 x, uint8 n) public returns (int8) {\n        int8 r = x >> n;\n        count++;\n        return r;\n    }\n\n    function shr256(uint256 x, uint256 n) public returns (uint256) {\n        uint256 r = x >> n;\n        count++;\n        return r;\n    }\n}",
+      "contract": "IntDivShiftBoundaryCounts",
+      "constructor": {
+        "args": []
+      },
+      "solc": {
+        "optimizer": false
+      },
+      "solang": {
+        "opt_level": "default"
+      },
+      "oracle": {
+        "storage": "count",
+        "events": true,
+        "revert_reasons": true,
+        "gas": false
+      },
+      "execution": "on-chain",
+      "steps": [
+        {
+          "action": "call",
+          "function": "sar8",
+          "args": [
+            0,
+            0
+          ],
+          "sender": "alice",
+          "value": 0
+        },
+        {
+          "action": "call",
+          "function": "sar8",
+          "args": [
+            0,
+            0
+          ],
+          "sender": "bob",
+          "value": 0
+        },
+        {
+          "action": "call",
+          "function": "shr256",
+          "args": [
+            0,
+            0
+          ],
+          "sender": "alice",
+          "value": 0
+        },
+        {
+          "action": "call",
+          "function": "shr256",
+          "args": [
+            1,
+            256
+          ],
+          "sender": "charlie",
+          "value": 0
+        }
+      ],
+      "meta": {
+        "parent_id": "ab3a51096efb1c6c",
+        "origin": "mutated_llm"
+      }
+    },
+    "verdict": "DIVERGENCE",
+    "earliest_divergence": {
+      "point": 3,
+      "signature": "RETURN_MISMATCH|3|shr256|int\u2260int"
+    },
+    "divergences": [
+      {
+        "kind": "RETURN_MISMATCH",
+        "step": 3,
+        "detail": "dry-run return values differ",
+        "evm": 0,
+        "polkadot": 1,
+        "point": 3,
+        "signature": "RETURN_MISMATCH|3|shr256|int\u2260int"
+      }
+    ]
+  },
+  "screening": {
+    "case_id": "finding-75a9ff8a2bb5d43c",
+    "probe_id": "f6399ab98d0a4558be39271231bca7c2",
+    "finding_id": "75a9ff8a2bb5d43c",
+    "origin": "finding",
+    "ts": 1794376343.3407974,
+    "panel": [
+      {
+        "category": "bug_candidate",
+        "confidence": "high",
+        "evidence": "Step 3 calls shr256(1, 256). In Solidity >=0.8.0, a right shift by 256 (>= bit width) must panic with Panic(0x11) due to shift-count overflow; the EVM side shows no valid return (recorded evm return 0). Solang on Polkadot instead completed the call and returned 1, i.e. it did not enforce the shift-count overflow check and effectively reduced the shift modulo the word size (1 >> 0 = 1).",
+        "rationale": "The Solidity 0.8 semantics for shifts require a revert when the shift amount is >= the bit width of the operand. The EVM oracle reflects that panic, while solang silently returned 1, indicating missing runtime overflow checking for shift amounts on the Polkadot target. This is a semantic defect, not an environment, gas, packing, or projection artifact. No documented known-difference entry covers shift semantics, so it is not an intentional chain difference.",
+        "historical_match_url": "",
+        "cluster_hint": "solang missing shift-count overflow check: right shift by >= bit width should revert with Panic(0x11) but instead wraps the shift amount and returns a value"
+      },
+      {
+        "category": "bug_candidate",
+        "confidence": "medium",
+        "evidence": "shr256(1, 256): EVM side yields 0 (consistent with a solc 0.8 panic on shift-by->=bit-width being projected as no return value), while solang on Polkadot returns 1, i.e. 1 >> (256 mod 256) = 1 >> 0. Solidity >=0.8.0 semantics require a panic (0x11) when the shift amount is >= the type width; the raw EVM SHR opcode masks the count to 8 bits, which is exactly the value 1 solang returned.",
+        "rationale": "Solidity 0.8 defines shifting a uint256 by 256 or more as an overflow panic, and solc emits an explicit check; the Polkadot result of 1 indicates solang lowered the shift without the width guard, effectively performing a modulo-256 shift count. This is a genuine semantic deviation from documented Solidity behavior rather than a chain-environment or projection artifact. The EVM-side 0 is likely the oracle's encoding of the revert, so it is worth verifying the raw revert data, but the solang return of 1 is not defensible under Solidity semantics.",
+        "historical_match_url": "",
+        "cluster_hint": "solang missing shift-amount >= bit-width panic check on Polkadot target (shift count treated as modulo width instead of reverting)"
+      }
+    ],
+    "panel_bug_votes": 2,
+    "adversarial": {
+      "rebuttal_succeeds": false,
+      "category": "bug_candidate",
+      "evidence": "Step 3 calls shr256(1, 256). Under Solidity >=0.8.0 semantics, a uint256 right shift by an amount greater than or equal to 256 must trigger an arithmetic panic (Panic(0x11)), while the Polkadot result 1 is exactly the raw machine-style result 1 >> (256 mod 256) = 1 >> 0. The EVM-side dry-run value 0 is plausibly an oracle placeholder for a reverting call rather than a successful return, but that only affects classification of the EVM record; it does not make solang's successful return of 1 conform to Solidity semantics.",
+      "rationale": "The mismatch is not covered by the documented environment-value or gas-metering differences, and none of the supplied historical records describe shift-count semantics. A compiler accepting `pragma solidity >=0.8.0` must implement the shift-amount overflow check unless the operation is in an `unchecked` block, which this source is not. The strongest remaining objection is an oracle encoding artifact for the EVM revert, but the Polkadot side's non-reverting wrap-like behavior is independently evidence of a solang semantic defect.",
+      "historical_match_url": ""
+    },
+    "status": "survivor",
+    "survives": true,
+    "cluster_hint": "solang missing shift-count overflow check: right shift by >= bit width should revert with Panic(0x11) but instead wraps the shift amount and returns a value",
+    "historical_match_urls": [],
+    "prompt_version": 1,
+    "model": "kimi-for-coding",
+    "temperature": 1.0,
+    "replay": {
+      "verdict": "DIVERGENCE",
+      "earliest_signature": "RETURN_MISMATCH|3|shr256|int\u2260int",
+      "tool_versions": {
+        "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+        "solang": "solang version v0.3.5",
+        "anvil": "anvil Version: 1.7.1-dev",
+        "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+      },
+      "oracle_runs": 1,
+      "stable": true
+    },
+    "usage": {
+      "calls": 3,
+      "errors": 0,
+      "prompt_tokens": 12715,
+      "cached_prompt_tokens": 5101,
+      "completion_tokens": 3067,
+      "total_tokens": 15782,
+      "cost_usd": 0.19011630000000002,
+      "latency_ms": 55673.24446199996,
+      "avg_latency_ms": 18557.748153999986
+    }
+  },
+  "history": [
+    {
+      "title": "Thread 'main' panicked  error when compiling call with seeds",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1028",
+      "state": "CLOSED",
+      "text": "Hi, @seanyoung !\r\nTrying to solve problem, described above, found in docs [passing-seeds-with-external-calls-on-solana ](https://solang.readthedocs.io/en/latest/language/functions.html#passing-seeds-with-external-calls-on-solana )\r\nTrying to implement this in SPL token library:\r\n`function TransferWithSeed(\r\n            address programID,\r\n            address from, \r\n            address to, \r\n            address owner, \r\n            uint64 amount,\r\n            bytes[] _seeds\r\n            ) internal {\r\n\r\n\t\tbytes instr = new bytes(9);\r\n\t\tinstr[0] = uint8(TokenInstruction.Transfer);\r\n\t\tinstr.writeUint64LE(amount, 1);\r\n\r\n\t\tAccountMeta[3] metas = [\r\n\t\t\tAccountMeta({pubkey: from, is_writable: true, is_signer: false}),\r\n\t\t\tAccountMeta({pubkey: to, is_writable: true, is_signer: false}),\r\n\t\t\tAccountMeta({pubkey: owner, is_writable: true, is_signer: true})\r\n\t\t];\r\n\r\n\t\ttokenProgramId.call{accounts: metas, seeds: _seeds}(instr);\r\n\t}`\r\nBut got when compiling: \r\nthread 'main' panicked at 'called `Option::unwrap()` on a `None` value', src/emit/instructions.rs:804:53\r\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace...\r\n\r\nIf this string removed, compiling finishing ok:\r\n"
+    },
+    {
+      "title": "Solang should not ask functions that contain `address.call` to be declared as view",
+      "url": "https://github.com/hyperledger-solang/solang/issues/997",
+      "state": "CLOSED",
+      "text": "Functions that modify the state, like the SPL-token `mint_to`, are not `view` functions, but the compiler warns that they can be declared as view.\r\n\r\nExample: \r\n```solidity\r\n\tfunction mint_to(address mint, address account, address authority, uint64 amount) internal {\r\n\t\tbytes instr = new bytes(9);\r\n\r\n\t\tinstr[0] = uint8(TokenInstruction.MintTo);\r\n\t\tinstr.writeUint64LE(amount, 1);\r\n\r\n\t\tAccountMeta[3] metas = [\r\n\t\t\tAccountMeta({pubkey: mint, is_writable: true, is_signer: false}),\r\n\t\t\tAccountMeta({pubkey: account, is_writable: true, is_signer: false}),\r\n\t\t\tAccountMeta({pubkey: authority, is_writable: true, is_signer: true})\r\n\t\t];\r\n\r\n\t\ttokenProgramId.call{accounts: metas}(instr);\r\n\t}\r\n```\r\n\r\nWarning:\r\n```\r\nwarning: function can be declared 'view'\r\n   \u250c\u2500 /solang/solana-library/spl_token.sol:46:2\r\n   \u2502\r\n46 \u2502     function mint_to(address mint, address account, address authority, uint64 amount) internal {\r\n   \u2502\r\n```"
+    },
+    {
+      "title": "functions that use .call() should be not allowed in view functions",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1338",
+      "state": "2023-06-16T07:25:01Z",
+      "text": "Functions that modify the state, like the SPL-token `mint_to`, are not `view` functions, but the compiler warns that they can be declared as view.\r\n\r\nExample: \r\n```solidity\r\n\tfunction mint_to(address mint, address account, address authority, uint64 amount) internal {\r\n\t\tbytes instr = new bytes(9);\r\n\r\n\t\tinstr[0] = uint8(TokenInstruction.MintTo);\r\n\t\tinstr.writeUint64LE(amount, 1);\r\n\r\n\t\tAccountMeta[3] metas = [\r\n\t\t\tAccountMeta({pubkey: mint, is_writable: true, is_signer: false}),\r\n\t\t\tAccountMeta({pubkey: account, is_writable: true, is_signer: false}),\r\n\t\t\tAccountMeta({pubkey: authority, is_writable: true, is_signer: true})\r\n\t\t];\r\n\r\n\t\ttokenProgramId.call{accounts: metas}(instr);\r\n\t}\r\n```\r\n\r\nWarning:\r\n```\r\nwarning: function can be declared 'view'\r\n   \u250c\u2500 /solang/solana-library/spl_token.sol:46:2\r\n   \u2502\r\n46 \u2502     function mint_to(address mint, address account, address authority, uint64 amount) internal {\r\n   \u2502\r\n```\r\n\r\nFixes https://github.com/hyperledger/solang/issues/997\r\n\r\nAnother PR will implement staticcall for Solana, which is allowed in view functions."
+    },
+    {
+      "title": "Allow seeds to be passed into functions as string[] or string[][]",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1547",
+      "state": "2023-09-28T14:53:31Z",
+      "text": "This fixes this Solidity and similar constructs.\r\n\r\n```solidity\r\nimport \"solana-library/spl_token.sol\";\r\n\r\ncontract c {\r\n\r\n    // Invoke the token program to mint tokens to a token account, using a PDA as the mint authority\r\n    function mintTo(address mint, address account, address authority, uint64 amount, bytes[] seeds) internal {\r\n        // Prepare instruction data\r\n        bytes instructionData = new bytes(9);\r\n        instructionData[0] = uint8(7); // MintTo instruction index\r\n        instructionData.writeUint64LE(amount, 1); // Amount to mint\r\n\r\n        // Prepare accounts required by instruction\r\n        AccountMeta[3] metas = [\r\n            AccountMeta({pubkey: mint, is_writable: true, is_signer: false}),\r\n            AccountMeta({pubkey: account, is_writable: true, is_signer: false}),\r\n            AccountMeta({pubkey: authority, is_writable: true, is_signer: true})\r\n        ];\r\n\r\n        // Invoke the token program with prepared accounts and instruction data\r\n        SplToken.tokenProgramId.call{accounts: metas, seeds: seeds}(instructionData);\r\n    }\r\n}\r\n```\r\n\r\nFixes https://github.com/hyperledger/solang/issues/1433"
+    },
+    {
+      "title": "v0.3.2 Bras\u00edlia",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1496",
+      "state": "2023-08-24T09:44:40Z",
+      "text": "The language server is much improved, and many fixes all over.\r\n\r\n### Added\r\n- Go to definition is now implemented in the language server. [chioni16](https://github.com/chioni16)\r\n- The parser has been updated to be compatible with Ethereum Solidity v0.8.21. [seanyoung](https://github.com/seanyoung)\r\n\r\n### Fixed\r\n- **breaking** Resolving import paths now matches solc more closely, and only resolves relative paths when specified as `./foo` or `../foo`. [seanyoung](https://github.com/seanyoung)\r\n- **Solana** The `lamports` and `data` fields of `tx.accounts` can be modified again. [LucasSte](https://github.com/LucasSte)\r\n- It is not longer necessary to save a Solidity file, in order for the language server to pick up changes to the file. [chioni16](https://github.com/chioni16)\r\n- The negate operator `-` now checks for overflow at runtime, and other math overflow fixes. [seanyoung](https://github.com/seanyoung)\r\n\r\n### Changed\r\n- The Substrate target has been renamed to Polkadot. [xermicus](https://github.com/xermicus)\r\n- **Polkadot** `assert()` and `require()` is now implemented as a transction revert, rather than a trap. The error data is returned, and encoded the same as on Ethereum."
+    },
+    {
+      "title": "v0.3.3: Atlantis",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1573",
+      "state": "2023-10-24T10:05:49Z",
+      "text": "This release improves the Solana developer experience, since now required\r\naccounts can be specified using annotations. For Polkadot, compatibility with\r\nEthereum Solidity has been increased further, it is now possible to write\r\n[EIP-1967](https://eips.ethereum.org/EIPS/eip-1967) compatible proxy contracts.\r\nThere are many fixes all over the code base.\r\n\r\n### Added\r\n- **Solana** the required accounts for instructions can now be specified using function annotations. [LucasSte](https://github.com/LucasSte)\r\n  ```\r\n  contract Foo {\r\n      @account(oneAccount)\r\n      @signer(mySigner)\r\n      @mutableAccount(otherAccount)\r\n      @mutableSigner(otherSigner)\r\n      function bar() external returns (uint64) {}\r\n  }\r\n  ```\r\n- The language server can now format Solidity source code using the `forge-fmt` crate. [chioni16](https://github.com/chioni16)\r\n- The langauge server can now do go references, go to implementation, and go to type\r\n  definition. [chioni16](https://github.com/chioni16)\r\n- **Polkadot** `Panic` errors can now be caught in try-catch statements [xermicus](https://github.com/xermicus)\r\n- **Polkadot** custom errors are now supported [xermicus](https://github.com/xermicus)\r\n- **Po"
+    },
+    {
+      "title": "[Snyk] Upgrade @solana/spl-token from 0.3.8 to 0.3.9",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1607",
+      "state": "2023-12-07T08:43:05Z",
+      "text": "<p>This PR was automatically created by Snyk using the credentials of a real user.</p><br /><h3>Snyk has created this PR to upgrade @solana/spl-token from 0.3.8 to 0.3.9.</h3>\n\n:information_source: Keep your dependencies up-to-date. This makes it easier to fix existing vulnerabilities and to more quickly identify and fix newly disclosed vulnerabilities when they affect your project.\n<hr/>\n\n- The recommended version is **1 version** ahead of your current version.\n- The recommended version was released **21 days ago**, on 2023-11-14.\n\n\n<details>\n<summary><b>Release notes</b></summary>\n<br/>\n  <details>\n    <summary>Package name: <b>@solana/spl-token</b></summary>\n    <ul>\n      <li>\n        <b>0.3.9</b> - <a href=\"https://snyk.io/redirect/github/solana-labs/solana-program-library/releases/tag/token-js-v0.3.9\">2023-11-14</a></br><p>Introduces support for new Token2022 extension functionality:</p>\n<ul>\n<li><code>TransferHook</code> extension:\n<ul>\n<li>Account data seed configurations for account resolution (<a class=\"issue-link js-issue-link\" data-error-text=\"Failed to load title\" data-id=\"1990587155\" data-permission-text=\"Title is private\" data-url=\"https://github.com/solana-labs/sola"
+    },
+    {
+      "title": "CHANGELOG v0.3.2",
+      "url": "",
+      "state": "fixed",
+      "text": "**Solana** The `lamports` and `data` fields of `tx.accounts` can be modified again. [LucasSte](https://github.com/LucasSte)"
+    }
+  ]
+}

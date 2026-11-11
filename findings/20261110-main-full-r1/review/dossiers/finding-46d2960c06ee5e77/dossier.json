@@ -1,0 +1,205 @@
+{
+  "case": {
+    "case_id": "finding-46d2960c06ee5e77",
+    "origin": "finding",
+    "spec": {
+      "name": "crypto-packed-empty-string-framing",
+      "solidity": "pragma solidity >=0.8.0;\ncontract PackedEmptyStr {\n    event Packed(bytes data, bytes32 k, bytes32 s);\n    uint256 public lastLen;\n\n    function packEmpty() public returns (uint256) {\n        bytes memory p = abi.encodePacked(uint8(1), uint16(2), uint64(3), uint256(4), \"\");\n        lastLen = p.length;\n        emit Packed(p, keccak256(p), sha256(p));\n        return p.length;\n    }\n\n    \n\n    \n\n    \n}",
+      "contract": "PackedEmptyStr",
+      "constructor": {
+        "args": []
+      },
+      "solc": {
+        "optimizer": false
+      },
+      "solang": {
+        "opt_level": "default"
+      },
+      "oracle": {
+        "storage": "count",
+        "events": true,
+        "revert_reasons": true,
+        "gas": false
+      },
+      "steps": [
+        {
+          "action": "call",
+          "function": "packEmpty",
+          "args": [],
+          "sender": "alice",
+          "value": 0
+        }
+      ],
+      "meta": {
+        "parent_id": null,
+        "origin": "generated"
+      },
+      "execution": "on-chain"
+    },
+    "verdict": "DIVERGENCE",
+    "earliest_divergence": {
+      "point": 0,
+      "signature": "EVENT_MISMATCH|0|packEmpty|args"
+    },
+    "divergences": [
+      {
+        "kind": "EVENT_MISMATCH",
+        "step": 0,
+        "detail": "emitted events differ",
+        "evm": [
+          {
+            "name": "Packed",
+            "args": [
+              {
+                "name": "data",
+                "value": "0x01000200000000000000030000000000000000000000000000000000000000000000000000000000000004"
+              },
+              {
+                "name": "k",
+                "value": "0x6387eff50ddf83a4be665873469de8a984215ce3a7759e42f03ce878848dff8c"
+              },
+              {
+                "name": "s",
+                "value": "0x487f9503cbca582852d114fdcee6c6e8dc38c9b01dd21ab71a569280d99145ba"
+              }
+            ]
+          }
+        ],
+        "polkadot": [
+          {
+            "name": "Packed",
+            "args": [
+              {
+                "name": "data",
+                "value": "\u0001\u0002\u0000\u0003\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0004\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000"
+              },
+              {
+                "name": "k",
+                "value": "0x56669b11756c9969e56c5d9b8a51327924908026089daf21568748afd1e6a867"
+              },
+              {
+                "name": "s",
+                "value": "0xd2a7182de45b74696a5be6b5700de1014bf7a91839eafd5323c589c3e3d25fcd"
+              }
+            ]
+          }
+        ],
+        "point": 0,
+        "signature": "EVENT_MISMATCH|0|packEmpty|args"
+      }
+    ]
+  },
+  "screening": {
+    "case_id": "finding-46d2960c06ee5e77",
+    "probe_id": "25582ea9910742baa0f044cbd491ff2d",
+    "finding_id": "46d2960c06ee5e77",
+    "origin": "finding",
+    "ts": 1794377216.337221,
+    "panel": [
+      {
+        "category": "bug_candidate",
+        "confidence": "high",
+        "evidence": "EVM emits data 0x01000200000000000000030000000000000000000000000000000000000000000000000000000000000004, with uint16(2) and uint64(3) encoded big-endian as Solidity requires. Polkadot emits bytes beginning 01 02 00 03 followed by zeros, showing uint16(2) and uint64(3) encoded little-endian; empty \"\" should contribute zero additional bytes. Consequently keccak256 differs: 0x6387eff5...88dff8c on EVM versus 0x56669b11...1e6a867 on Polkadot, as does sha256.",
+        "rationale": "The divergence is not an event-formatting artifact because the raw packed bytes themselves differ, and the contract hashes those same bytes. Solidity's abi.encodePacked representation of integers is canonically big-endian, while the observed Polkadot result is little-endian. The payload lengths still indicate that the empty string is omitted, so the likely defect is specifically integer endianness during packed encoding.",
+        "historical_match_url": "",
+        "cluster_hint": "abi.encodePacked encodes integers little-endian instead of Solidity's big-endian byte order"
+      },
+      {
+        "category": "bug_candidate",
+        "confidence": "high",
+        "evidence": "EVM event data = 0x0100020000000000000003...0004 (43 bytes: uint8=01, uint16=0002, uint64=0000000000000003, uint256=...04, all big-endian per Solidity tight-packing). Polkadot event data = \\u0001 \\u0002\\u0000 \\u0003\\u0000... \\u0004\\u0000... (uint16=0200, uint64=0300000000000000, uint256=04 followed by 31 zero bytes \u2014 little-endian). Both are 43 bytes long, so p.length matches, but the byte order differs, producing different keccak256 (0x6387... vs 0x5666...) and sha256 (0x487f... vs 0xd2a7...) hashes over the packed buffer.",
+        "rationale": "Solidity's abi.encodePacked encodes integers big-endian, padded to their type size; solc's output confirms this. Solang emitted the narrow integers (uint16/uint64/uint256) little-endian, consistent with SCALE encoding leaking into the abi.encodePacked implementation. This is a real semantic defect, not an oracle artifact: the event decoding is unambiguous, both sides report the same length, and the divergence is fully explained by endianness of the packed bytes.",
+        "historical_match_url": "",
+        "cluster_hint": "abi.encodePacked encodes narrow integers little-endian (SCALE order) instead of Solidity big-endian tight packing"
+      }
+    ],
+    "panel_bug_votes": 2,
+    "adversarial": {
+      "rebuttal_succeeds": false,
+      "category": "bug_candidate",
+      "evidence": "The packed payload should be 43 bytes: 0x01, 0x0002, 0x0000000000000003, and uint256(4) in big-endian form, with the empty string contributing zero bytes. The EVM event and its keccak256/sha256 values match that representation. Polkadot instead shows the narrow integer bytes as little-endian, such as 0x0200 for uint16(2), and the independently emitted hashes differ accordingly.",
+      "rationale": "The likely oracle-formatting issue with the Polkadot bytes argument is insufficient to explain the divergence because the keccak256 and sha256 fields are ordinary 32-byte values computed on-chain from p, and they differ consistently with the altered byte order. The empty string is correctly omitted on both sides, isolating the defect to integer endianness rather than framing or dynamic-length handling. No supplied known platform difference or historical record accounts for abi.encodePacked using SCALE-style little-endian integers, so the evidence supports a genuine Solidity semantic defect.",
+      "historical_match_url": ""
+    },
+    "status": "survivor",
+    "survives": true,
+    "cluster_hint": "abi.encodePacked encodes integers little-endian instead of Solidity's big-endian byte order",
+    "historical_match_urls": [],
+    "prompt_version": 1,
+    "model": "kimi-for-coding",
+    "temperature": 1.0,
+    "replay": {
+      "verdict": "DIVERGENCE",
+      "earliest_signature": "EVENT_MISMATCH|0|packEmpty|args",
+      "tool_versions": {
+        "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+        "solang": "solang version v0.3.5",
+        "anvil": "anvil Version: 1.7.1-dev",
+        "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+      },
+      "oracle_runs": 1,
+      "stable": true
+    },
+    "usage": {
+      "calls": 3,
+      "errors": 0,
+      "prompt_tokens": 14847,
+      "cached_prompt_tokens": 5800,
+      "completion_tokens": 3546,
+      "total_tokens": 18393,
+      "cost_usd": 0.22212,
+      "latency_ms": 109011.1580429998,
+      "avg_latency_ms": 36337.052680999936
+    }
+  },
+  "history": [
+    {
+      "title": "Inkwell crashes when building for Solana and Substrate",
+      "url": "https://github.com/hyperledger-solang/solang/issues/813",
+      "state": "CLOSED",
+      "text": "The following contract crashes Solang when we target Solana or Substrate. It works however on solc and on Solang for ewasm.\r\n\r\n```solidity\r\ncontract DTron {\r\n\r\n    mapping(address => uint256) public depositedAmount;\r\n    event Received(address, uint);\r\n    event Withdrawn(address, uint);\r\n\r\n    function publicDeposit() public payable {\r\n        depositedAmount[msg.sender] = depositedAmount[msg.sender] + msg.value;\r\n        emit Received(msg.sender, msg.value);\r\n    }\r\n\t\r\n\r\n    function nm() external payable{\r\n        publicDeposit();\r\n    }\r\n    \r\n    function moneyDeposit(address[] memory thanksCash, uint256[] memory amount) public payable {\r\n        uint256 arrayLength = thanksCash.length;\r\n        for(uint256 i=0; i< arrayLength; i++){\r\n            address payable receiver = payable(address(uint160(thanksCash[i])));\r\n            receiver.transfer(amount[i]);\r\n        }\r\n    }\r\n}\r\n```\r\n\r\nThe error is the following:\r\n```\r\nthread 'main' panicked at 'Found ArrayType(ArrayType { array_type: Type { address: 0x55fc10bd7b10, llvm_type: \"[32 x i8]\" } }) but expected the IntType variant', /home/lucas/.cargo/registry/src/github.com-1ecc6299db9ec823/inkwell-0.1.0-beta.4/src/types/enums.rs:3"
+    },
+    {
+      "title": "Solang loads vectors from storage incorrectly",
+      "url": "https://github.com/hyperledger-solang/solang/issues/933",
+      "state": "OPEN",
+      "text": "```solidity\r\n      contract Testing {\r\n\r\n    struct PaddedStruct {\r\n        uint128 a;\r\n        uint8 b;\r\n        bytes32 c;\r\n    }\r\n\r\n    PaddedStruct[2][3][] stor_arr;\r\n\r\n    function addData() public {\r\n        PaddedStruct memory a = PaddedStruct(56, 1, \"oi\");\r\n        PaddedStruct memory b = PaddedStruct(78, 6, \"bc\");\r\n        PaddedStruct memory c = PaddedStruct(89, 4, \"sn\");\r\n        PaddedStruct memory d = PaddedStruct(42, 56, \"cn\");\r\n        PaddedStruct memory e = PaddedStruct(23, 78, \"fr\");\r\n        PaddedStruct memory f = PaddedStruct(445, 46, \"br\");\r\n\r\n        PaddedStruct[2][3] memory vec = [[a, b], [c, d], [e, f]];\r\n        stor_arr.push(vec);\r\n    }\r\n\r\n    function getThis() public view returns (uint32) {\r\n        PaddedStruct[2][3][] memory arr2 = stor_arr;\r\n\r\n        return arr2.length;\r\n    }\r\n}\r\n  \r\n```\r\nCalling `getThis` after `addData` returns 6, instead it should return 1. If we modify `stor_arr` to `PaddedStruct[2][2][] stor_arr` and do all the necessary changes, `addData` returns 4. I think we are incorrectly merging the first two dimensions into one.\r\n"
+    },
+    {
+      "title": "Thread 'main' panicked  error when compiling call with seeds",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1028",
+      "state": "CLOSED",
+      "text": "Hi, @seanyoung !\r\nTrying to solve problem, described above, found in docs [passing-seeds-with-external-calls-on-solana ](https://solang.readthedocs.io/en/latest/language/functions.html#passing-seeds-with-external-calls-on-solana )\r\nTrying to implement this in SPL token library:\r\n`function TransferWithSeed(\r\n            address programID,\r\n            address from, \r\n            address to, \r\n            address owner, \r\n            uint64 amount,\r\n            bytes[] _seeds\r\n            ) internal {\r\n\r\n\t\tbytes instr = new bytes(9);\r\n\t\tinstr[0] = uint8(TokenInstruction.Transfer);\r\n\t\tinstr.writeUint64LE(amount, 1);\r\n\r\n\t\tAccountMeta[3] metas = [\r\n\t\t\tAccountMeta({pubkey: from, is_writable: true, is_signer: false}),\r\n\t\t\tAccountMeta({pubkey: to, is_writable: true, is_signer: false}),\r\n\t\t\tAccountMeta({pubkey: owner, is_writable: true, is_signer: true})\r\n\t\t];\r\n\r\n\t\ttokenProgramId.call{accounts: metas, seeds: _seeds}(instr);\r\n\t}`\r\nBut got when compiling: \r\nthread 'main' panicked at 'called `Option::unwrap()` on a `None` value', src/emit/instructions.rs:804:53\r\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace...\r\n\r\nIf this string removed, compiling finishing ok:\r\n"
+    },
+    {
+      "title": "Scratch buffer data leakages ",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1399",
+      "state": "OPEN",
+      "text": "The scratch buffer is (re)used very often in emit (at least in the substrate target). This might lead to unwanted data leakage,  exposing access to bogus data in memory from Solidity. This code:\r\n\r\n```solidity\r\ncontract A {\r\n    function setVars(address _contract, uint256 _num) public payable returns(bytes ret) {\r\n        (bool ok, ret) =_contract.call(abi.encodeWithSignature(\"setVars(uint256)\", _num));\r\n        // Oh no, forgot to assert on ok \r\n    }\r\n}\r\n```\r\n\r\nResults in the following behaviour, if the input to the `setVars` function is invalid:\r\n\r\n![grafik](https://github.com/hyperledger/solang/assets/8707171/3336e81c-6084-4a90-98b5-4c953a822cb5)\r\n\r\n\r\nWhile sema does emit a warning about the unused variable. It can still be ignored, or it the check can be erroneous.   \r\n\r\nWe can do better here. We should identify all locations in emit with this issue (the problem _might_ be in other places too). Possible solutions inlcude\r\n* using `alloca` wherever the buffer size is small or known beforehand (performance overhead should be negligible)\r\n* `bzero8`ing out the buffer before using it (costly).\r\n* only clear it if the call failed. But: On 2 subsequent scratch buf usages, where both"
+    },
+    {
+      "title": "llvm-dis fails to disassemble bitcode file generated by Solang for a smart contract",
+      "url": "https://github.com/hyperledger-solang/solang/issues/641",
+      "state": "CLOSED",
+      "text": "Hi,\r\n\r\nWhen testing Solang with this smart contract `FibonacciBalance.sol`, I observed that the output bitcode file `FibonacciBalance_deploy.bc` cannot be disassembled by `llvm-dis`.\r\n\r\nHere is the smart contract:\r\n\r\n``` Solidity\r\n// FibonacciBalance.sol1\r\npragma solidity ^0.8.11;\r\n\r\ncontract FibonacciBalance {\r\n\r\n    address public fibonacciLibrary;\r\n    // the current fibonacci number to withdraw\r\n    uint public calculatedFibNumber;\r\n    // the starting fibonacci sequence number\r\n    uint public start = 3;\r\n    uint public withdrawalCounter;\r\n    // the fibonancci function selector\r\n    bytes4 constant fibSig = bytes4(keccak256(\"setFibonacci(uint256)\"));\r\n\r\n    // constructor - loads the contract with ether\r\n    constructor(address _fibonacciLibrary) payable {\r\n        fibonacciLibrary = _fibonacciLibrary;\r\n    }\r\n\r\n    // function withdraw() {\r\n    function withdraw() public {\r\n        withdrawalCounter += 1;\r\n        // calculate the fibonacci number for the current withdrawal user\r\n        // this sets calculatedFibNumber\r\n        (bool success, bytes memory returndata) = fibonacciLibrary.delegatecall(abi.encode(fibSig, withdrawalCounter));\r\n        if (success == false) {\r\n "
+    },
+    {
+      "title": "LLVM Crashes when building contract",
+      "url": "https://github.com/hyperledger-solang/solang/issues/807",
+      "state": "CLOSED",
+      "text": "The following contract crashes LLVM, when building for target ewasm.\r\n\r\n```solidity\r\n/**\r\n *Submitted for verification at Etherscan.io on 2022-03-14\r\n*/\r\n\r\n//SPDX-License-Identifier: Unlicensed\r\n\r\npragma  solidity  ^0.8.5;\r\nabstract  contract  Context  {\r\n        function  _msgSender()  internal  view  virtual  returns  (address  payable)  {\r\n                return  payable(msg.sender);\r\n        }\r\n        function  _msgData()  internal  view  virtual  returns  (bytes  memory)  {\r\n                this;\r\n                return  msg.data;\r\n        }\r\n}\r\n\r\ncontract  Ownable  is  Context  {\r\n        address  private  _owner;\r\n      \r\n        event  OwnershipTransferred(address  indexed  previousOwner,  address  indexed  newOwner);\r\n        constructor  ()  {\r\n                address  msgSender  =  _msgSender();\r\n                _owner  =  msgSender;\r\n                emit  OwnershipTransferred(address(0),  msgSender);\r\n        }\r\n        function  owner()  public  view  returns  (address)  {\r\n                return  _owner;\r\n        }\r\n\r\n        modifier  onlyOwner()  {\r\n                require(_owner  ==  _msgSender(),  \"Ownable:  caller  is  not  the  owner\");\r\n                _;\r\n   "
+    },
+    {
+      "title": "\"unrecognised token '.' when \"if (error.length > 0)\" ",
+      "url": "https://github.com/hyperledger-solang/solang/issues/938",
+      "state": "CLOSED",
+      "text": "I try to use solang-parser to parse some contract and found `\"unrecognised token '.'` error.\r\n\r\nThis sample contract code can trigger this issue: \r\n\r\n```solidity\r\npragma solidity 0.6.12;\r\n\r\ncontract A {\r\n    address init;\r\n\r\n    constructor(address init_addr) {\r\n        init = init_addr;\r\n    }\r\n\r\n    function f(bytes calldata _calldata) public {\r\n        (bool success, bytes memory error) = _init.delegatecall(_calldata);\r\n        if (!success) {\r\n            if (error.length > 0) {\r\n                revert(string(error));\r\n            } else {\r\n                revert(\"aa\");\r\n            }\r\n        }\r\n    }\r\n}\r\n```\r\n\r\n```\r\n\"unrecognised token '.', expected \\\"!=\\\", \\\"%\\\", \\\"%=\\\", \\\"&\\\", \\\"&&\\\", \\\"&=\\\", \\\")\\\", \\\"*\\\", \\\"**\\\", \\\"*=\\\", \\\"+\\\", \\\"+=\\\", \\\",\\\", \\\"-\\\", \\\"-=\\\", \\\"/\\\", \\\"/=\\\", \\\":\\\", \\\";\\\", \\\"<\\\", \\\"<<\\\", \\\"<<=\\\", \\\"<=\\\", \\\"=\\\", \\\"==\\\", \\\">\\\", \\\">=\\\", \\\">>\\\", \\\">>=\\\", \\\"?\\\", \\\"]\\\", \\\"^\\\", \\\"^=\\\", \\\"calldata\\\", \\\"case\\\", \\\"default\\\", \\\"error\\\", \\\"leave\\\", \\\"memory\\\", \\\"revert\\\", \\\"storage\\\", \\\"switch\\\", \\\"|\\\", \\\"|=\\\", \\\"||\\\", \\\"}\\\", identifier\"\r\n```\r\n\r\nand I found the error range is:\r\n```solidity\r\nif (error.length > 0) {\r\n```\r\n\r\nIt seems like solang-parser does not properly pars"
+    },
+    {
+      "title": "Allow seeds to be passed into functions as string[] or string[][]",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1547",
+      "state": "2023-09-28T14:53:31Z",
+      "text": "This fixes this Solidity and similar constructs.\r\n\r\n```solidity\r\nimport \"solana-library/spl_token.sol\";\r\n\r\ncontract c {\r\n\r\n    // Invoke the token program to mint tokens to a token account, using a PDA as the mint authority\r\n    function mintTo(address mint, address account, address authority, uint64 amount, bytes[] seeds) internal {\r\n        // Prepare instruction data\r\n        bytes instructionData = new bytes(9);\r\n        instructionData[0] = uint8(7); // MintTo instruction index\r\n        instructionData.writeUint64LE(amount, 1); // Amount to mint\r\n\r\n        // Prepare accounts required by instruction\r\n        AccountMeta[3] metas = [\r\n            AccountMeta({pubkey: mint, is_writable: true, is_signer: false}),\r\n            AccountMeta({pubkey: account, is_writable: true, is_signer: false}),\r\n            AccountMeta({pubkey: authority, is_writable: true, is_signer: true})\r\n        ];\r\n\r\n        // Invoke the token program with prepared accounts and instruction data\r\n        SplToken.tokenProgramId.call{accounts: metas, seeds: seeds}(instructionData);\r\n    }\r\n}\r\n```\r\n\r\nFixes https://github.com/hyperledger/solang/issues/1433"
+    }
+  ]
+}

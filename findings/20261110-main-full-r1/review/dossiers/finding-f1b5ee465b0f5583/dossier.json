@@ -1,0 +1,200 @@
+{
+  "case": {
+    "case_id": "finding-f1b5ee465b0f5583",
+    "origin": "finding",
+    "spec": {
+      "name": "overload-inherit-dispatch-flat-arity-selfcall",
+      "solidity": "pragma solidity >=0.8.0;contract Child{uint256 public hits;uint256 public lastResult;function f(uint256 x)public returns(uint256){hits=x+1;return 200+x;}function g(uint256 x)public returns(uint256){return lastResult=this.f(x);}}",
+      "contract": "Child",
+      "solc": {
+        "optimizer": false
+      },
+      "solang": {
+        "opt_level": "default"
+      },
+      "oracle": {
+        "storage": "count",
+        "events": true,
+        "revert_reasons": true,
+        "gas": false
+      },
+      "steps": [
+        {
+          "action": "call",
+          "function": "g",
+          "args": [
+            0
+          ],
+          "sender": "alice"
+        }
+      ],
+      "execution": "on-chain",
+      "meta": {
+        "parent_id": "317d3e15715b50c4",
+        "origin": "mutated_llm"
+      }
+    },
+    "verdict": "DIVERGENCE",
+    "earliest_divergence": {
+      "point": 0,
+      "signature": "STATUS_MISMATCH|0|g|success\u2260error"
+    },
+    "divergences": [
+      {
+        "kind": "STATUS_MISMATCH",
+        "step": 0,
+        "detail": "dry-run status differs",
+        "evm": {
+          "status": "success",
+          "error": null
+        },
+        "polkadot": {
+          "status": "error",
+          "error": "0x030816000000012c00000000000000c2945c3f551702000000010000000408d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d19734d5ad200000000000000000000000000010000000802e86c038c38d14bfa3c5bb42a0f4aa712bba307a8c989b0a3167c9c9b35fdf8bf405b8d8c5e0000000000000000000000d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d0000010000000003aaa2f271e3351791fefc3a34d11718cfc4e82dafd605c3e7614d80e6a61f2d750000010000000400aaa2f271e3351791fefc3a34d11718cfc4e82dafd605c3e7614d80e6a61f2d7500ca9a3b0000000000000000000000000000010000000402d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27daaa2f271e3351791fefc3a34d11718cfc4e82dafd605c3e7614d80e6a61f2d7500ca9a3b0000000000000000000000000000010000000800d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27daaa2f271e3351791fefc3a34d11718cfc4e82dafd605c3e7614d80e6a61f2d750000010000000808d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27daaa2f271e3351791fefc3a34d11718cfc4e82dafd605c3e7614d80e6a61f2d7580c4d26c1700000000000000000000000000010000000407d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27d4bd6a68bd100000000000000000000000000010000000600d43593c715fdd31c61141abd04a99fd6822c8558854ccde39a5684e7a56da27dce9ca6ce000000000000000000000000000000000000000000000000000000000000010000000000036afba5ced961000000"
+        },
+        "point": 0,
+        "signature": "STATUS_MISMATCH|0|g|success\u2260error"
+      },
+      {
+        "kind": "TX_STATUS_MISMATCH",
+        "step": 0,
+        "detail": "committed transaction status differs",
+        "evm": "success",
+        "polkadot": "revert",
+        "point": 0,
+        "signature": "TX_STATUS_MISMATCH|0|g|success\u2260revert"
+      },
+      {
+        "kind": "STORAGE_MISMATCH",
+        "step": 0,
+        "detail": "contract storage differs (mode=count)",
+        "evm": {
+          "nonzero_entries": 2,
+          "values": [
+            "1",
+            "200"
+          ]
+        },
+        "polkadot": {
+          "nonzero_entries": 0,
+          "values": []
+        },
+        "point": 0,
+        "signature": "STORAGE_MISMATCH|0|g|multiset(count)"
+      }
+    ]
+  },
+  "screening": {
+    "case_id": "finding-f1b5ee465b0f5583",
+    "probe_id": "d25d9b3ab71041d0a87bbb8784598c48",
+    "finding_id": "f1b5ee465b0f5583",
+    "origin": "finding",
+    "ts": 1794376615.7487078,
+    "panel": [
+      {
+        "category": "bug_candidate",
+        "confidence": "medium",
+        "evidence": "EVM: g(0) succeeds, storage = [1, 200] exactly matching semantics (hits = 0+1, lastResult = 200+0). Polkadot: top-level tx reverts with a nested pallet-contracts error blob (0x030816... containing nested call data with alice's address d43593c... and inner fields), and storage count = 0, i.e. nothing was committed. The only nontrivial operation is the external self-call `this.f(x)` inside g; the revert payload shape indicates the inner call failed on pallet-contracts while the identical code succeeds on anvil. The source contains none of the env-value markers (gasleft/block.*/tx.*), so known-difference env-values and gas-metering do not apply.",
+        "rationale": "This is plain, valid Solidity: an external self-call `this.f(x)` whose selector dispatch must succeed and mutate `hits`, then assign the return to `lastResult`. solc-on-EVM produces exactly the expected state, so the program and oracle projection are sound; solang-on-Polkadot reverts during the nested call. The hex error is consistent with a failed inner dispatch/call (selector or callee-address handling for `this`-calls) rather than an environment or metering artifact. pallet-contracts permits self-calls, so a revert here points at a solang codegen/dispatch defect. Confidence is medium rather than high because the opaque revert blob cannot be decoded to a precise reason from the evidence alone.",
+        "historical_match_url": "",
+        "cluster_hint": "solang mishandles external self-call dispatch (`this.f(x)`), causing the nested call to revert on pallet-contracts (selector or self-address resolution defect)"
+      },
+      {
+        "category": "bug_candidate",
+        "confidence": "medium",
+        "evidence": "g(0) succeeds on EVM: hits=1, lastResult=200 (2 nonzero storage entries). On Polkadot the transaction traps (pallet-contracts DispatchError module 08 error 0x16-style blob, not a Solidity revert reason) and rolls back to 0 nonzero storage entries. Source is a valid, minimal contract: g does `return lastResult=this.f(x)` and f does `hits=x+1; return 200+x;` \u2014 no environment reads, no gas dependency, no revert path in the program.",
+        "rationale": "The program has no revert condition, so the Polkadot trap is not explained by documented chain-environment differences. The large structured error blob is characteristic of a pallet-contracts ContractTrapped rather than a Solidity revert, pointing to a runtime dispatch/call defect for the external self-call `this.f(x)` in solang's substrate codegen. The storage mismatch is a downstream consequence of the rollback, not an independent issue. Confidence is medium because pallet-contracts self-calls do add a call frame and a chain-level call failure cannot be fully excluded without the decoded error.",
+        "historical_match_url": "",
+        "cluster_hint": "runtime trap on external self-call via `this` (selector dispatch / internal call trampoline), rollback wipes all state"
+      }
+    ],
+    "panel_bug_votes": 2,
+    "adversarial": {
+      "rebuttal_succeeds": false,
+      "category": "bug_candidate",
+      "evidence": "The source is a valid, minimal contract with no revert path: f sets hits=x+1 and returns 200+x; g assigns lastResult=this.f(x). On anvil, g(0) succeeds and storage exactly matches the semantics ([1, 200]), so the probe and the solc oracle projection are sound. On pallet-contracts both the dry-run and the committed transaction fail with a structured pallet error blob and storage rolls back to zero entries. The source contains none of the env-values markers (no gasleft/block.*/tx.*), so the documented env-values difference cannot apply. The gas-metering known difference covers GAS_MISMATCH observations; here gas is explicitly disabled in the oracle (\"gas\": false) and the failure is a trap/revert with full rollback, not a gas-quantity disagreement, so that rationale does not cover this divergence either.",
+      "rationale": "The strongest rebuttal \u2014 that the inner-call trap reflects an incomparable gas model or a by-design chain environment difference \u2014 fails because the observation is a hard status/trap mismatch with zero committed storage, not a gas or environment-value delta, and the program has no revert branch for a legitimate semantic difference to trigger. The nested blob shows the outer frame constructed and dispatched an inner self-call which then failed on pallet-contracts while identical code succeeds on EVM, which is consistent with a solang substrate-codegen defect in external self-call dispatch (selector or self-address resolution, or gas/flags forwarding for the nested call) rather than an oracle artifact \u2014 the storage mismatch is clearly downstream of the rollback. The closest historical record (#1007) concerns static calls via contract type names and a compile-time panic, which is a different construct and a different failure phase, so it is not a rediscovery.",
+      "historical_match_url": ""
+    },
+    "status": "survivor",
+    "survives": true,
+    "cluster_hint": "solang mishandles external self-call dispatch (`this.f(x)`), causing the nested call to revert on pallet-contracts (selector or self-address resolution defect)",
+    "historical_match_urls": [],
+    "prompt_version": 1,
+    "model": "kimi-for-coding",
+    "temperature": 1.0,
+    "replay": {
+      "verdict": "DIVERGENCE",
+      "earliest_signature": "STATUS_MISMATCH|0|g|success\u2260error",
+      "tool_versions": {
+        "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+        "solang": "solang version v0.3.5",
+        "anvil": "anvil Version: 1.7.1-dev",
+        "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+      },
+      "oracle_runs": 1,
+      "stable": true
+    },
+    "usage": {
+      "calls": 3,
+      "errors": 0,
+      "prompt_tokens": 14539,
+      "cached_prompt_tokens": 6703,
+      "completion_tokens": 3993,
+      "total_tokens": 18532,
+      "cost_usd": 0.2268289,
+      "latency_ms": 117682.88412499988,
+      "avg_latency_ms": 39227.62804166663
+    }
+  },
+  "history": [
+    {
+      "title": "Add Rename functionality",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1514",
+      "state": "2023-09-21T21:07:26Z",
+      "text": "This feature depends on having the right span information for identifiers in the parse tree. Currently, some changes are needed to either add the missing span information in some cases, or improve the already present spans (look for one-off errors). \r\n\r\nThe rest of the \"goto-*\" functions also depend on the availability of proper spans. But in their case, as no modification is made to the source code, lack of accurate spans is less of an issue. But `rename` does modify the source code and hence having incorrect spans can result in unintentionally overwriting pieces of source code, which is highly undesirable. \r\n\r\nThe changes made as part of this PR provide the necessary code for `rename` to work. Correcting the parse tree is expected to be done as part of future PRs\r\n\r\nA non-exhaustive list of changes to be made to parse tree:  (https://github.com/hyperledger/solang/pull/1411#issuecomment-1648031602)\r\n\r\n1. No loc for contract variables type - array_type_dynamic_push.sol L6\r\n2. No loc for constructor base call - abstract_contract_inheritance.sol L14\r\n3. No loc for function modifier arguments - function_modifier_arguments.sol L8\r\n4. No loc for function override base contracts - virtua"
+    },
+    {
+      "title": "Inconsistent behaviour when calling function via contract type name",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1007",
+      "state": "CLOSED",
+      "text": "Given the following base contract:\r\n\r\n```solidity\r\ncontract Base {\r\n    uint256 public something = 0;\r\n\r\n    function nop() public pure {}\r\n\r\n    function set(uint256 val) public {\r\n        something = val;\r\n    }\r\n}\r\n```\r\nAnd the following case `A`:\r\n```solidity\r\ncontract A {\r\n    function a() public pure {\r\n        Base.nop();\r\n    }\r\n}\r\n```\r\nSolang compiles this just fine. Furthermore, consider the following case `B`:\r\n```solidity\r\ncontract B {\r\n    function b() public {\r\n        Base.set(1);\r\n    }\r\n}\r\n```\r\nSolang crashes during compilation (target either `substrate` or `solana`):\r\n```\r\nthread 'main' panicked at 'get_storage_slot called on non-storage variable', src/codegen/cfg.rs:1879:13\r\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\r\n```\r\nWhere as `solc` behaves more in a way I'd expect. For both cases it gets the same error:\r\n```\r\n\u276f solc --bin foo.sol\r\nError: Cannot call function via contract type name.\r\n  --> foo.sol:27:9:\r\n   |\r\n17 |         Base.nop();\r\n   |         ^^^^^^^^^^\r\n\r\nError: Cannot call function via contract type name.\r\n  --> foo.sol:33:9:\r\n   |\r\n23 |         Base.set(1);\r\n   |         ^^^^^^^^^^^\r\n```\r\nIs there a reason we allo"
+    },
+    {
+      "title": "Support user defined operators (solc v0.8.19 feature)",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1203",
+      "state": "2023-03-02T23:21:39Z",
+      "text": "This is new syntax introduced in solc v0.8.19 for overloading operators in a limited context (user types).\r\n\r\nSee docs changes for explanation of the feature.\r\n\r\nI think the name \"user defined operators\" is not great, but a) I can't think of a better one - operator overloading maybe? b) this is what solc calls it."
+    },
+    {
+      "title": "[Snyk] Upgrade @coral-xyz/anchor from 0.28.0 to 0.29.0",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1589",
+      "state": "2023-11-08T15:18:01Z",
+      "text": "<p>This PR was automatically created by Snyk using the credentials of a real user.</p><br /><h3>Snyk has created this PR to upgrade @coral-xyz/anchor from 0.28.0 to 0.29.0.</h3>\n\n:information_source: Keep your dependencies up-to-date. This makes it easier to fix existing vulnerabilities and to more quickly identify and fix newly disclosed vulnerabilities when they affect your project.\n<hr/>\n\n- The recommended version is **3 versions** ahead of your current version.\n- The recommended version was released **21 days ago**, on 2023-10-16.\n\n\n<details>\n<summary><b>Release notes</b></summary>\n<br/>\n  <details>\n    <summary>Package name: <b>@coral-xyz/anchor</b></summary>\n    <ul>\n      <li>\n        <b>0.29.0</b> - <a href=\"https://snyk.io/redirect/github/coral-xyz/anchor/releases/tag/v0.29.0\">2023-10-16</a></br><p>Notable changes are listed in the <a href=\"https://snyk.io/redirect/github/coral-xyz/anchor/blob/v0.29.0/CHANGELOG.md#0290---2023-10-16\">CHANGELOG</a>.</p>\n<p>For this release, there is also <a href=\"https://snyk.io/redirect/github/coral-xyz/anchor/blob/v0.29.0/docs/src/pages/docs/release-notes.md\">release notes</a> to get a better view on the changes.</p>\n<p><a href=\"https://an"
+    },
+    {
+      "title": "[Snyk] Upgrade @coral-xyz/anchor from 0.28.0 to 0.29.0",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1591",
+      "state": "2023-11-09T21:50:00Z",
+      "text": "<p>This PR was automatically created by Snyk using the credentials of a real user.</p><br /><h3>Snyk has created this PR to upgrade @coral-xyz/anchor from 0.28.0 to 0.29.0.</h3>\n\n:information_source: Keep your dependencies up-to-date. This makes it easier to fix existing vulnerabilities and to more quickly identify and fix newly disclosed vulnerabilities when they affect your project.\n<hr/>\n\n- The recommended version is **3 versions** ahead of your current version.\n- The recommended version was released **24 days ago**, on 2023-10-16.\n\n\n<details>\n<summary><b>Release notes</b></summary>\n<br/>\n  <details>\n    <summary>Package name: <b>@coral-xyz/anchor</b></summary>\n    <ul>\n      <li>\n        <b>0.29.0</b> - <a href=\"https://snyk.io/redirect/github/coral-xyz/anchor/releases/tag/v0.29.0\">2023-10-16</a></br><p>Notable changes are listed in the <a href=\"https://snyk.io/redirect/github/coral-xyz/anchor/blob/v0.29.0/CHANGELOG.md#0290---2023-10-16\">CHANGELOG</a>.</p>\n<p>For this release, there is also <a href=\"https://snyk.io/redirect/github/coral-xyz/anchor/blob/v0.29.0/docs/src/pages/docs/release-notes.md\">release notes</a> to get a better view on the changes.</p>\n<p><a href=\"https://an"
+    },
+    {
+      "title": "[Snyk] Upgrade @solana/spl-token from 0.3.8 to 0.3.9",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1607",
+      "state": "2023-12-07T08:43:05Z",
+      "text": "<p>This PR was automatically created by Snyk using the credentials of a real user.</p><br /><h3>Snyk has created this PR to upgrade @solana/spl-token from 0.3.8 to 0.3.9.</h3>\n\n:information_source: Keep your dependencies up-to-date. This makes it easier to fix existing vulnerabilities and to more quickly identify and fix newly disclosed vulnerabilities when they affect your project.\n<hr/>\n\n- The recommended version is **1 version** ahead of your current version.\n- The recommended version was released **21 days ago**, on 2023-11-14.\n\n\n<details>\n<summary><b>Release notes</b></summary>\n<br/>\n  <details>\n    <summary>Package name: <b>@solana/spl-token</b></summary>\n    <ul>\n      <li>\n        <b>0.3.9</b> - <a href=\"https://snyk.io/redirect/github/solana-labs/solana-program-library/releases/tag/token-js-v0.3.9\">2023-11-14</a></br><p>Introduces support for new Token2022 extension functionality:</p>\n<ul>\n<li><code>TransferHook</code> extension:\n<ul>\n<li>Account data seed configurations for account resolution (<a class=\"issue-link js-issue-link\" data-error-text=\"Failed to load title\" data-id=\"1990587155\" data-permission-text=\"Title is private\" data-url=\"https://github.com/solana-labs/sola"
+    },
+    {
+      "title": "Substrate: Event decoding does not match `ink!`",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1373",
+      "state": "OPEN",
+      "text": "              Found it.\r\n              https://github.com/paritytech/cargo-contract/blob/ce9afac78eb76aa1c78998e08861764619f5e8ff/crates/transcode/src/lib.rs#LL293C9-L293C50\r\n             \r\n              This file strips one `Compact<u32>` where solang generated event doesn't have. If we manually prepend one into the Event.data field, the decoding will success.\r\n\r\n_Originally posted by @extraymond in https://github.com/hyperledger/solang/pull/990#discussion_r1233860135_\r\n            "
+    },
+    {
+      "title": "Scratch buffer data leakages ",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1399",
+      "state": "OPEN",
+      "text": "The scratch buffer is (re)used very often in emit (at least in the substrate target). This might lead to unwanted data leakage,  exposing access to bogus data in memory from Solidity. This code:\r\n\r\n```solidity\r\ncontract A {\r\n    function setVars(address _contract, uint256 _num) public payable returns(bytes ret) {\r\n        (bool ok, ret) =_contract.call(abi.encodeWithSignature(\"setVars(uint256)\", _num));\r\n        // Oh no, forgot to assert on ok \r\n    }\r\n}\r\n```\r\n\r\nResults in the following behaviour, if the input to the `setVars` function is invalid:\r\n\r\n![grafik](https://github.com/hyperledger/solang/assets/8707171/3336e81c-6084-4a90-98b5-4c953a822cb5)\r\n\r\n\r\nWhile sema does emit a warning about the unused variable. It can still be ignored, or it the check can be erroneous.   \r\n\r\nWe can do better here. We should identify all locations in emit with this issue (the problem _might_ be in other places too). Possible solutions inlcude\r\n* using `alloca` wherever the buffer size is small or known beforehand (performance overhead should be negligible)\r\n* `bzero8`ing out the buffer before using it (costly).\r\n* only clear it if the call failed. But: On 2 subsequent scratch buf usages, where both"
+    }
+  ]
+}

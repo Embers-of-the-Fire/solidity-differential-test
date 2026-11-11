@@ -1,0 +1,396 @@
+{
+  "case": {
+    "case_id": "probe-2c1aa1c41d764ef6b7a19fec3fec9981",
+    "origin": "rejected_probe",
+    "spec": {
+      "name": "crypto-hash-packed-vs-encode-static-noninteger",
+      "solidity": "pragma solidity >=0.8.0;\n\ncontract CryptoHashStaticNonInt {\n    bytes32 public packedKeccak;\n    bytes32 public encodedKeccak;\n    bytes32 public packedSha;\n    bytes32 public encodedSha;\n\n    event Hash(bytes32 packedKeccak, bytes32 encodedKeccak, bytes32 packedSha, bytes32 encodedSha);\n\n    function set(address a, bool b, bytes4 c) public {\n        packedKeccak = keccak256(abi.encodePacked(a, b, c));\n        encodedKeccak = keccak256(abi.encode(a, b, c));\n        packedSha = sha256(abi.encodePacked(a, b, c));\n        encodedSha = sha256(abi.encode(a, b, c));\n        emit Hash(packedKeccak, encodedKeccak, packedSha, encodedSha);\n    }\n\n    function getPackedKeccak() public view returns (bytes32) { return packedKeccak; }\n    function getEncodedKeccak() public view returns (bytes32) { return encodedKeccak; }\n    function getPackedSha() public view returns (bytes32) { return packedSha; }\n    function getEncodedSha() public view returns (bytes32) { return encodedSha; }\n}",
+      "contract": "CryptoHashStaticNonInt",
+      "solc": {
+        "optimizer": false
+      },
+      "solang": {
+        "opt_level": "default"
+      },
+      "oracle": {
+        "storage": "count",
+        "events": true,
+        "revert_reasons": true,
+        "gas": false
+      },
+      "steps": [
+        {
+          "action": "call",
+          "function": "set",
+          "args": [
+            "$alice",
+            true,
+            "0xdeadbeef"
+          ],
+          "sender": "alice",
+          "value": 0
+        },
+        {
+          "action": "call",
+          "function": "set",
+          "args": [
+            "$bob",
+            false,
+            "0x00000000"
+          ],
+          "sender": "bob",
+          "value": 0
+        },
+        {
+          "action": "query",
+          "function": "getPackedKeccak"
+        },
+        {
+          "action": "query",
+          "function": "getEncodedKeccak"
+        },
+        {
+          "action": "query",
+          "function": "getPackedSha"
+        },
+        {
+          "action": "query",
+          "function": "getEncodedSha",
+          "sender": "charlie"
+        }
+      ],
+      "execution": "on-chain",
+      "meta": {
+        "parent_id": "8f4c6600ec0296de",
+        "origin": "mutated_llm"
+      }
+    },
+    "verdict": "DIVERGENCE",
+    "earliest_divergence": {
+      "point": 0,
+      "signature": "EVENT_MISMATCH|0|set|args"
+    },
+    "divergences": [
+      {
+        "kind": "EVENT_MISMATCH",
+        "step": 0,
+        "detail": "emitted events differ",
+        "evm": [
+          {
+            "name": "Hash",
+            "args": [
+              {
+                "name": "packedKeccak",
+                "value": "0x3e9fd8edd690a48e53ba45e6629e62596bc7745c15a4c87d02b4cd26ae7374be"
+              },
+              {
+                "name": "encodedKeccak",
+                "value": "0x4ff19c635b0f11b7655c1d356a94de67f3a536be04ad5c00aa8d6ddd8ddea071"
+              },
+              {
+                "name": "packedSha",
+                "value": "0x5a4f8a2935b6f7fb02c92efbddda5054fa6ba76b4d2584480146f9137a4649ba"
+              },
+              {
+                "name": "encodedSha",
+                "value": "0x1c5d14dd414e7d9647aad428e396ae449b9377bee68ff3f55a6acbb91763e51f"
+              }
+            ]
+          }
+        ],
+        "polkadot": [
+          {
+            "name": "Hash",
+            "args": [
+              {
+                "name": "packedKeccak",
+                "value": "0x6a70c173b21215cc5e7f99202743c7ab85bbe0f04816e3b028ca3c9d3800d6f4"
+              },
+              {
+                "name": "encodedKeccak",
+                "value": "0x6a70c173b21215cc5e7f99202743c7ab85bbe0f04816e3b028ca3c9d3800d6f4"
+              },
+              {
+                "name": "packedSha",
+                "value": "0xadd6bce1c28362bd02abdde9ef1994fc187fd11c443113fc7b2ec67b4d32fae2"
+              },
+              {
+                "name": "encodedSha",
+                "value": "0xadd6bce1c28362bd02abdde9ef1994fc187fd11c443113fc7b2ec67b4d32fae2"
+              }
+            ]
+          }
+        ],
+        "point": 0,
+        "signature": "EVENT_MISMATCH|0|set|args"
+      },
+      {
+        "kind": "STORAGE_MISMATCH",
+        "step": 0,
+        "detail": "contract storage differs (mode=count)",
+        "evm": {
+          "nonzero_entries": 4,
+          "values": [
+            "12829220537308585976573516882316739860254164449884911958693542449398260426015",
+            "28325822484776879076405061239550226291493010698893210823957086074878536414398",
+            "36159604531744072333856726909074192391778009772736730114922872165730680217713",
+            "40848690842621958171724575231181366988918540555561359564740367454377427225018"
+          ]
+        },
+        "polkadot": {
+          "nonzero_entries": 4,
+          "values": [
+            "-37162557545762705729250657578827458259939313807770304328755773113827345630494",
+            "-37162557545762705729250657578827458259939313807770304328755773113827345630494",
+            "48144383977273241229676144479835232076036904478205863133420639631298390972148",
+            "48144383977273241229676144479835232076036904478205863133420639631298390972148"
+          ]
+        },
+        "point": 0,
+        "signature": "STORAGE_MISMATCH|0|set|multiset(count)"
+      },
+      {
+        "kind": "EVENT_MISMATCH",
+        "step": 1,
+        "detail": "emitted events differ",
+        "evm": [
+          {
+            "name": "Hash",
+            "args": [
+              {
+                "name": "packedKeccak",
+                "value": "0x383ec8f33bf79bdcd78a44aa0a75cf7e7cb1acccd6b6f6842016c7bcc7de2f9e"
+              },
+              {
+                "name": "encodedKeccak",
+                "value": "0x5492cbaff8791db03d5ad81c76ff54e38c20485579d006b31018cd9e550924df"
+              },
+              {
+                "name": "packedSha",
+                "value": "0x627a0fca0e8753a59e2677ba5d664a38ed139d1978ffa043a4622d99823eeded"
+              },
+              {
+                "name": "encodedSha",
+                "value": "0x1484669f909c2a99210a02f89284f69a50fdc596d08f6b7b90a0436b396a28ff"
+              }
+            ]
+          }
+        ],
+        "polkadot": [
+          {
+            "name": "Hash",
+            "args": [
+              {
+                "name": "packedKeccak",
+                "value": "0xe0dc776ec40494b91bedef52b8404f2439d9e7e6d634c42aab78da93d83ade68"
+              },
+              {
+                "name": "encodedKeccak",
+                "value": "0xe0dc776ec40494b91bedef52b8404f2439d9e7e6d634c42aab78da93d83ade68"
+              },
+              {
+                "name": "packedSha",
+                "value": "0x1f72da2d4f3c177b40a1d8cce151a9d99607156088e9dfb0893da32d03b07189"
+              },
+              {
+                "name": "encodedSha",
+                "value": "0x1f72da2d4f3c177b40a1d8cce151a9d99607156088e9dfb0893da32d03b07189"
+              }
+            ]
+          }
+        ],
+        "point": 1,
+        "signature": "EVENT_MISMATCH|1|set|args"
+      },
+      {
+        "kind": "STORAGE_MISMATCH",
+        "step": 1,
+        "detail": "contract storage differs (mode=count)",
+        "evm": {
+          "nonzero_entries": 4,
+          "values": [
+            "25440450945530861384207003012750496507050845047485343621018842403701237100446",
+            "38253644751118358525427958727982949008893757847980654117641008893624322696415",
+            "44542323476697539849307664390269661126119580533249083990500983812680071441901",
+            "9280189064204180344041827049821081253971176813046553728182919370672383338751"
+          ]
+        },
+        "polkadot": {
+          "nonzero_entries": 4,
+          "values": [
+            "-14084480506360784751403236645408124830450444697066760967192445049152567845272",
+            "-14084480506360784751403236645408124830450444697066760967192445049152567845272",
+            "14224624673711585561249140951733918644043407806374154598108797468237666218377",
+            "14224624673711585561249140951733918644043407806374154598108797468237666218377"
+          ]
+        },
+        "point": 1,
+        "signature": "STORAGE_MISMATCH|1|set|multiset(count)"
+      },
+      {
+        "kind": "RETURN_MISMATCH",
+        "step": 2,
+        "detail": "dry-run return values differ",
+        "evm": "0x383ec8f33bf79bdcd78a44aa0a75cf7e7cb1acccd6b6f6842016c7bcc7de2f9e",
+        "polkadot": "0xe0dc776ec40494b91bedef52b8404f2439d9e7e6d634c42aab78da93d83ade68",
+        "point": 2,
+        "signature": "RETURN_MISMATCH|2|getPackedKeccak|bytes\u2260bytes"
+      },
+      {
+        "kind": "RETURN_MISMATCH",
+        "step": 3,
+        "detail": "dry-run return values differ",
+        "evm": "0x5492cbaff8791db03d5ad81c76ff54e38c20485579d006b31018cd9e550924df",
+        "polkadot": "0xe0dc776ec40494b91bedef52b8404f2439d9e7e6d634c42aab78da93d83ade68",
+        "point": 3,
+        "signature": "RETURN_MISMATCH|3|getEncodedKeccak|bytes\u2260bytes"
+      },
+      {
+        "kind": "RETURN_MISMATCH",
+        "step": 4,
+        "detail": "dry-run return values differ",
+        "evm": "0x627a0fca0e8753a59e2677ba5d664a38ed139d1978ffa043a4622d99823eeded",
+        "polkadot": "0x1f72da2d4f3c177b40a1d8cce151a9d99607156088e9dfb0893da32d03b07189",
+        "point": 4,
+        "signature": "RETURN_MISMATCH|4|getPackedSha|bytes\u2260bytes"
+      },
+      {
+        "kind": "RETURN_MISMATCH",
+        "step": 5,
+        "detail": "dry-run return values differ",
+        "evm": "0x1484669f909c2a99210a02f89284f69a50fdc596d08f6b7b90a0436b396a28ff",
+        "polkadot": "0x1f72da2d4f3c177b40a1d8cce151a9d99607156088e9dfb0893da32d03b07189",
+        "point": 5,
+        "signature": "RETURN_MISMATCH|5|getEncodedSha|bytes\u2260bytes"
+      }
+    ]
+  },
+  "screening": {
+    "case_id": "probe-2c1aa1c41d764ef6b7a19fec3fec9981",
+    "probe_id": "2c1aa1c41d764ef6b7a19fec3fec9981",
+    "finding_id": null,
+    "origin": "rejected_probe",
+    "ts": 1794382795.8682718,
+    "panel": [
+      {
+        "category": "bug_candidate",
+        "confidence": "high",
+        "evidence": "On both set() calls (steps 0 and 1), solang/Polkadot emits packedKeccak == encodedKeccak (0x6a70c1.../0x6a70c1... and 0xe0dc77.../0xe0dc77...) and packedSha == encodedSha (0xadd6bc.../0xadd6bc... and 0x1f72da.../0x1f72da...), whereas EVM/solc produces four distinct hashes (e.g. step 1: packedKeccak=0x383ec8..., encodedKeccak=0x5492cb..., packedSha=0x627a0f..., encodedSha=0x148466...). The pattern is systematic across two different argument sets, ruling out hash collision. Return queries (steps 2-5) confirm solang's stored values pair-wise equal while solc's differ.",
+        "rationale": "abi.encodePacked(address,bool,bytes4) should yield 37 unpadded bytes while abi.encode yields 96 padded bytes, so the four hashes must differ on both chains. Solang producing identical hashes for the packed and encoded variants at both steps indicates it is not applying the pack-vs-pad distinction (e.g., encodePacked padding like encode, or encode not padding), a real semantic defect rather than an environment or oracle artifact. The negative storage values in count mode are a signed-cell projection artifact, but the event args and query return values are exact bytes32 comparisons and are unambiguous.",
+        "historical_match_url": "",
+        "cluster_hint": "solang computes abi.encodePacked identical to abi.encode for static non-integer types (address/bool/bytes4), i.e., packing vs padding distinction lost"
+      },
+      {
+        "category": "bug_candidate",
+        "confidence": "high",
+        "evidence": "At step 0, EVM emits distinct packedKeccak=0x3e9fd8ed... and encodedKeccak=0x4ff19c63... (and distinct sha256 pair), while solang emits packedKeccak==encodedKeccak=0x6a70c173... and packedSha==encodedSha=0xadd6bce1.... The same collision repeats at step 1 with different args ($bob,false,0x00000000), and the subsequent query returns confirm solang's stored state: getPackedKeccak and getEncodedKeccak both return 0xe0dc776e..., getPackedSha and getEncodedSha both return 0x1f72da2d.... abi.encodePacked(address,bool,bytes4) is a 25-byte concatenation while abi.encode pads each argument to 32 bytes (96 bytes), so the two hashes cannot legitimately be equal for any conforming implementation; solc's four distinct values are the reference behavior.",
+        "rationale": "The divergence is internally consistent across events, storage, and return-value projections, so it is not an oracle artifact of storage-count mode or event decoding. The inputs (address, bool, bytes4) are static non-integer types whose packed (1-byte bool, unpadded address/bytes4) and encoded (32-byte padded) forms differ, yet solang produces identical digests for both operations in two independent calls. This indicates solang is collapsing abi.encodePacked and abi.encode for these argument types (not applying tight packing, or padding both), a real semantic defect rather than an intentional chain difference. No documented known-difference category covers hashing/ABI encoding, and no supplied historical record matches this root cause.",
+        "historical_match_url": "",
+        "cluster_hint": "solang abi.encodePacked equals abi.encode for mixed static non-integer args (address, bool, bytes4): tight packing not applied, so both hashes collide"
+      }
+    ],
+    "panel_bug_votes": 2,
+    "adversarial": {
+      "rebuttal_succeeds": false,
+      "category": "bug_candidate",
+      "evidence": "At both set() calls solang returns identical digests for abi.encodePacked(a,b,c) and abi.encode(a,b,c): step 0 packedKeccak==encodedKeccak==0x6a70c173... and packedSha==encodedSha==0xadd6bce1...; step 1 packedKeccak==encodedKeccak==0xe0dc776e... and packedSha==encodedSha==0x1f72da2d.... The independent query steps 2-5 read the contract state back and reproduce exactly these pair-wise equal values, so the equality is in solang's computed storage, not in event decoding. abi.encodePacked(address,bool,bytes4) is a 25-byte tight concatenation while abi.encode pads each argument to 32 bytes (96 bytes total); for a conforming implementation the four digests cannot collapse into two, and observing the collapse simultaneously in both keccak256 and sha256 across two distinct argument sets rules out collision probability. Negative storage-count entries are a signed-projection artifact, but the bytes32 event args and dry-run return values are exact hex comparisons.",
+      "rationale": "The only plausible explanations are (a) solang emits identical bytes for encodePacked and encode for these static non-integer types, or (b) the oracle mislabeled which value went where \u2014 but (b) is excluded because the storage-write events and the independent view-function queries independently confirm the pair-wise equality in solang state. This is core ABI-encoding semantics that Solang must match for EVM compatibility, not an environment value (no gasleft/block/tx markers), not gas metering, and not covered by any documented known difference. The solc side produces four distinct, spec-conformant digests, so this is not a solc defect either. None of the supplied historical records concern abi.encodePacked packing semantics, so it is not a demonstrated rediscovery. The evidence survives scrutiny.",
+      "historical_match_url": ""
+    },
+    "status": "survivor",
+    "survives": true,
+    "cluster_hint": "solang computes abi.encodePacked identical to abi.encode for static non-integer types (address/bool/bytes4), i.e., packing vs padding distinction lost",
+    "historical_match_urls": [],
+    "prompt_version": 1,
+    "model": "kimi-for-coding",
+    "temperature": 1.0,
+    "replay": {
+      "verdict": "DIVERGENCE",
+      "earliest_signature": "EVENT_MISMATCH|0|set|args",
+      "tool_versions": {
+        "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+        "solang": "solang version v0.3.5",
+        "anvil": "anvil Version: 1.7.1-dev",
+        "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+      },
+      "oracle_runs": 24,
+      "stable": true,
+      "minimality": {
+        "verified_one_minimal": true,
+        "residual_deletable": 0,
+        "oracle_runs": 22,
+        "stages": {
+          "ddmin_steps": 5,
+          "dead_functions": 1,
+          "ast_delete": 5,
+          "arg_shrink": 2,
+          "llm_simplify": 1,
+          "verify": 8
+        }
+      },
+      "reduced_signature": "EVENT_MISMATCH|0|set|args",
+      "reduction_stable": true
+    },
+    "usage": {
+      "calls": 5,
+      "errors": 0,
+      "prompt_tokens": 26052,
+      "cached_prompt_tokens": 9350,
+      "completion_tokens": 5387,
+      "total_tokens": 31439,
+      "cost_usd": 0.36772,
+      "latency_ms": 166071.57440300123,
+      "avg_latency_ms": 33214.31488060024
+    }
+  },
+  "history": [
+    {
+      "title": "thread 'main' panicked while compiling BlindAuction from Solidity official website",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1076",
+      "state": "CLOSED",
+      "text": "**Describe the bug**\r\nSolang failed to compile BlindAuction.sol, which is an example from the solidity [official website](https://github.com/raineorshine/solidity-by-example).\r\n\r\n**To Reproduce**\r\nThe code I try to compile is [here](https://gist.github.com/yisun92/12e608b002cbc2b6db5b482fa11fa7e6)\r\n\r\nI tried to compile the code using the following commands.\r\n`solang compile --target solana -v BlindAuction.sol`\r\nor\r\n`solang compile --target substrate -v BlindAuction.sol\r\n`\r\nBoth commands failed and threw the following error.\r\n`thread 'main' panicked at 'Found PointerValue(PointerValue { ptr_value: Value { name: \"elem\", address: 0x600000f0c080, is_const: false, is_null: false, is_undef: false, llvm_value: \"  %elem = bitcast i8* %index_access to i256*\", llvm_type: \"i256*\" } }) but expected the IntValue variant', /Users/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/inkwell-0.1.0-beta.4/src/values/enums.rs:269:13\r\n`\r\n\r\nIf I remove the the code from line 73-82, the error is gone.\r\n\r\n```solidity\r\nif (bidToCheck.blindedBid != keccak256(abi.encodePacked(value, fake, secret))) {\r\n    // Bid was not actually revealed.\r\n    // Do not refund deposit.\r\n    continue;\r\n}\r\nrefund += bidToC"
+    },
+    {
+      "title": "llvm-dis fails to disassemble bitcode file generated by Solang for a smart contract",
+      "url": "https://github.com/hyperledger-solang/solang/issues/641",
+      "state": "CLOSED",
+      "text": "Hi,\r\n\r\nWhen testing Solang with this smart contract `FibonacciBalance.sol`, I observed that the output bitcode file `FibonacciBalance_deploy.bc` cannot be disassembled by `llvm-dis`.\r\n\r\nHere is the smart contract:\r\n\r\n``` Solidity\r\n// FibonacciBalance.sol1\r\npragma solidity ^0.8.11;\r\n\r\ncontract FibonacciBalance {\r\n\r\n    address public fibonacciLibrary;\r\n    // the current fibonacci number to withdraw\r\n    uint public calculatedFibNumber;\r\n    // the starting fibonacci sequence number\r\n    uint public start = 3;\r\n    uint public withdrawalCounter;\r\n    // the fibonancci function selector\r\n    bytes4 constant fibSig = bytes4(keccak256(\"setFibonacci(uint256)\"));\r\n\r\n    // constructor - loads the contract with ether\r\n    constructor(address _fibonacciLibrary) payable {\r\n        fibonacciLibrary = _fibonacciLibrary;\r\n    }\r\n\r\n    // function withdraw() {\r\n    function withdraw() public {\r\n        withdrawalCounter += 1;\r\n        // calculate the fibonacci number for the current withdrawal user\r\n        // this sets calculatedFibNumber\r\n        (bool success, bytes memory returndata) = fibonacciLibrary.delegatecall(abi.encode(fibSig, withdrawalCounter));\r\n        if (success == false) {\r\n "
+    },
+    {
+      "title": "LLVM crashes when building contract",
+      "url": "https://github.com/hyperledger-solang/solang/issues/776",
+      "state": "CLOSED",
+      "text": "While testing one of the contracts from #744 , I found that LLVM crashes in the following contract.\r\n\r\n\r\n```solidity\r\n//pragma solidity ^0.6.12;\r\n// SPDX-License-Identifier: Unlicensed\r\npragma experimental ABIEncoderV2;\r\n\r\n//pragma solidity ^0.8.0;\r\n\r\n/**\r\n * @dev Interface of the ERC20 standard as defined in the EIP.\r\n */\r\ninterface IERC20 {\r\n    /**\r\n     * @dev Emitted when `value` tokens are moved from one account (`from`) to\r\n     * another (`to`).\r\n     *\r\n     * Note that `value` may be zero.\r\n     */\r\n    event Transfer(address indexed from, address indexed to, uint256 value);\r\n\r\n    /**\r\n     * @dev Emitted when the allowance of a `spender` for an `owner` is set by\r\n     * a call to {approve}. `value` is the new allowance.\r\n     */\r\n    event Approval(\r\n        address indexed owner,\r\n        address indexed spender,\r\n        uint256 value\r\n    );\r\n\r\n    /**\r\n     * @dev Returns the amount of tokens in existence.\r\n     */\r\n    function totalSupply() external view returns (uint256);\r\n\r\n    /**\r\n     * @dev Returns the amount of tokens owned by `account`.\r\n     */\r\n    function balanceOf(address account) external view returns (uint256);\r\n\r\n    /**\r\n     * @dev Moves `amount`"
+    },
+    {
+      "title": "a.b.selector adds b() as function to current contract",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1462",
+      "state": "2023-07-28T13:04:38Z",
+      "text": "Compile the Solidity below and we end up with the non-base function in our contract.\r\n\r\n```bash\r\n$ solang compile --target polkadot --emit cfg\r\n# function C::A::function::a public:true selector:0dbe671f nonpayable:true\r\n# params: \r\n# returns: \r\nblock0: # entry\r\n\treturn \r\n```\r\n\r\n```solidity\r\ncontract C {\r\n    function ext_func_call(uint128 amount) public payable {\r\n        A a = new A();\r\n        (bool ok, bytes b) = address(a).call(\r\n            bytes4(A.a.selector)\r\n        );\r\n\tb = abi.encodeCall(A.a);\r\n    }\r\n}\r\n\r\ncontract A {\r\n    function a() public pure {}\r\n}\r\n```"
+    },
+    {
+      "title": "Scratch buffer data leakages ",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1399",
+      "state": "OPEN",
+      "text": "The scratch buffer is (re)used very often in emit (at least in the substrate target). This might lead to unwanted data leakage,  exposing access to bogus data in memory from Solidity. This code:\r\n\r\n```solidity\r\ncontract A {\r\n    function setVars(address _contract, uint256 _num) public payable returns(bytes ret) {\r\n        (bool ok, ret) =_contract.call(abi.encodeWithSignature(\"setVars(uint256)\", _num));\r\n        // Oh no, forgot to assert on ok \r\n    }\r\n}\r\n```\r\n\r\nResults in the following behaviour, if the input to the `setVars` function is invalid:\r\n\r\n![grafik](https://github.com/hyperledger/solang/assets/8707171/3336e81c-6084-4a90-98b5-4c953a822cb5)\r\n\r\n\r\nWhile sema does emit a warning about the unused variable. It can still be ignored, or it the check can be erroneous.   \r\n\r\nWe can do better here. We should identify all locations in emit with this issue (the problem _might_ be in other places too). Possible solutions inlcude\r\n* using `alloca` wherever the buffer size is small or known beforehand (performance overhead should be negligible)\r\n* `bzero8`ing out the buffer before using it (costly).\r\n* only clear it if the call failed. But: On 2 subsequent scratch buf usages, where both"
+    },
+    {
+      "title": "Accessing function selectors adds foreign contracts functions",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1461",
+      "state": "CLOSED",
+      "text": "If a contract function accesses the selector of another contracts function like so:\r\n\r\n```solidity\r\ncontract C {\r\n    function ext_func_call(uint128 amount) public payable {\r\n        A a = new A();\r\n        (bool ok, bytes b) = address(a).call(\r\n            bytes4(A.a.selector) // Here\r\n        );\r\n    }\r\n}\r\n\r\ncontract A {\r\n    function a() public pure {}\r\n}\r\n```\r\n\r\nThis will add function `A::a` to contract `C`. The dispatcher dispatches it and it's present in the metadata, which means it gets erroneously added and treated as a contract function further up the compilation pipeline.\r\n\r\nI can reproduce this back to Solang `v0.2.0`; earlier versions segfault in `emit`  so it's unclear when this regression was introduced (not recently)."
+    },
+    {
+      "title": "Reserved keywords collision in Yul assembly",
+      "url": "https://github.com/hyperledger-solang/solang/issues/639",
+      "state": "CLOSED",
+      "text": "Such snippet\r\n```solidity\r\ncontract Contract {\r\n    constructor() {\r\n        assembly {\r\n            return(0, 0)\r\n        }\r\n    }\r\n}\r\n```\r\ncan't be parsed due to \r\n```\r\n [Diagnostic { level: Error, ty: ParserError, pos: Some(Loc(0, 71, 77)), message: \"unrecognised token `return', expected \\\"address\\\", \\\"bool\\\", \\\"break\\\", \\\"bytes\\\", \\\"continue\\\", \\\"false\\\", \\\"for\\\", \\\"if\\\", \\\"leave\\\", \\\"let\\\", \\\"mapping\\\", \\\"payable\\\", \\\"string\\\", \\\"switch\\\", \\\"true\\\", \\\"}\\\", Bytes, Int, Uint, hexnumber, identifier, number, string\", notes: [] }]\r\n```\r\nerror. The reason for this is that `return` is a reserved keyword in Solidity but just a regular function in Yul.\r\n\r\nThis is an issue similar to https://github.com/hyperledger-labs/solang/pull/636#pullrequestreview-853224787, i.e. requires separation of Yul and Solidity keywords to prevent such collisions."
+    },
+    {
+      "title": "Error in sema parsing contract",
+      "url": "https://github.com/hyperledger-solang/solang/issues/731",
+      "state": "CLOSED",
+      "text": "I found that parsing this contract ends in a stack overflow.\r\n```solidity\r\npragma solidity ^0.8.7;\r\n\r\ncontract TestContract {\r\n    struct Data {\r\n        bytes32 a1;\r\n        bytes32 a2;\r\n    }\r\n\r\n    mapping(uint176 => bytes32) Hashes;\r\n\r\n    constructor() {}\r\n\r\n    function getdata(uint176 id, bool needHash) public view returns (Data memory g) {\r\n        (g.a1, g.a2) = (Hashes[id+1], Hashes[id+2]);\r\n    }\r\n}\r\n```\r\n\r\nthis seems to be when its casting the `StorageRef(false, Bytes(32))` to  `Ref(Bytes(32))`\r\n\r\n```js\r\nfrom cast: StorageRef(false, Bytes(32))\r\nto cast: Ref(Bytes(32))\r\nfrom cast: Ref(StorageRef(false, Bytes(32)))\r\nto cast: Ref(Bytes(32))\r\n```\r\nbased on the result that I was getting with some debug prints in the function `cast` I noticed that the function checks if the `to` needs a `Ref`, and try creates a `Ref` from the `from`.  this cause an infinite loop.\r\n\r\nhttps://github.com/hyperledger-labs/solang/blob/5da5377b6fce0d1aec98fa58041a4126540a226d/src/sema/expression.rs#L540-L550\r\n\r\none solution that seems to be working is not dereference when the `to` object type is a `Type::StorageRef`, but as I don't have experience with this codebase I didn't create a pull request.\r"
+    }
+  ]
+}

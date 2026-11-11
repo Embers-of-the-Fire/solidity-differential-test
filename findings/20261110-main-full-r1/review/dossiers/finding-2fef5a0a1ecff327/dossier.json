@@ -1,0 +1,220 @@
+{
+  "case": {
+    "case_id": "finding-2fef5a0a1ecff327",
+    "origin": "finding",
+    "spec": {
+      "name": "int-sdiv-smod-minus-one-widths-p0-rtargs8",
+      "solidity": "pragma solidity >=0.8.0;\n\ncontract IntDivRuntimeArgs8 {\n    uint8 public tag;\n    int8 public last;\n    uint256 public count;\n\n    function tagSet(uint8 t) external {\n        tag = t;\n        count += 1;\n    }\n\n    function okDiv8() external returns (int8) {\n        int8 x = type(int8).min / int8(2);\n        count += 1;\n        return x;\n    }\n\n    function divArgs8(int8 a, int8 b) external returns (int8) {\n        int8 x = a / b;\n        last = x;\n        count += 1;\n        return x;\n    }\n}",
+      "contract": "IntDivRuntimeArgs8",
+      "solc": {
+        "optimizer": false
+      },
+      "solang": {
+        "opt_level": "default"
+      },
+      "oracle": {
+        "storage": "count",
+        "events": true,
+        "revert_reasons": true,
+        "gas": false
+      },
+      "steps": [
+        {
+          "action": "call",
+          "function": "tagSet",
+          "args": [
+            0
+          ],
+          "sender": "deployer",
+          "value": 0
+        },
+        {
+          "action": "call",
+          "function": "okDiv8",
+          "args": [],
+          "sender": "alice",
+          "value": 0
+        },
+        {
+          "action": "call",
+          "function": "divArgs8",
+          "args": [
+            -128,
+            -1
+          ],
+          "sender": "bob",
+          "value": 0
+        }
+      ],
+      "execution": "on-chain",
+      "meta": {
+        "parent_id": "0645822dd4f228a0",
+        "origin": "mutated_llm"
+      }
+    },
+    "verdict": "DIVERGENCE",
+    "earliest_divergence": {
+      "point": 2,
+      "signature": "STATUS_MISMATCH|2|divArgs8|revert\u2260success"
+    },
+    "divergences": [
+      {
+        "kind": "STATUS_MISMATCH",
+        "step": 2,
+        "detail": "dry-run status differs",
+        "evm": {
+          "status": "revert",
+          "error": null
+        },
+        "polkadot": {
+          "status": "success",
+          "error": null
+        },
+        "point": 2,
+        "signature": "STATUS_MISMATCH|2|divArgs8|revert\u2260success"
+      },
+      {
+        "kind": "TX_STATUS_MISMATCH",
+        "step": 2,
+        "detail": "committed transaction status differs",
+        "evm": "revert",
+        "polkadot": "success",
+        "point": 2,
+        "signature": "TX_STATUS_MISMATCH|2|divArgs8|revert\u2260success"
+      },
+      {
+        "kind": "STORAGE_MISMATCH",
+        "step": 2,
+        "detail": "contract storage differs (mode=count)",
+        "evm": {
+          "nonzero_entries": 1,
+          "values": [
+            "2"
+          ]
+        },
+        "polkadot": {
+          "nonzero_entries": 2,
+          "values": [
+            "-128",
+            "3"
+          ]
+        },
+        "point": 2,
+        "signature": "STORAGE_MISMATCH|2|divArgs8|multiset(count)"
+      }
+    ]
+  },
+  "screening": {
+    "case_id": "finding-2fef5a0a1ecff327",
+    "probe_id": "dcfd66ee50fc4c5f8d61d684577fd90b",
+    "finding_id": "2fef5a0a1ecff327",
+    "origin": "finding",
+    "ts": 1794378528.3534625,
+    "panel": [
+      {
+        "category": "bug_candidate",
+        "confidence": "high",
+        "evidence": "divArgs8(-128, -1) on int8: EVM dry-run and committed status = revert (Panic 0x11 arithmetic overflow, since -128 / -1 = 128 overflows int8), count stays at 2 on EVM. Polkadot status = success, last stored = -128 (silent wraparound), count incremented to 3.",
+        "rationale": "Solidity 0.8 semantics require an overflow panic for type(int8).min / -1 because the mathematical result 128 is not representable in int8. solc correctly reverts; solang silently wraps to -128 and commits state, indicating missing signed-division overflow checking in solang codegen. The storage divergence (count 2 vs 3, last=-128) is fully explained by this single semantic defect, not by packing/endianness artifacts in count mode.",
+        "historical_match_url": "",
+        "cluster_hint": "solang does not trap signed division overflow: intN INT_MIN / -1 wraps instead of reverting with Panic(0x11)"
+      },
+      {
+        "category": "bug_candidate",
+        "confidence": "high",
+        "evidence": "Step 2 calls divArgs8(-128,-1). EVM status=revert and storage count remains at non-zero value 2. Polkadot status=success with last=-128 and count=3, consistent with int8(-128) / int8(-1) wrapping to -128 instead of reverting.",
+        "rationale": "Solidity 0.8 checked arithmetic makes signed division overflow for type(int8).min / -1 revert on EVM. Solang/Polkadot instead committed success and stored the wrapped two's-complement result -128 while incrementing count, indicating a missing SDIV overflow check for narrow signed ints rather than an environment, gas, revert-wording, or storage-count projection artifact.",
+        "historical_match_url": "",
+        "cluster_hint": "Polkadot codegen misses signed division overflow check for int8 min/-1, wrapping to -128"
+      }
+    ],
+    "panel_bug_votes": 2,
+    "adversarial": {
+      "rebuttal_succeeds": false,
+      "category": "bug_candidate",
+      "evidence": "At step 2, divArgs8(-128, -1) calculates type(int8).min / int8(-1). The mathematical result is 128, which is not representable in int8. EVM both dry-run and committed execution revert, while Polkadot commits success, stores last=-128, and increments count from 2 to 3.",
+      "rationale": "Under checked Solidity 0.8 arithmetic, this operation must trigger an arithmetic overflow panic rather than wrap. The observed -128 result is exactly the two's-complement wraparound of 128, and the count/last storage differences directly follow from Polkadot committing where EVM reverts. This is not covered by the documented environment or gas-model differences, and none of the supplied historical records describe signed-division overflow behavior.",
+      "historical_match_url": ""
+    },
+    "status": "survivor",
+    "survives": true,
+    "cluster_hint": "solang does not trap signed division overflow: intN INT_MIN / -1 wraps instead of reverting with Panic(0x11)",
+    "historical_match_urls": [],
+    "prompt_version": 1,
+    "model": "kimi-for-coding",
+    "temperature": 1.0,
+    "replay": {
+      "verdict": "DIVERGENCE",
+      "earliest_signature": "STATUS_MISMATCH|2|divArgs8|revert\u2260success",
+      "tool_versions": {
+        "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+        "solang": "solang version v0.3.5",
+        "anvil": "anvil Version: 1.7.1-dev",
+        "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+      },
+      "oracle_runs": 1,
+      "stable": true
+    },
+    "usage": {
+      "calls": 3,
+      "errors": 0,
+      "prompt_tokens": 13725,
+      "cached_prompt_tokens": 5995,
+      "completion_tokens": 2020,
+      "total_tokens": 15745,
+      "cost_usd": 0.15579349999999997,
+      "latency_ms": 62953.899864999585,
+      "avg_latency_ms": 20984.633288333196
+    }
+  },
+  "history": [
+    {
+      "title": "Inconsistent behaviour when calling function via contract type name",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1007",
+      "state": "CLOSED",
+      "text": "Given the following base contract:\r\n\r\n```solidity\r\ncontract Base {\r\n    uint256 public something = 0;\r\n\r\n    function nop() public pure {}\r\n\r\n    function set(uint256 val) public {\r\n        something = val;\r\n    }\r\n}\r\n```\r\nAnd the following case `A`:\r\n```solidity\r\ncontract A {\r\n    function a() public pure {\r\n        Base.nop();\r\n    }\r\n}\r\n```\r\nSolang compiles this just fine. Furthermore, consider the following case `B`:\r\n```solidity\r\ncontract B {\r\n    function b() public {\r\n        Base.set(1);\r\n    }\r\n}\r\n```\r\nSolang crashes during compilation (target either `substrate` or `solana`):\r\n```\r\nthread 'main' panicked at 'get_storage_slot called on non-storage variable', src/codegen/cfg.rs:1879:13\r\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\r\n```\r\nWhere as `solc` behaves more in a way I'd expect. For both cases it gets the same error:\r\n```\r\n\u276f solc --bin foo.sol\r\nError: Cannot call function via contract type name.\r\n  --> foo.sol:27:9:\r\n   |\r\n17 |         Base.nop();\r\n   |         ^^^^^^^^^^\r\n\r\nError: Cannot call function via contract type name.\r\n  --> foo.sol:33:9:\r\n   |\r\n23 |         Base.set(1);\r\n   |         ^^^^^^^^^^^\r\n```\r\nIs there a reason we allo"
+    },
+    {
+      "title": "Thread 'main' panicked  error when compiling call with seeds",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1028",
+      "state": "CLOSED",
+      "text": "Hi, @seanyoung !\r\nTrying to solve problem, described above, found in docs [passing-seeds-with-external-calls-on-solana ](https://solang.readthedocs.io/en/latest/language/functions.html#passing-seeds-with-external-calls-on-solana )\r\nTrying to implement this in SPL token library:\r\n`function TransferWithSeed(\r\n            address programID,\r\n            address from, \r\n            address to, \r\n            address owner, \r\n            uint64 amount,\r\n            bytes[] _seeds\r\n            ) internal {\r\n\r\n\t\tbytes instr = new bytes(9);\r\n\t\tinstr[0] = uint8(TokenInstruction.Transfer);\r\n\t\tinstr.writeUint64LE(amount, 1);\r\n\r\n\t\tAccountMeta[3] metas = [\r\n\t\t\tAccountMeta({pubkey: from, is_writable: true, is_signer: false}),\r\n\t\t\tAccountMeta({pubkey: to, is_writable: true, is_signer: false}),\r\n\t\t\tAccountMeta({pubkey: owner, is_writable: true, is_signer: true})\r\n\t\t];\r\n\r\n\t\ttokenProgramId.call{accounts: metas, seeds: _seeds}(instr);\r\n\t}`\r\nBut got when compiling: \r\nthread 'main' panicked at 'called `Option::unwrap()` on a `None` value', src/emit/instructions.rs:804:53\r\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace...\r\n\r\nIf this string removed, compiling finishing ok:\r\n"
+    },
+    {
+      "title": "Solang should not ask functions that contain `address.call` to be declared as view",
+      "url": "https://github.com/hyperledger-solang/solang/issues/997",
+      "state": "CLOSED",
+      "text": "Functions that modify the state, like the SPL-token `mint_to`, are not `view` functions, but the compiler warns that they can be declared as view.\r\n\r\nExample: \r\n```solidity\r\n\tfunction mint_to(address mint, address account, address authority, uint64 amount) internal {\r\n\t\tbytes instr = new bytes(9);\r\n\r\n\t\tinstr[0] = uint8(TokenInstruction.MintTo);\r\n\t\tinstr.writeUint64LE(amount, 1);\r\n\r\n\t\tAccountMeta[3] metas = [\r\n\t\t\tAccountMeta({pubkey: mint, is_writable: true, is_signer: false}),\r\n\t\t\tAccountMeta({pubkey: account, is_writable: true, is_signer: false}),\r\n\t\t\tAccountMeta({pubkey: authority, is_writable: true, is_signer: true})\r\n\t\t];\r\n\r\n\t\ttokenProgramId.call{accounts: metas}(instr);\r\n\t}\r\n```\r\n\r\nWarning:\r\n```\r\nwarning: function can be declared 'view'\r\n   \u250c\u2500 /solang/solana-library/spl_token.sol:46:2\r\n   \u2502\r\n46 \u2502     function mint_to(address mint, address account, address authority, uint64 amount) internal {\r\n   \u2502\r\n```"
+    },
+    {
+      "title": "functions that use .call() should be not allowed in view functions",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1338",
+      "state": "2023-06-16T07:25:01Z",
+      "text": "Functions that modify the state, like the SPL-token `mint_to`, are not `view` functions, but the compiler warns that they can be declared as view.\r\n\r\nExample: \r\n```solidity\r\n\tfunction mint_to(address mint, address account, address authority, uint64 amount) internal {\r\n\t\tbytes instr = new bytes(9);\r\n\r\n\t\tinstr[0] = uint8(TokenInstruction.MintTo);\r\n\t\tinstr.writeUint64LE(amount, 1);\r\n\r\n\t\tAccountMeta[3] metas = [\r\n\t\t\tAccountMeta({pubkey: mint, is_writable: true, is_signer: false}),\r\n\t\t\tAccountMeta({pubkey: account, is_writable: true, is_signer: false}),\r\n\t\t\tAccountMeta({pubkey: authority, is_writable: true, is_signer: true})\r\n\t\t];\r\n\r\n\t\ttokenProgramId.call{accounts: metas}(instr);\r\n\t}\r\n```\r\n\r\nWarning:\r\n```\r\nwarning: function can be declared 'view'\r\n   \u250c\u2500 /solang/solana-library/spl_token.sol:46:2\r\n   \u2502\r\n46 \u2502     function mint_to(address mint, address account, address authority, uint64 amount) internal {\r\n   \u2502\r\n```\r\n\r\nFixes https://github.com/hyperledger/solang/issues/997\r\n\r\nAnother PR will implement staticcall for Solana, which is allowed in view functions."
+    },
+    {
+      "title": "Substrate: Implement builtin for `set_code_hash` API",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1397",
+      "state": "2023-06-29T14:53:59Z",
+      "text": "Exposes a low-level builtin function for calling `seal_set_code_hash`. The code hash arguments is of type ~~`bytes`~~ `uint8[N]` intentionally (and not of type `Hash`, so that it matches the the pointer expected by the API function. `Hash`, which is just an alias to `bytes32`, will internally be represented as an `i256`. I came to the conclusion that, given this type conversion can easily be written in Solidity, we do and should not want to deal with that in the compiler, be it in emit or in codegen or elsewhere. \r\nInstead, a more high level function, that asks for a `Hash` argument and converts that to ~~`bytes`~~ `uint8[N]`, should rather be implement in the substrate Solidity library (once we have it).\r\nAdditionally, if some parachain decides to use a hash longer than 32bytes, using just a ~~`bytes`~~ `uint8[N]` pointer will still work."
+    },
+    {
+      "title": "Add Rename functionality",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1514",
+      "state": "2023-09-21T21:07:26Z",
+      "text": "This feature depends on having the right span information for identifiers in the parse tree. Currently, some changes are needed to either add the missing span information in some cases, or improve the already present spans (look for one-off errors). \r\n\r\nThe rest of the \"goto-*\" functions also depend on the availability of proper spans. But in their case, as no modification is made to the source code, lack of accurate spans is less of an issue. But `rename` does modify the source code and hence having incorrect spans can result in unintentionally overwriting pieces of source code, which is highly undesirable. \r\n\r\nThe changes made as part of this PR provide the necessary code for `rename` to work. Correcting the parse tree is expected to be done as part of future PRs\r\n\r\nA non-exhaustive list of changes to be made to parse tree:  (https://github.com/hyperledger/solang/pull/1411#issuecomment-1648031602)\r\n\r\n1. No loc for contract variables type - array_type_dynamic_push.sol L6\r\n2. No loc for constructor base call - abstract_contract_inheritance.sol L14\r\n3. No loc for function modifier arguments - function_modifier_arguments.sol L8\r\n4. No loc for function override base contracts - virtua"
+    },
+    {
+      "title": "Allow seeds to be passed into functions as string[] or string[][]",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1547",
+      "state": "2023-09-28T14:53:31Z",
+      "text": "This fixes this Solidity and similar constructs.\r\n\r\n```solidity\r\nimport \"solana-library/spl_token.sol\";\r\n\r\ncontract c {\r\n\r\n    // Invoke the token program to mint tokens to a token account, using a PDA as the mint authority\r\n    function mintTo(address mint, address account, address authority, uint64 amount, bytes[] seeds) internal {\r\n        // Prepare instruction data\r\n        bytes instructionData = new bytes(9);\r\n        instructionData[0] = uint8(7); // MintTo instruction index\r\n        instructionData.writeUint64LE(amount, 1); // Amount to mint\r\n\r\n        // Prepare accounts required by instruction\r\n        AccountMeta[3] metas = [\r\n            AccountMeta({pubkey: mint, is_writable: true, is_signer: false}),\r\n            AccountMeta({pubkey: account, is_writable: true, is_signer: false}),\r\n            AccountMeta({pubkey: authority, is_writable: true, is_signer: true})\r\n        ];\r\n\r\n        // Invoke the token program with prepared accounts and instruction data\r\n        SplToken.tokenProgramId.call{accounts: metas, seeds: seeds}(instructionData);\r\n    }\r\n}\r\n```\r\n\r\nFixes https://github.com/hyperledger/solang/issues/1433"
+    },
+    {
+      "title": "v0.3.3: Atlantis",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1573",
+      "state": "2023-10-24T10:05:49Z",
+      "text": "This release improves the Solana developer experience, since now required\r\naccounts can be specified using annotations. For Polkadot, compatibility with\r\nEthereum Solidity has been increased further, it is now possible to write\r\n[EIP-1967](https://eips.ethereum.org/EIPS/eip-1967) compatible proxy contracts.\r\nThere are many fixes all over the code base.\r\n\r\n### Added\r\n- **Solana** the required accounts for instructions can now be specified using function annotations. [LucasSte](https://github.com/LucasSte)\r\n  ```\r\n  contract Foo {\r\n      @account(oneAccount)\r\n      @signer(mySigner)\r\n      @mutableAccount(otherAccount)\r\n      @mutableSigner(otherSigner)\r\n      function bar() external returns (uint64) {}\r\n  }\r\n  ```\r\n- The language server can now format Solidity source code using the `forge-fmt` crate. [chioni16](https://github.com/chioni16)\r\n- The langauge server can now do go references, go to implementation, and go to type\r\n  definition. [chioni16](https://github.com/chioni16)\r\n- **Polkadot** `Panic` errors can now be caught in try-catch statements [xermicus](https://github.com/xermicus)\r\n- **Polkadot** custom errors are now supported [xermicus](https://github.com/xermicus)\r\n- **Po"
+    }
+  ]
+}

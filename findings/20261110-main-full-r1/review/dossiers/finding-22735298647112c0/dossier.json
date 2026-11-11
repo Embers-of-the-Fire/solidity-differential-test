@@ -1,0 +1,218 @@
+{
+  "case": {
+    "case_id": "finding-22735298647112c0",
+    "origin": "finding",
+    "spec": {
+      "name": "overload-inherit-dispatch",
+      "solidity": "pragma solidity >=0.8.0;\n\ncontract Base {\n    function f(uint256 x) public virtual returns (uint256) {\n        return 100 + x;\n    }\n}\n\ncontract Child is Base {\n    function f(uint256 x) public override returns (uint256) {\n        return 200 + x;\n    }\n\n    function f(uint256 x, uint256 y) public returns (uint256) {\n        return 300 + x + y;\n    }\n\n    function runDispatch(uint256 x) public returns (uint256) {\n        return this.f(x);\n    }\n}\n",
+      "contract": "Child",
+      "solc": {
+        "optimizer": false
+      },
+      "solang": {
+        "opt_level": "default"
+      },
+      "oracle": {
+        "storage": "count",
+        "events": true,
+        "revert_reasons": true,
+        "gas": false
+      },
+      "steps": [
+        {
+          "action": "call",
+          "function": "h",
+          "args": [
+            1
+          ],
+          "sender": "alice"
+        },
+        {
+          "action": "query",
+          "function": "childState"
+        },
+        {
+          "action": "query",
+          "function": "baseState"
+        },
+        {
+          "action": "call",
+          "function": "f",
+          "args": [
+            7
+          ],
+          "sender": "alice"
+        },
+        {
+          "action": "query",
+          "function": "childState"
+        },
+        {
+          "action": "call",
+          "function": "f",
+          "args": [
+            3,
+            4
+          ],
+          "sender": "bob"
+        },
+        {
+          "action": "query",
+          "function": "lastResult"
+        },
+        {
+          "action": "call",
+          "function": "runDispatch",
+          "args": [
+            10
+          ],
+          "sender": "charlie"
+        }
+      ],
+      "meta": {
+        "parent_id": null,
+        "origin": "generated"
+      },
+      "execution": "on-chain"
+    },
+    "verdict": "DIVERGENCE",
+    "earliest_divergence": {
+      "point": "compile",
+      "signature": "COMPILE_ASYMMETRY|compile||solang-rejects"
+    },
+    "divergences": [
+      {
+        "kind": "COMPILE_ASYMMETRY",
+        "step": null,
+        "detail": "one compiler rejected the source while the other accepted it",
+        "evm": {
+          "solc_ok": true,
+          "errors": null
+        },
+        "polkadot": {
+          "solang_ok": false,
+          "errors": [
+            "\u001b[0m\u001b[1m\u001b[38;5;9merror\u001b[0m\u001b[1m: function call can be resolved to multiple functions\u001b[0m\n   \u001b[0m\u001b[34m\u250c\u2500\u001b[0m /tmp/solang-4mb81bj1/input.sol:19:16\n   \u001b[0m\u001b[34m\u2502\u001b[0m    \n\u001b[0m\u001b[34m 4\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m \u001b[0m\u001b[34m\u256d\u001b[0m       function f(uint256 x) public virtual returns (uint256) {\n\u001b[0m\u001b[34m 5\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m           return 100 + x;\n\u001b[0m\u001b[34m 6\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m       }\n   \u001b[0m\u001b[34m\u2502\u001b[0m \u001b[0m\u001b[34m\u2570\u001b[0m\u001b[0m\u001b[34m\u2500\u2500\u001b[0m\u001b[0m\u001b[34m\u2500\u2500\u2500\u2500\u2500' candidate function\u001b[0m\n   \u001b[0m\u001b[34m\u00b7\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m  \n\u001b[0m\u001b[34m10\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m   \u001b[0m\u001b[34m\u256d\u001b[0m     function f(uint256 x) public override returns (uint256) {\n\u001b[0m\u001b[34m11\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m   \u001b[0m\u001b[34m\u2502\u001b[0m         return 200 + x;\n\u001b[0m\u001b[34m12\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m   \u001b[0m\u001b[34m\u2502\u001b[0m     }\n   \u001b[0m\u001b[34m\u2502\u001b[0m   \u001b[0m\u001b[34m\u2570\u001b[0m\u001b[0m\u001b[34m\u2500\u2500\u2500\u2500\u2500' candidate function\u001b[0m\n   \u001b[0m\u001b[34m\u00b7\u001b[0m   \u001b[0m\u001b[34m\u2502\u001b[0m\n\u001b[0m\u001b[34m19\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m             return \u001b[0m\u001b[31mthis.f(x)\u001b[0m;\n   \u001b[0m\u001b[34m\u2502\u001b[0m                    \u001b[0m\u001b[31m^^^^^^^^^\u001b[0m\n\n\u001b[0m\u001b[1m\u001b[38;5;9merror\u001b[0m\u001b[1m: cannot find overloaded function which matches signature\u001b[0m\n   \u001b[0m\u001b[34m\u250c\u2500\u001b[0m /tmp/solang-4mb81bj1/input.sol:19:16\n   \u001b[0m\u001b[34m\u2502\u001b[0m\n\u001b[0m\u001b[34m19\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m         return \u001b[0m\u001b[31mthis.f(x)\u001b[0m;\n   \u001b[0m\u001b[34m\u2502\u001b[0m                \u001b[0m\u001b[31m^^^^^^^^^\u001b[0m\n\n\u001b[0m\u001b[1m\u001b[38;5;9merror\u001b[0m\u001b[1m: function expects 2 arguments, 1 provided\u001b[0m\n   \u001b[0m\u001b[34m\u250c\u2500\u001b[0m /tmp/solang-4mb81bj1/input.sol:19:16\n   \u001b[0m\u001b[34m\u2502\u001b[0m\n\u001b[0m\u001b[34m14\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m     function f(uint256 x, uint256 y) public returns (uint256) {\n   \u001b[0m\u001b[34m\u2502\u001b[0m     \u001b[0m\u001b[34m---------------------------------------------------------\u001b[0m \u001b[0m\u001b[34mcandidate function\u001b[0m\n   \u001b[0m\u001b[34m\u00b7\u001b[0m\n\u001b[0m\u001b[34m19\u001b[0m \u001b[0m\u001b[34m\u2502\u001b[0m         return \u001b[0m\u001b[31mthis.f(x)\u001b[0m;\n   \u001b[0m\u001b[34m\u2502\u001b[0m                \u001b[0m\u001b[31m^^^^^^^^^\u001b[0m"
+          ]
+        },
+        "point": "compile",
+        "signature": "COMPILE_ASYMMETRY|compile||solang-rejects"
+      }
+    ]
+  },
+  "screening": {
+    "case_id": "finding-22735298647112c0",
+    "probe_id": "2d871794be1c41ed86c845bb3c20d41c",
+    "finding_id": "22735298647112c0",
+    "origin": "finding",
+    "ts": 1794375588.5899093,
+    "panel": [
+      {
+        "category": "bug_candidate",
+        "confidence": "high",
+        "evidence": "solc accepted the source, while solang rejected line 19 (`return this.f(x);`) with both `function call can be resolved to multiple functions` and `cannot find overloaded function which matches signature`. The listed candidates include Base.f(uint256) and Child.f(uint256), even though the latter declares `override` and should replace the inherited implementation rather than create a second same-signature candidate; solang also considered Child.f(uint256,uint256), producing `function expects 2 arguments, 1 provided`.",
+        "rationale": "This is a compile-time semantic divergence on standard Solidity: an overridden function should not remain an ambiguous base-contract overload, and `this.f(x)` should resolve unambiguously to the overriding Child function. The behavior is not explained by chain environment, oracle projection, storage representation, or gas accounting because compilation itself fails in solang. The rejection prevents execution of an otherwise valid contract and indicates incorrect virtual/override overload-resolution handling.",
+        "historical_match_url": "https://github.com/hyperledger-solang/solang/issues/780",
+        "cluster_hint": "override and virtual base overloads treated as duplicate dispatch candidates during external `this.f` resolution"
+      },
+      {
+        "category": "bug_candidate",
+        "confidence": "high",
+        "evidence": "solc accepts the source and compiles successfully; solang rejects at line 19 `return this.f(x)` reporting 'function call can be resolved to multiple functions' with two candidate functions listed: Base.f(uint256) at line 4 and Child.f(uint256) at line 10, which have identical signatures because the child overrides the base. Per Solidity semantics the override fully replaces the base function in the derived contract's callable set, so `this.f(x)` unambiguously resolves to Child.f(uint256) and returns 200+x. solang instead treats both the base and overriding declaration as independent candidates, breaking overload resolution.",
+        "rationale": "The divergence is a compile-time rejection by solang of code that is valid per Solidity's inheritance/override semantics. Because the child function overrides the base one, only one single-argument f exists in the contract; solang's resolution incorrectly retains the hidden base declaration as a candidate. This is a genuine name-resolution/overload bug in solang, not a chain, oracle, or intentional difference, and it blocks even executing the dispatch test. The third overload error (2-arg f candidate) is a cascade of the same failed resolution.",
+        "historical_match_url": "https://github.com/hyperledger-solang/solang/issues/780",
+        "cluster_hint": "override-hiding not applied during overload resolution: overridden base function remains a resolution candidate, causing 'resolved to multiple functions' on this.f dispatch"
+      }
+    ],
+    "panel_bug_votes": 2,
+    "adversarial": {
+      "rebuttal_succeeds": false,
+      "category": "bug_candidate",
+      "evidence": "solang rejects `this.f(x)` and explicitly lists both `Base.f(uint256)` at line 4 and `Child.f(uint256)` at line 10 as candidates, even though the latter is declared `override` and has the identical signature; solc accepts the same source. The diagnostic also lists `Child.f(uint256,uint256)` as an incompatible candidate. This is a compile-time asymmetry at line 19, before any chain-environment, oracle, storage, or gas accounting can matter.",
+      "rationale": "Under Solidity inheritance semantics, the overriding `Child.f(uint256)` replaces the inherited base implementation, so external dispatch through `this.f(x)` should resolve to that single one-argument function. The diagnostic shows solang failed to hide the overridden base declaration during overload resolution, making this a plausible solang semantic-resolution defect rather than an intentional platform difference or runtime artifact. The mismatched later step names are a probe-quality concern, but they do not undermine the self-contained compile error. Issue #780 is only a closest historical overload-resolution reference, not proof that this exact override-dispatch case was already reported.",
+      "historical_match_url": "https://github.com/hyperledger-solang/solang/issues/780"
+    },
+    "status": "survivor",
+    "survives": true,
+    "cluster_hint": "override and virtual base overloads treated as duplicate dispatch candidates during external `this.f` resolution",
+    "historical_match_urls": [
+      "https://github.com/hyperledger-solang/solang/issues/780"
+    ],
+    "prompt_version": 1,
+    "model": "kimi-for-coding",
+    "temperature": 1.0,
+    "replay": {
+      "verdict": "DIVERGENCE",
+      "earliest_signature": "COMPILE_ASYMMETRY|compile||solang-rejects",
+      "tool_versions": {
+        "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+        "solang": "solang version v0.3.5",
+        "anvil": "anvil Version: 1.7.1-dev",
+        "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+      },
+      "oracle_runs": 1,
+      "stable": true
+    },
+    "usage": {
+      "calls": 3,
+      "errors": 0,
+      "prompt_tokens": 16924,
+      "cached_prompt_tokens": 5480,
+      "completion_tokens": 3253,
+      "total_tokens": 20177,
+      "cost_usd": 0.235419,
+      "latency_ms": 97800.24600299998,
+      "avg_latency_ms": 32600.08200099999
+    }
+  },
+  "history": [
+    {
+      "title": "Add Rename functionality",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1514",
+      "state": "2023-09-21T21:07:26Z",
+      "text": "This feature depends on having the right span information for identifiers in the parse tree. Currently, some changes are needed to either add the missing span information in some cases, or improve the already present spans (look for one-off errors). \r\n\r\nThe rest of the \"goto-*\" functions also depend on the availability of proper spans. But in their case, as no modification is made to the source code, lack of accurate spans is less of an issue. But `rename` does modify the source code and hence having incorrect spans can result in unintentionally overwriting pieces of source code, which is highly undesirable. \r\n\r\nThe changes made as part of this PR provide the necessary code for `rename` to work. Correcting the parse tree is expected to be done as part of future PRs\r\n\r\nA non-exhaustive list of changes to be made to parse tree:  (https://github.com/hyperledger/solang/pull/1411#issuecomment-1648031602)\r\n\r\n1. No loc for contract variables type - array_type_dynamic_push.sol L6\r\n2. No loc for constructor base call - abstract_contract_inheritance.sol L14\r\n3. No loc for function modifier arguments - function_modifier_arguments.sol L8\r\n4. No loc for function override base contracts - virtua"
+    },
+    {
+      "title": "Inconsistent behaviour when calling function via contract type name",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1007",
+      "state": "CLOSED",
+      "text": "Given the following base contract:\r\n\r\n```solidity\r\ncontract Base {\r\n    uint256 public something = 0;\r\n\r\n    function nop() public pure {}\r\n\r\n    function set(uint256 val) public {\r\n        something = val;\r\n    }\r\n}\r\n```\r\nAnd the following case `A`:\r\n```solidity\r\ncontract A {\r\n    function a() public pure {\r\n        Base.nop();\r\n    }\r\n}\r\n```\r\nSolang compiles this just fine. Furthermore, consider the following case `B`:\r\n```solidity\r\ncontract B {\r\n    function b() public {\r\n        Base.set(1);\r\n    }\r\n}\r\n```\r\nSolang crashes during compilation (target either `substrate` or `solana`):\r\n```\r\nthread 'main' panicked at 'get_storage_slot called on non-storage variable', src/codegen/cfg.rs:1879:13\r\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\r\n```\r\nWhere as `solc` behaves more in a way I'd expect. For both cases it gets the same error:\r\n```\r\n\u276f solc --bin foo.sol\r\nError: Cannot call function via contract type name.\r\n  --> foo.sol:27:9:\r\n   |\r\n17 |         Base.nop();\r\n   |         ^^^^^^^^^^\r\n\r\nError: Cannot call function via contract type name.\r\n  --> foo.sol:33:9:\r\n   |\r\n23 |         Base.set(1);\r\n   |         ^^^^^^^^^^^\r\n```\r\nIs there a reason we allo"
+    },
+    {
+      "title": "Incorrect constructor inheritance",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1428",
+      "state": "OPEN",
+      "text": "The code example about [linearization of constructors from the Solidity docs](https://docs.soliditylang.org/en/v0.8.20/contracts.html#multiple-inheritance-and-linearization) produces wrong code:\r\n\r\n```solidity\r\n// SPDX-License-Identifier: GPL-3.0\r\npragma solidity >=0.7.0 <0.9.0;\r\n\r\ncontract Base1 {\r\n        uint public foo;\r\n    constructor() {}\r\n}\r\n\r\nabstract contract Base2 {\r\n    constructor() {}\r\n}\r\n\r\n// Constructors are executed in the following order:\r\n//  1 - Base1\r\n//  2 - Base2\r\n//  3 - Derived1\r\ncontract Derived1 is Base1, Base2 {\r\n    constructor() Base1() Base2() {}\r\n}\r\n\r\n// Constructors are executed in the following order:\r\n//  1 - Base2\r\n//  2 - Base1\r\n//  3 - Derived2\r\ncontract Derived2 is Base2, Base1 {\r\n    constructor() Base2() Base1() {}\r\n}\r\n\r\n// Constructors are still executed in the following order:\r\n//  1 - Base2\r\n//  2 - Base1\r\n//  3 - Derived3\r\ncontract Derived3 is Base2, Base1 {\r\n    constructor() Base1() Base2() {}\r\n}\r\n```\r\n\r\nInstead of what is explained in the comment of the example contracts, the constructors look like this:\r\n\r\n```\r\n# constructor Derived1::Derived1::constructor::872ccdc6190148bc public:true selector:872ccdc6190148bc nonpayable:true\r\n# par"
+    },
+    {
+      "title": "Cannot find overloaded function",
+      "url": "https://github.com/hyperledger-solang/solang/issues/780",
+      "state": "CLOSED",
+      "text": "The following file works on solc, however solang cannot find an overloaded function\r\n```\r\nerror: cannot find overloaded function which matches signature\r\n    \u250c\u2500 /home/lucas/Documents/solang/examples/test.sol:496:5\r\n    \u2502  \r\n496 \u2502 \u256d     ApproveAndCallFallBack(spender).receiveApproval(msg.sender, tokens, address(\r\n497 \u2502 \u2502 this\r\n498 \u2502 \u2502 ), data);\r\n    \u2502 \u2570\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500^\r\n\r\n```\r\n\r\n\r\n```solidity\r\n/**\r\n *Submitted for verification at BscScan.com on 2021-08-12\r\n*/\r\n\r\npragma solidity >=\r\n0.5\r\n.17\r\n;\r\nlibrary SafeMath {\r\n  \r\nfunction\r\n \r\nadd\r\n(\r\nuint a, uint b\r\n) \r\ninternal\r\n \r\npure\r\n \r\nreturns\r\n (\r\nuint c\r\n) \r\n{\r\n    c = a + b;\r\n    \r\nrequire\r\n(c >= a);\r\n  }\r\n  \r\nfunction\r\n \r\nsub\r\n(\r\nuint a, uint b\r\n) \r\ninternal\r\n \r\npure\r\n \r\nreturns\r\n (\r\nuint c\r\n) \r\n{\r\n    \r\nrequire\r\n(b <= a);\r\n    c = a - b;\r\n  }\r\n  \r\nfunction\r\n \r\nmul\r\n(\r\nuint a, uint b\r\n) \r\ninternal\r\n \r\npure\r\n \r\nreturns\r\n (\r\nuint c\r\n) \r\n{\r\n    c = a * b;\r\n    \r\nrequire\r\n(a == \r\n0\r\n || c / a == b);\r\n  }\r\n  \r\nfunction\r\n \r\ndiv\r\n(\r\nuint a, uint b\r\n) \r\ninternal\r\n \r\npure\r\n \r\nreturns\r\n (\r\nuint c\r\n) \r\n{\r\n    \r\nrequire\r\n(b > \r\n0\r\n);\r\n    c = a / b;\r\n  }\r\n}\r\nabstract contract BEP20Interface {\r\n  \r\nfunction\r\n \r\ntotalSupply\r\n(\r\n) \r\npublic virtual\r\n \r\nview"
+    },
+    {
+      "title": "Fix function calls via contract name",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1011",
+      "state": "2022-09-14T12:41:22Z",
+      "text": "Disallow direct access to functions (and constants) except for base contracts. This is not valid in `solc` but was allowed in solang.\r\n\r\nFixes #1007 \r\n\r\n"
+    },
+    {
+      "title": "Support user defined operators (solc v0.8.19 feature)",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1203",
+      "state": "2023-03-02T23:21:39Z",
+      "text": "This is new syntax introduced in solc v0.8.19 for overloading operators in a limited context (user types).\r\n\r\nSee docs changes for explanation of the feature.\r\n\r\nI think the name \"user defined operators\" is not great, but a) I can't think of a better one - operator overloading maybe? b) this is what solc calls it."
+    },
+    {
+      "title": "Bugfix: Accessing virtual function selectors",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1447",
+      "state": "2023-07-18T19:51:51Z",
+      "text": "The added test case panics in current `main` because accessing the selector of a virtual function which is not used in any other way will put the function in `all_functions` but not `virtual_functions`.  `check_inheritance` will insert the function into `all_functions` because we have this symbol, however because we only access the selector it's not a virtual function to the contract. The fix is that when we walk `all_functions` to find the externally callable ones, do not assume every function marked `virtual` is present in the `virtual_functions` of this contract."
+    },
+    {
+      "title": "Bring import resolution in line w/ Solc's",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1487",
+      "state": "2023-08-31T07:44:01Z",
+      "text": "Solang's import resolution departs from solc's in several key ways. I've spent quite a bit of time trying to understand how solc's import system works (it's very bad), and how Solang differs. This has been both through reading code and through experimenting with both systems.\r\n\r\nI've compiled a set of tests [here](https://github.com/BenTheKush/solc_remapping_behavior_test). These tests show differences in behavior between the import resolution (this includes filename resolution specified from CLI, remapping behavior, import path behavior, etc etc).\r\n\r\nThis PR is attempting to bring solang's implementation in line with my understanding of the solidity documentation. It's currently a draft and is rough around the edges (including debug println statements so I can figure out control flow, etc).\r\n\r\n## Differences between Solang and Solc\r\n\r\n### 1. Remap Targets\r\nSolang and Solc treat the target of a remapping `map=target` very differently.\r\n\r\n+ **Solc:** In solc, when an import statement of the form `import \"map/path/to/Foo.sol\";` is encountered, solc will attempt to remplace `map` with `target` and then resolve this new replaced version of the import path against the base-path and any "
+    }
+  ]
+}

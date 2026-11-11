@@ -1,0 +1,210 @@
+{
+  "case": {
+    "case_id": "finding-64eda3619d4993fc",
+    "origin": "finding",
+    "spec": {
+      "name": "intdiv-overflow-runtime-width-sweep",
+      "solidity": "pragma solidity >=0.8.0;\n\ncontract IntDivOverflowWidthSweep {\n    int16 public min16;\n    int64 public min64;\n    int128 public min128;\n    int256 public min256;\n    uint256 public count;\n\n    constructor() {\n        min16 = type(int16).min;\n        min64 = type(int64).min;\n        min128 = type(int128).min;\n        min256 = type(int256).min;\n    }\n\n    function div16() public returns (int16) {\n        int16 r = min16 / int16(-1);\n        count++;\n        return r;\n    }\n\n    \n\n    \n\n    \n\n    \n\n    \n}",
+      "contract": "IntDivOverflowWidthSweep",
+      "constructor": {
+        "args": []
+      },
+      "solc": {
+        "optimizer": false
+      },
+      "solang": {
+        "opt_level": "default"
+      },
+      "oracle": {
+        "storage": "count",
+        "events": true,
+        "revert_reasons": true,
+        "gas": false
+      },
+      "steps": [
+        {
+          "action": "call",
+          "function": "div16",
+          "args": [],
+          "sender": "alice",
+          "value": 0
+        }
+      ],
+      "meta": {
+        "parent_id": null,
+        "origin": "generated"
+      },
+      "execution": "on-chain"
+    },
+    "verdict": "DIVERGENCE",
+    "earliest_divergence": {
+      "point": 0,
+      "signature": "STATUS_MISMATCH|0|div16|revert\u2260success"
+    },
+    "divergences": [
+      {
+        "kind": "STATUS_MISMATCH",
+        "step": 0,
+        "detail": "dry-run status differs",
+        "evm": {
+          "status": "revert",
+          "error": null
+        },
+        "polkadot": {
+          "status": "success",
+          "error": null
+        },
+        "point": 0,
+        "signature": "STATUS_MISMATCH|0|div16|revert\u2260success"
+      },
+      {
+        "kind": "TX_STATUS_MISMATCH",
+        "step": 0,
+        "detail": "committed transaction status differs",
+        "evm": "revert",
+        "polkadot": "success",
+        "point": 0,
+        "signature": "TX_STATUS_MISMATCH|0|div16|revert\u2260success"
+      },
+      {
+        "kind": "STORAGE_MISMATCH",
+        "step": 0,
+        "detail": "contract storage differs (mode=count)",
+        "evm": {
+          "nonzero_entries": 2,
+          "values": [
+            "-57896044618658097711785492504343953926634992332820282019728792003956564819968",
+            "205688069665150755269371147819668813123446446114004797505961984"
+          ]
+        },
+        "polkadot": {
+          "nonzero_entries": 5,
+          "values": [
+            "-170141183460469231731687303715884105728",
+            "-32768",
+            "-57896044618658097711785492504343953926634992332820282019728792003956564819968",
+            "-9223372036854775808",
+            "1"
+          ]
+        },
+        "point": 0,
+        "signature": "STORAGE_MISMATCH|0|div16|multiset(count)"
+      }
+    ]
+  },
+  "screening": {
+    "case_id": "finding-64eda3619d4993fc",
+    "probe_id": "f73fb94f847f45688ad5a0a1ff169e01",
+    "finding_id": "64eda3619d4993fc",
+    "origin": "finding",
+    "ts": 1794376058.7273557,
+    "panel": [
+      {
+        "category": "bug_candidate",
+        "confidence": "high",
+        "evidence": "div16 computes min16 / int16(-1) = (-32768) / (-1) = 32768, which exceeds int16 max (32767). Solidity 0.8 semantics require a revert for this division overflow, and solc/anvil does revert. Polkadot (solang) reports success and count increments to 1, so solang computed the result without a width overflow check. The storage diff is consistent: polkadot shows count=1 plus the four negative minima, while evm shows only storage written before the reverting call.",
+        "rationale": "The divergence is a genuine semantic defect: solang fails to enforce the checked-arithmetic rule that type(intN).min / -1 must revert for narrow signed types like int16. A plausible mechanism is that solang widens int16 to a larger internal integer, where 32768 fits, and only checks overflow against the widened width rather than the declared 16-bit width. The storage-count mismatch is an oracle projection artifact (packing of narrow signed cells) and is secondary to the authoritative status mismatch.",
+        "historical_match_url": "",
+        "cluster_hint": "solang missing width-scaled overflow check for signed division INT_MIN / -1 on narrow integer types (int16)"
+      },
+      {
+        "category": "bug_candidate",
+        "confidence": "medium",
+        "evidence": "div16 computes min16 / int16(-1) where min16 = type(int16).min = -32768; Solidity 0.8 semantics require a Panic(0x11) on signed division overflow since 32768 does not fit in int16. EVM (solc) reverts as expected, while Polkadot (solang) reports success and count increments to 1, proving execution continued past the overflowing division. The storage-count diff is noisy (EVM side shows only 2 nonzero entries despite four nonzero min constants, and a garbled large value), consistent with packing/projection artifacts, but the status mismatch is unambiguous.",
+        "rationale": "The divergence is a genuine semantic one: solang on Polkadot fails to trap the INT_MIN / -1 division overflow that Solidity 0.8 mandates as a runtime panic, while solc correctly reverts. There is no documented chain-environment or oracle-projection rationale for a success-vs-revert split on pure arithmetic. The Soroban width-rounding record is Soroban-only and irrelevant here. Medium rather than high confidence because the storage projection is unreliable in count mode and no return value from div16 is recorded to confirm the wrapped result.",
+        "historical_match_url": "https://github.com/hyperledger-solang/solang/pull/1496",
+        "cluster_hint": "missing runtime overflow check for signed division INT_MIN / -1 (narrow int16 cell) on Polkadot target"
+      }
+    ],
+    "panel_bug_votes": 2,
+    "adversarial": {
+      "rebuttal_succeeds": false,
+      "category": "bug_candidate",
+      "evidence": "div16 computes type(int16).min / int16(-1) = -32768 / -1 = 32768, which is not representable in int16. The Solidity 0.8 specification mandates a Panic(0x11) revert for this signed-division overflow, and solc/anvil reverts exactly as specified. Solang on Polkadot reports success with count incremented to 1, meaning execution continued past the overflowing operation. This status divergence is deterministic, occurs in pure arithmetic with no dependence on chain environment values (no gasleft, block.*, tx.* markers), and none of the documented known-difference records (env-values, gas-metering) apply. The storage-count mismatch is a projection artifact (EVM shows only 2 nonzero entries for four min constants, indicating count-mode packing noise), but it is secondary to the authoritative revert-vs-success split. The only plausible rebuttal is rediscovery via the v0.3.2 changelog line about math overflow fixes, but that entry names the negate operator specifically and 'other math overflow fixes' is not documented as covering signed-division INT_MIN/-1 on narrow widths; without harness version evidence showing a pre-0.3.2 solang, this remains an unrediscovered or unfixed defect.",
+      "rationale": "The revert-vs-success divergence on a spec-mandated overflow (Solidity 0.8 requires Panic for INT_MIN/-1) cannot be explained as an oracle artifact, intentional platform difference, or solc defect \u2014 solc behavior matches the language specification. The most plausible mechanism is that solang widens int16 to an internal larger integer, computes 32768 successfully, and fails to apply the overflow check at the declared 16-bit width. The sole escape hatch is version-dependent rediscovery, which the evidence does not establish.",
+      "historical_match_url": "https://github.com/hyperledger-solang/solang/pull/1496"
+    },
+    "status": "survivor",
+    "survives": true,
+    "cluster_hint": "solang missing width-scaled overflow check for signed division INT_MIN / -1 on narrow integer types (int16)",
+    "historical_match_urls": [
+      "https://github.com/hyperledger-solang/solang/pull/1496"
+    ],
+    "prompt_version": 1,
+    "model": "kimi-for-coding",
+    "temperature": 1.0,
+    "replay": {
+      "verdict": "DIVERGENCE",
+      "earliest_signature": "STATUS_MISMATCH|0|div16|revert\u2260success",
+      "tool_versions": {
+        "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+        "solang": "solang version v0.3.5",
+        "anvil": "anvil Version: 1.7.1-dev",
+        "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+      },
+      "oracle_runs": 1,
+      "stable": true
+    },
+    "usage": {
+      "calls": 3,
+      "errors": 0,
+      "prompt_tokens": 13471,
+      "cached_prompt_tokens": 4833,
+      "completion_tokens": 3274,
+      "total_tokens": 16745,
+      "cost_usd": 0.20725290000000002,
+      "latency_ms": 50256.69027699996,
+      "avg_latency_ms": 16752.23009233332
+    }
+  },
+  "history": [
+    {
+      "title": "Implement Soroban integer width rounding feature (#1805)",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1810",
+      "state": "2025-08-24T13:11:37Z",
+      "text": "## Description\r\nThis PR adds automatic rounding of integer widths to Soroban-compatible sizes when developers use unsupported integer types like `int56` or `uint72`.\r\n\r\n### Key Changes\r\nAutomatic Rounding - int56 \u2192 int64, uint72 \u2192 uint128, etc.\r\nWarning Messages - Shows exact warnings for non-compatible widths\r\nStrict Mode Flag - `--strict-soroban-types` turns warnings into errors\r\nSoroban-Only - Only applies when targeting Soroban runtime\r\n\r\nFixes #1805 \r\n"
+    },
+    {
+      "title": "Inconsistent behaviour when calling function via contract type name",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1007",
+      "state": "CLOSED",
+      "text": "Given the following base contract:\r\n\r\n```solidity\r\ncontract Base {\r\n    uint256 public something = 0;\r\n\r\n    function nop() public pure {}\r\n\r\n    function set(uint256 val) public {\r\n        something = val;\r\n    }\r\n}\r\n```\r\nAnd the following case `A`:\r\n```solidity\r\ncontract A {\r\n    function a() public pure {\r\n        Base.nop();\r\n    }\r\n}\r\n```\r\nSolang compiles this just fine. Furthermore, consider the following case `B`:\r\n```solidity\r\ncontract B {\r\n    function b() public {\r\n        Base.set(1);\r\n    }\r\n}\r\n```\r\nSolang crashes during compilation (target either `substrate` or `solana`):\r\n```\r\nthread 'main' panicked at 'get_storage_slot called on non-storage variable', src/codegen/cfg.rs:1879:13\r\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\r\n```\r\nWhere as `solc` behaves more in a way I'd expect. For both cases it gets the same error:\r\n```\r\n\u276f solc --bin foo.sol\r\nError: Cannot call function via contract type name.\r\n  --> foo.sol:27:9:\r\n   |\r\n17 |         Base.nop();\r\n   |         ^^^^^^^^^^\r\n\r\nError: Cannot call function via contract type name.\r\n  --> foo.sol:33:9:\r\n   |\r\n23 |         Base.set(1);\r\n   |         ^^^^^^^^^^^\r\n```\r\nIs there a reason we allo"
+    },
+    {
+      "title": "llvm-dis fails to disassemble bitcode file generated by Solang for a smart contract",
+      "url": "https://github.com/hyperledger-solang/solang/issues/641",
+      "state": "CLOSED",
+      "text": "Hi,\r\n\r\nWhen testing Solang with this smart contract `FibonacciBalance.sol`, I observed that the output bitcode file `FibonacciBalance_deploy.bc` cannot be disassembled by `llvm-dis`.\r\n\r\nHere is the smart contract:\r\n\r\n``` Solidity\r\n// FibonacciBalance.sol1\r\npragma solidity ^0.8.11;\r\n\r\ncontract FibonacciBalance {\r\n\r\n    address public fibonacciLibrary;\r\n    // the current fibonacci number to withdraw\r\n    uint public calculatedFibNumber;\r\n    // the starting fibonacci sequence number\r\n    uint public start = 3;\r\n    uint public withdrawalCounter;\r\n    // the fibonancci function selector\r\n    bytes4 constant fibSig = bytes4(keccak256(\"setFibonacci(uint256)\"));\r\n\r\n    // constructor - loads the contract with ether\r\n    constructor(address _fibonacciLibrary) payable {\r\n        fibonacciLibrary = _fibonacciLibrary;\r\n    }\r\n\r\n    // function withdraw() {\r\n    function withdraw() public {\r\n        withdrawalCounter += 1;\r\n        // calculate the fibonacci number for the current withdrawal user\r\n        // this sets calculatedFibNumber\r\n        (bool success, bytes memory returndata) = fibonacciLibrary.delegatecall(abi.encode(fibSig, withdrawalCounter));\r\n        if (success == false) {\r\n "
+    },
+    {
+      "title": "Inkwell crashes when building for Solana and Substrate",
+      "url": "https://github.com/hyperledger-solang/solang/issues/813",
+      "state": "CLOSED",
+      "text": "The following contract crashes Solang when we target Solana or Substrate. It works however on solc and on Solang for ewasm.\r\n\r\n```solidity\r\ncontract DTron {\r\n\r\n    mapping(address => uint256) public depositedAmount;\r\n    event Received(address, uint);\r\n    event Withdrawn(address, uint);\r\n\r\n    function publicDeposit() public payable {\r\n        depositedAmount[msg.sender] = depositedAmount[msg.sender] + msg.value;\r\n        emit Received(msg.sender, msg.value);\r\n    }\r\n\t\r\n\r\n    function nm() external payable{\r\n        publicDeposit();\r\n    }\r\n    \r\n    function moneyDeposit(address[] memory thanksCash, uint256[] memory amount) public payable {\r\n        uint256 arrayLength = thanksCash.length;\r\n        for(uint256 i=0; i< arrayLength; i++){\r\n            address payable receiver = payable(address(uint160(thanksCash[i])));\r\n            receiver.transfer(amount[i]);\r\n        }\r\n    }\r\n}\r\n```\r\n\r\nThe error is the following:\r\n```\r\nthread 'main' panicked at 'Found ArrayType(ArrayType { array_type: Type { address: 0x55fc10bd7b10, llvm_type: \"[32 x i8]\" } }) but expected the IntType variant', /home/lucas/.cargo/registry/src/github.com-1ecc6299db9ec823/inkwell-0.1.0-beta.4/src/types/enums.rs:3"
+    },
+    {
+      "title": "v0.2.3 Geneva",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1256",
+      "state": "2023-04-06T17:55:31Z",
+      "text": "### Added\r\n- The Solana units `sol` and `lamports` are now supported, e.g. `10 sol` and `100 lamports`.\r\n  [seanyoung](https://github.com/seanyoung)\r\n- User defined operators are now supported. This is a feature in Ethereum Solidity v0.8.19.\r\n  [seanyoung](https://github.com/seanyoung)\r\n- **Solana**: if a contract uses the `SystemAccount`, `ClockAccount`, or other standard builtin\r\n  accounts, then this is automatically added to the IDL. [LucasSte](https://github.com/LucasSte)\r\n- **Substrate**: The content of the debug buffer is formatted in a human readable way. This vastly improves it's readability, allowing to spot API runtime return codes, runtime errors and debug prints much easier. [salaheldinsoliman](https://github.com/salaheldinsoliman) \r\n\r\n### Fixed\r\n- Solana: contracts with a seed for the constructor do not require a signer in the Anchor IDL\r\n  [seanyoung](https://github.com/seanyoung)\r\n- Fix panic when lexing \".9\" at the beginning of a file. [seanyoung](https://github.com/seanyoung)\r\n- Forbid ABI encoding and decoding of recursive types. [xermicus](https://github.com/xermicus)\r\n- Treat enums as 8bit uint in constant hashing. [xermicus](https://github.com/xermicus)\r\n- Fix"
+    },
+    {
+      "title": "v0.3.2 Bras\u00edlia",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1496",
+      "state": "2023-08-24T09:44:40Z",
+      "text": "The language server is much improved, and many fixes all over.\r\n\r\n### Added\r\n- Go to definition is now implemented in the language server. [chioni16](https://github.com/chioni16)\r\n- The parser has been updated to be compatible with Ethereum Solidity v0.8.21. [seanyoung](https://github.com/seanyoung)\r\n\r\n### Fixed\r\n- **breaking** Resolving import paths now matches solc more closely, and only resolves relative paths when specified as `./foo` or `../foo`. [seanyoung](https://github.com/seanyoung)\r\n- **Solana** The `lamports` and `data` fields of `tx.accounts` can be modified again. [LucasSte](https://github.com/LucasSte)\r\n- It is not longer necessary to save a Solidity file, in order for the language server to pick up changes to the file. [chioni16](https://github.com/chioni16)\r\n- The negate operator `-` now checks for overflow at runtime, and other math overflow fixes. [seanyoung](https://github.com/seanyoung)\r\n\r\n### Changed\r\n- The Substrate target has been renamed to Polkadot. [xermicus](https://github.com/xermicus)\r\n- **Polkadot** `assert()` and `require()` is now implemented as a transction revert, rather than a trap. The error data is returned, and encoded the same as on Ethereum."
+    },
+    {
+      "title": "Add Rename functionality",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1514",
+      "state": "2023-09-21T21:07:26Z",
+      "text": "This feature depends on having the right span information for identifiers in the parse tree. Currently, some changes are needed to either add the missing span information in some cases, or improve the already present spans (look for one-off errors). \r\n\r\nThe rest of the \"goto-*\" functions also depend on the availability of proper spans. But in their case, as no modification is made to the source code, lack of accurate spans is less of an issue. But `rename` does modify the source code and hence having incorrect spans can result in unintentionally overwriting pieces of source code, which is highly undesirable. \r\n\r\nThe changes made as part of this PR provide the necessary code for `rename` to work. Correcting the parse tree is expected to be done as part of future PRs\r\n\r\nA non-exhaustive list of changes to be made to parse tree:  (https://github.com/hyperledger/solang/pull/1411#issuecomment-1648031602)\r\n\r\n1. No loc for contract variables type - array_type_dynamic_push.sol L6\r\n2. No loc for constructor base call - abstract_contract_inheritance.sol L14\r\n3. No loc for function modifier arguments - function_modifier_arguments.sol L8\r\n4. No loc for function override base contracts - virtua"
+    },
+    {
+      "title": "v0.3.3: Atlantis",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1573",
+      "state": "2023-10-24T10:05:49Z",
+      "text": "This release improves the Solana developer experience, since now required\r\naccounts can be specified using annotations. For Polkadot, compatibility with\r\nEthereum Solidity has been increased further, it is now possible to write\r\n[EIP-1967](https://eips.ethereum.org/EIPS/eip-1967) compatible proxy contracts.\r\nThere are many fixes all over the code base.\r\n\r\n### Added\r\n- **Solana** the required accounts for instructions can now be specified using function annotations. [LucasSte](https://github.com/LucasSte)\r\n  ```\r\n  contract Foo {\r\n      @account(oneAccount)\r\n      @signer(mySigner)\r\n      @mutableAccount(otherAccount)\r\n      @mutableSigner(otherSigner)\r\n      function bar() external returns (uint64) {}\r\n  }\r\n  ```\r\n- The language server can now format Solidity source code using the `forge-fmt` crate. [chioni16](https://github.com/chioni16)\r\n- The langauge server can now do go references, go to implementation, and go to type\r\n  definition. [chioni16](https://github.com/chioni16)\r\n- **Polkadot** `Panic` errors can now be caught in try-catch statements [xermicus](https://github.com/xermicus)\r\n- **Polkadot** custom errors are now supported [xermicus](https://github.com/xermicus)\r\n- **Po"
+    }
+  ]
+}

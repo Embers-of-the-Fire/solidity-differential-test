@@ -1,0 +1,78 @@
+# Review finding-db310d727d68c7ad
+
+Status: **survivor**; origin: `finding`
+
+## Minimized/current spec
+
+```solidity
+pragma solidity >=0.8.0;
+
+contract RuntimeDivCapture16 {
+    uint256 public count;
+    int16 public last;
+
+    function div16Runtime(int16 x, int16 y) external returns (int16) {
+        last = x / y;
+        count += 1;
+        return last;
+    }
+}
+
+```
+
+## Earliest divergence
+
+```json
+{
+  "point": 0,
+  "signature": "STATUS_MISMATCH|0|div16Runtime|revert\u2260success"
+}
+```
+
+## Panel
+
+```json
+[
+  {
+    "category": "bug_candidate",
+    "confidence": "high",
+    "evidence": "Calling div16Runtime(-32768, -1): EVM reverts, while Polkadot succeeds. Polkadot then stores last=-32768 and count=1. In Solidity 0.8 checked arithmetic, (-32768) / (-1) equals 32768, which overflows int16.",
+    "rationale": "This is not an environment-value or gas-model divergence. The source performs a narrow signed division whose mathematically correct result is outside int16; solc correctly reverts under Solidity 0.8 overflow checks. Solang appears to truncate or wrap the unrepresentable result to -32768 and continue execution, indicating a missing checked-division overflow check for int16.",
+    "historical_match_url": "",
+    "cluster_hint": "missing checked overflow for narrow signed division; +32768 wrapped to int16 -32768"
+  },
+  {
+    "category": "bug_candidate",
+    "confidence": "high",
+    "evidence": "div16Runtime(-32768, -1) must produce 32768, which is outside int16's range [-32768, 32767]. solc/anvil reverted, while solang/Polkadot succeeded, stored last as -32768, and incremented count to 1. The storage-count mismatch is a downstream projection of that overflow rather than a separate storage-layout issue.",
+    "rationale": "This is not an intentional chain-environment difference: both implementations are executing checked Solidity arithmetic on the same input. solang's successful execution and wrapped -32768 result indicate that it fails to detect the signed-division result overflow for a narrow-width type. The committed status and semantic state therefore diverge, suggesting a real solang defect.",
+    "historical_match_url": "https://github.com/hyperledger-solang/solang/pull/1496",
+    "cluster_hint": "unchecked overflow/truncation for INT_MIN / -1 with narrow signed integer result"
+  }
+]
+```
+
+## Adversarial review
+
+```json
+{
+  "rebuttal_succeeds": false,
+  "category": "bug_candidate",
+  "evidence": "The probe exercises (-32768) / (-1) on int16 under Solidity >=0.8 checked arithmetic, where the mathematically correct result 32768 is outside int16's range; solc inserts an explicit signed-division overflow check and reverts, which the anvil side confirms. The Polkadot side does not merely differ in status: it commits state (last = -32768, count = 1), i.e., execution continued with a wrapped/truncated result, so this cannot be an oracle misclassification of a trap, an environment-value difference (no gasleft/block/tx markers in the source), or a gas-model artifact (gas comparison disabled and irrelevant). The dry-run and committed statuses agree, and the storage mismatch is exactly the downstream projection of the missing overflow check, so the oracle pipeline is internally consistent. The closest historical record, PR #1496 ('The negate operator `-` now checks for overflow at runtime, and other math overflow fixes'), establishes this bug class but does not demonstrably cover the signed-division INT_MIN/-1 case; if it did, the tested build would revert rather than store the wrapped value, and no version evidence shows the harness predates that fix.",
+  "rationale": "Every rebuttal avenue fails: this is a language-semantic divergence in checked arithmetic, not a documented platform difference, not a gas or environment artifact, and not an invalid probe (the inputs are valid int16 literals reaching a non-payable external function). solc's revert is the spec-correct behavior, so the fault cannot be laid on the EVM oracle. The wrapped -32768 stored on Polkadot is positive evidence of a missing checked-division overflow check for narrow signed integers in solang codegen. The only residual risk is rediscovery of the PR #1496 overflow-fix cluster, but the observed continuing success indicates the defect survives in the tested build, so the evidence stands.",
+  "historical_match_url": "https://github.com/hyperledger-solang/solang/pull/1496"
+}
+```
+
+## Potentially relevant historical records
+
+- v0.3.2 Brasília: https://github.com/hyperledger-solang/solang/pull/1496
+- [Snyk] Upgrade @solana/spl-token from 0.3.8 to 0.3.9: https://github.com/hyperledger-solang/solang/pull/1607
+- Inconsistent behaviour when calling function via contract type name: https://github.com/hyperledger-solang/solang/issues/1007
+- Memory OOB access in try-catch: https://github.com/hyperledger-solang/solang/issues/1292
+- llvm-dis fails to disassemble bitcode file generated by Solang for a smart contract: https://github.com/hyperledger-solang/solang/issues/641
+- LLVM crashes when building contract: https://github.com/hyperledger-solang/solang/issues/776
+- Inkwell crashes when building for Solana and Substrate: https://github.com/hyperledger-solang/solang/issues/813
+- Reporting runtime errors: https://github.com/hyperledger-solang/solang/pull/1150
+
+Human semantic review and a current open+closed upstream search are required before counting this as a new bug.

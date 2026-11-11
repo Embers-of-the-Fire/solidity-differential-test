@@ -1,0 +1,270 @@
+{
+  "case": {
+    "case_id": "finding-094d66a5e0aec002",
+    "origin": "finding",
+    "spec": {
+      "name": "crypto-hash-packed-vs-encode-static",
+      "solidity": "pragma solidity >=0.8.0;\n\ncontract CryptoHashPackedStatic {\n    bytes32 public packedKeccak;\n    bytes32 public encodedKeccak;\n    bytes32 public packedSha;\n    bytes32 public encodedSha;\n    bytes20 public packedRipemd;\n    bytes20 public encodedRipemd;\n\n    event Hash32(bytes32 packedKeccak, bytes32 encodedKeccak, bytes32 packedSha, bytes32 encodedSha);\n    event HashRipemd(bytes20 packedRipemd, bytes20 encodedRipemd);\n\n    function set(uint8 a, uint16 b, uint64 c, uint256 d) public {\n        packedKeccak = keccak256(abi.encodePacked(a, b, c, d));\n        encodedKeccak = keccak256(abi.encode(a, b, c, d));\n        packedSha = sha256(abi.encodePacked(a, b, c, d));\n        encodedSha = sha256(abi.encode(a, b, c, d));\n        packedRipemd = ripemd160(abi.encodePacked(a, b, c, d));\n        encodedRipemd = ripemd160(abi.encode(a, b, c, d));\n        emit Hash32(packedKeccak, encodedKeccak, packedSha, encodedSha);\n        emit HashRipemd(packedRipemd, encodedRipemd);\n    }\n\n    \n    \n    \n    \n    \n    \n}",
+      "contract": "CryptoHashPackedStatic",
+      "solc": {
+        "optimizer": false
+      },
+      "solang": {
+        "opt_level": "default"
+      },
+      "oracle": {
+        "storage": "count",
+        "events": true,
+        "revert_reasons": true,
+        "gas": false
+      },
+      "steps": [
+        {
+          "action": "call",
+          "function": "set",
+          "args": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "sender": "alice",
+          "value": 0
+        }
+      ],
+      "meta": {
+        "parent_id": null,
+        "origin": "generated"
+      },
+      "execution": "on-chain"
+    },
+    "verdict": "DIVERGENCE",
+    "earliest_divergence": {
+      "point": 0,
+      "signature": "EVENT_MISMATCH|0|set|args"
+    },
+    "divergences": [
+      {
+        "kind": "EVENT_MISMATCH",
+        "step": 0,
+        "detail": "emitted events differ",
+        "evm": [
+          {
+            "name": "Hash32",
+            "args": [
+              {
+                "name": "packedKeccak",
+                "value": "0xdafb08ad2e8051263f565108f38cabb76abdca652cbe1b7f859cc22e76f2f85c"
+              },
+              {
+                "name": "encodedKeccak",
+                "value": "0x012893657d8eb2efad4de0a91bcd0e39ad9837745dec3ea923737ea803fc8e3d"
+              },
+              {
+                "name": "packedSha",
+                "value": "0x859732b97382a08583d6a67f5842486505e50bee754bd9b57ac3abf81b9714f2"
+              },
+              {
+                "name": "encodedSha",
+                "value": "0x38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca"
+              }
+            ]
+          },
+          {
+            "name": "HashRipemd",
+            "args": [
+              {
+                "name": "packedRipemd",
+                "value": "0xd93a7bc17144aa13981039d61ba4c69a19406a05"
+              },
+              {
+                "name": "encodedRipemd",
+                "value": "0x4300a157335cb7c9fc9423e011d7dd51090d093f"
+              }
+            ]
+          }
+        ],
+        "polkadot": [
+          {
+            "name": "Hash32",
+            "args": [
+              {
+                "name": "packedKeccak",
+                "value": "0xdafb08ad2e8051263f565108f38cabb76abdca652cbe1b7f859cc22e76f2f85c"
+              },
+              {
+                "name": "encodedKeccak",
+                "value": "0xdafb08ad2e8051263f565108f38cabb76abdca652cbe1b7f859cc22e76f2f85c"
+              },
+              {
+                "name": "packedSha",
+                "value": "0x859732b97382a08583d6a67f5842486505e50bee754bd9b57ac3abf81b9714f2"
+              },
+              {
+                "name": "encodedSha",
+                "value": "0x859732b97382a08583d6a67f5842486505e50bee754bd9b57ac3abf81b9714f2"
+              }
+            ]
+          },
+          {
+            "name": "HashRipemd",
+            "args": [
+              {
+                "name": "packedRipemd",
+                "value": "0xd93a7bc17144aa13981039d61ba4c69a19406a05"
+              },
+              {
+                "name": "encodedRipemd",
+                "value": "0xd93a7bc17144aa13981039d61ba4c69a19406a05"
+              }
+            ]
+          }
+        ],
+        "point": 0,
+        "signature": "EVENT_MISMATCH|0|set|args"
+      },
+      {
+        "kind": "STORAGE_MISMATCH",
+        "step": 0,
+        "detail": "contract storage differs (mode=count)",
+        "evm": {
+          "nonzero_entries": 6,
+          "values": [
+            "-16744349749966048585237543367235397557575722401940633889455552004966721587108",
+            "-55367336381888106396922762042484552985280320898325184317692305092555160742670",
+            "1240155221126513664424367184215221161225336416773",
+            "25531341637449477457836676944163874157144952606075658703806424446998761428426",
+            "382516436396070230424980427769079090202693929279",
+            "524004024064732766451179087531767189917918406136581756423451155604761775677"
+          ]
+        },
+        "polkadot": {
+          "nonzero_entries": 6,
+          "values": [
+            "-16744349749966048585237543367235397557575722401940633889455552004966721587108",
+            "-16744349749966048585237543367235397557575722401940633889455552004966721587108",
+            "-55367336381888106396922762042484552985280320898325184317692305092555160742670",
+            "-55367336381888106396922762042484552985280320898325184317692305092555160742670",
+            "1240155221126513664424367184215221161225336416773",
+            "1240155221126513664424367184215221161225336416773"
+          ]
+        },
+        "point": 0,
+        "signature": "STORAGE_MISMATCH|0|set|multiset(count)"
+      }
+    ]
+  },
+  "screening": {
+    "case_id": "finding-094d66a5e0aec002",
+    "probe_id": "b2677fc725a04793ad85bda119498b77",
+    "finding_id": "094d66a5e0aec002",
+    "origin": "finding",
+    "ts": 1794375759.4952066,
+    "panel": [
+      {
+        "category": "bug_candidate",
+        "confidence": "high",
+        "evidence": "On EVM, packedKeccak=0xdafb08ad...f2f85c differs from encodedKeccak=0x01289365...fc8e3d (43 zero bytes vs 128 zero bytes of ABI padding), as Solidity semantics require. On Polkadot, encodedKeccak == packedKeccak (0xdafb08ad...), encodedSha == packedSha, encodedRipemd == packedRipemd \u2014 solang is hashing the packed encoding for abi.encode. The storage multiset confirms it: the four bytes32/bytes20 slots on EVM hold 4 distinct hash values, while Polkadot's 6 nonzero entries contain each value exactly twice (e.g., -1674434974...712108 appears twice, 1240155221...6773 twice), i.e., packedX and encodedX variables hold identical values.",
+        "rationale": "The test is valid Solidity: abi.encode of static uint types must pad each argument to 32 bytes, yielding a different pre-image than encodePacked. The divergence is a precise, semantics-violating hash difference (not wording, gas, env values, or storage-count projection artifacts), and it is internally consistent across events and storage, ruling out an oracle projection bug. The historical records concern compiler panics/inkwell crashes, scratch-buffer leakage, and 'now' errors \u2014 none match this abi.encode codegen defect. This points to a real solang bug where abi.encode for static arguments is emitted as packed encoding.",
+        "historical_match_url": "",
+        "cluster_hint": "solang abi.encode for static uint arguments collapses to encodePacked (missing 32-byte padding), making encoded and packed hashes identical"
+      },
+      {
+        "category": "bug_candidate",
+        "confidence": "high",
+        "evidence": "On Polkadot, encodedKeccak == packedKeccak == 0xdafb08ad...f85c, encodedSha == packedSha == 0x859732b9...14f2, and encodedRipemd == packedRipemd == 0xd93a7bc1...6a05, whereas solc/EVM yields distinct encoded hashes (encodedKeccak=0x01289365...8e3d). The storage multiset independently corroborates this: Polkadot contains each hash value duplicated (e.g., the dafb08ad... preimage appears twice, as does 859732b9...), i.e., the packed hash was stored in both the packedKeccak and encodedKeccak slots. abi.encode(uint8,uint16,uint64,uint256) must left-pad each argument to 32 bytes (128 bytes total), while abi.encodePacked yields 43 bytes, so the two hashes can never be equal.",
+        "rationale": "The divergence is not a known chain difference (no env-value or gas markers) and not an oracle projection artifact: the event args and the raw storage value multiset agree, ruling out the storage-count conflation caveat. Solang appears to compile abi.encode of these static integer types into packed (unpadded) encoding, collapsing distinct Solidity-semantics hashes \u2014 a real semantic codegen defect rather than an intentional difference. A revert-rewording or invalid-probe explanation does not apply since both chains executed successfully and the test is valid Solidity.",
+        "historical_match_url": "",
+        "cluster_hint": "solang emits unpadded/packed encoding for abi.encode of static integer types, making encode and encodePacked hashes identical"
+      }
+    ],
+    "panel_bug_votes": 2,
+    "adversarial": {
+      "rebuttal_succeeds": false,
+      "category": "bug_candidate",
+      "evidence": "The divergence is not explained by environment values, gas, revert wording, or storage-count projection: for set(0,0,0,0), EVM gives packedKeccak=0xdafb08ad...f2f85c but encodedKeccak=0x01289365...fc8e3d, while Polkadot reports encodedKeccak equal to packedKeccak=0xdafb08ad...f2f85c; the same collapse occurs for sha256 and ripemd160. The raw storage multiset independently corroborates this, with Polkadot containing duplicated hash values in the packed and encoded slots. Under the Solidity ABI, abi.encode(uint8,uint16,uint64,uint256) must left-pad each static argument to 32 bytes (128 bytes total), whereas abi.encodePacked concatenates 1+2+8+32=43 bytes, so equality of the encoded and packed hashes is semantically impossible for a correct implementation.",
+      "rationale": "The strongest rebuttal would be that solc or the oracle miscompares abi.encode vs encodePacked, but the test is valid Solidity and the event values plus storage duplicates agree, so this is not an oracle projection artifact. It is not a documented anvil/pallet-contracts platform difference and has no matching historical record among the supplied panic/inkwell/scratch-buffer items. The observed behavior is consistent with solang emitting an unpadded/packed encoding for abi.encode of static integer arguments, a real semantic codegen defect.",
+      "historical_match_url": ""
+    },
+    "status": "survivor",
+    "survives": true,
+    "cluster_hint": "solang abi.encode for static uint arguments collapses to encodePacked (missing 32-byte padding), making encoded and packed hashes identical",
+    "historical_match_urls": [],
+    "prompt_version": 1,
+    "model": "kimi-for-coding",
+    "temperature": 1.0,
+    "replay": {
+      "verdict": "DIVERGENCE",
+      "earliest_signature": "EVENT_MISMATCH|0|set|args",
+      "tool_versions": {
+        "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+        "solang": "solang version v0.3.5",
+        "anvil": "anvil Version: 1.7.1-dev",
+        "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+      },
+      "oracle_runs": 1,
+      "stable": true
+    },
+    "usage": {
+      "calls": 3,
+      "errors": 0,
+      "prompt_tokens": 16165,
+      "cached_prompt_tokens": 5686,
+      "completion_tokens": 2260,
+      "total_tokens": 18425,
+      "cost_usd": 0.1912818,
+      "latency_ms": 73217.55811100002,
+      "avg_latency_ms": 24405.852703666675
+    }
+  },
+  "history": [
+    {
+      "title": "thread 'main' panicked while compiling BlindAuction from Solidity official website",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1076",
+      "state": "CLOSED",
+      "text": "**Describe the bug**\r\nSolang failed to compile BlindAuction.sol, which is an example from the solidity [official website](https://github.com/raineorshine/solidity-by-example).\r\n\r\n**To Reproduce**\r\nThe code I try to compile is [here](https://gist.github.com/yisun92/12e608b002cbc2b6db5b482fa11fa7e6)\r\n\r\nI tried to compile the code using the following commands.\r\n`solang compile --target solana -v BlindAuction.sol`\r\nor\r\n`solang compile --target substrate -v BlindAuction.sol\r\n`\r\nBoth commands failed and threw the following error.\r\n`thread 'main' panicked at 'Found PointerValue(PointerValue { ptr_value: Value { name: \"elem\", address: 0x600000f0c080, is_const: false, is_null: false, is_undef: false, llvm_value: \"  %elem = bitcast i8* %index_access to i256*\", llvm_type: \"i256*\" } }) but expected the IntValue variant', /Users/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/inkwell-0.1.0-beta.4/src/values/enums.rs:269:13\r\n`\r\n\r\nIf I remove the the code from line 73-82, the error is gone.\r\n\r\n```solidity\r\nif (bidToCheck.blindedBid != keccak256(abi.encodePacked(value, fake, secret))) {\r\n    // Bid was not actually revealed.\r\n    // Do not refund deposit.\r\n    continue;\r\n}\r\nrefund += bidToC"
+    },
+    {
+      "title": "LLVM crashes when building contract",
+      "url": "https://github.com/hyperledger-solang/solang/issues/776",
+      "state": "CLOSED",
+      "text": "While testing one of the contracts from #744 , I found that LLVM crashes in the following contract.\r\n\r\n\r\n```solidity\r\n//pragma solidity ^0.6.12;\r\n// SPDX-License-Identifier: Unlicensed\r\npragma experimental ABIEncoderV2;\r\n\r\n//pragma solidity ^0.8.0;\r\n\r\n/**\r\n * @dev Interface of the ERC20 standard as defined in the EIP.\r\n */\r\ninterface IERC20 {\r\n    /**\r\n     * @dev Emitted when `value` tokens are moved from one account (`from`) to\r\n     * another (`to`).\r\n     *\r\n     * Note that `value` may be zero.\r\n     */\r\n    event Transfer(address indexed from, address indexed to, uint256 value);\r\n\r\n    /**\r\n     * @dev Emitted when the allowance of a `spender` for an `owner` is set by\r\n     * a call to {approve}. `value` is the new allowance.\r\n     */\r\n    event Approval(\r\n        address indexed owner,\r\n        address indexed spender,\r\n        uint256 value\r\n    );\r\n\r\n    /**\r\n     * @dev Returns the amount of tokens in existence.\r\n     */\r\n    function totalSupply() external view returns (uint256);\r\n\r\n    /**\r\n     * @dev Returns the amount of tokens owned by `account`.\r\n     */\r\n    function balanceOf(address account) external view returns (uint256);\r\n\r\n    /**\r\n     * @dev Moves `amount`"
+    },
+    {
+      "title": "Inkwell crashes when building for Solana and Substrate",
+      "url": "https://github.com/hyperledger-solang/solang/issues/813",
+      "state": "CLOSED",
+      "text": "The following contract crashes Solang when we target Solana or Substrate. It works however on solc and on Solang for ewasm.\r\n\r\n```solidity\r\ncontract DTron {\r\n\r\n    mapping(address => uint256) public depositedAmount;\r\n    event Received(address, uint);\r\n    event Withdrawn(address, uint);\r\n\r\n    function publicDeposit() public payable {\r\n        depositedAmount[msg.sender] = depositedAmount[msg.sender] + msg.value;\r\n        emit Received(msg.sender, msg.value);\r\n    }\r\n\t\r\n\r\n    function nm() external payable{\r\n        publicDeposit();\r\n    }\r\n    \r\n    function moneyDeposit(address[] memory thanksCash, uint256[] memory amount) public payable {\r\n        uint256 arrayLength = thanksCash.length;\r\n        for(uint256 i=0; i< arrayLength; i++){\r\n            address payable receiver = payable(address(uint160(thanksCash[i])));\r\n            receiver.transfer(amount[i]);\r\n        }\r\n    }\r\n}\r\n```\r\n\r\nThe error is the following:\r\n```\r\nthread 'main' panicked at 'Found ArrayType(ArrayType { array_type: Type { address: 0x55fc10bd7b10, llvm_type: \"[32 x i8]\" } }) but expected the IntType variant', /home/lucas/.cargo/registry/src/github.com-1ecc6299db9ec823/inkwell-0.1.0-beta.4/src/types/enums.rs:3"
+    },
+    {
+      "title": "Substrate: Implement builtin for `set_code_hash` API",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1397",
+      "state": "2023-06-29T14:53:59Z",
+      "text": "Exposes a low-level builtin function for calling `seal_set_code_hash`. The code hash arguments is of type ~~`bytes`~~ `uint8[N]` intentionally (and not of type `Hash`, so that it matches the the pointer expected by the API function. `Hash`, which is just an alias to `bytes32`, will internally be represented as an `i256`. I came to the conclusion that, given this type conversion can easily be written in Solidity, we do and should not want to deal with that in the compiler, be it in emit or in codegen or elsewhere. \r\nInstead, a more high level function, that asks for a `Hash` argument and converts that to ~~`bytes`~~ `uint8[N]`, should rather be implement in the substrate Solidity library (once we have it).\r\nAdditionally, if some parachain decides to use a hash longer than 32bytes, using just a ~~`bytes`~~ `uint8[N]` pointer will still work."
+    },
+    {
+      "title": "Thread 'main' panicked  error when compiling call with seeds",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1028",
+      "state": "CLOSED",
+      "text": "Hi, @seanyoung !\r\nTrying to solve problem, described above, found in docs [passing-seeds-with-external-calls-on-solana ](https://solang.readthedocs.io/en/latest/language/functions.html#passing-seeds-with-external-calls-on-solana )\r\nTrying to implement this in SPL token library:\r\n`function TransferWithSeed(\r\n            address programID,\r\n            address from, \r\n            address to, \r\n            address owner, \r\n            uint64 amount,\r\n            bytes[] _seeds\r\n            ) internal {\r\n\r\n\t\tbytes instr = new bytes(9);\r\n\t\tinstr[0] = uint8(TokenInstruction.Transfer);\r\n\t\tinstr.writeUint64LE(amount, 1);\r\n\r\n\t\tAccountMeta[3] metas = [\r\n\t\t\tAccountMeta({pubkey: from, is_writable: true, is_signer: false}),\r\n\t\t\tAccountMeta({pubkey: to, is_writable: true, is_signer: false}),\r\n\t\t\tAccountMeta({pubkey: owner, is_writable: true, is_signer: true})\r\n\t\t];\r\n\r\n\t\ttokenProgramId.call{accounts: metas, seeds: _seeds}(instr);\r\n\t}`\r\nBut got when compiling: \r\nthread 'main' panicked at 'called `Option::unwrap()` on a `None` value', src/emit/instructions.rs:804:53\r\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace...\r\n\r\nIf this string removed, compiling finishing ok:\r\n"
+    },
+    {
+      "title": "Scratch buffer data leakages ",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1399",
+      "state": "OPEN",
+      "text": "The scratch buffer is (re)used very often in emit (at least in the substrate target). This might lead to unwanted data leakage,  exposing access to bogus data in memory from Solidity. This code:\r\n\r\n```solidity\r\ncontract A {\r\n    function setVars(address _contract, uint256 _num) public payable returns(bytes ret) {\r\n        (bool ok, ret) =_contract.call(abi.encodeWithSignature(\"setVars(uint256)\", _num));\r\n        // Oh no, forgot to assert on ok \r\n    }\r\n}\r\n```\r\n\r\nResults in the following behaviour, if the input to the `setVars` function is invalid:\r\n\r\n![grafik](https://github.com/hyperledger/solang/assets/8707171/3336e81c-6084-4a90-98b5-4c953a822cb5)\r\n\r\n\r\nWhile sema does emit a warning about the unused variable. It can still be ignored, or it the check can be erroneous.   \r\n\r\nWe can do better here. We should identify all locations in emit with this issue (the problem _might_ be in other places too). Possible solutions inlcude\r\n* using `alloca` wherever the buffer size is small or known beforehand (performance overhead should be negligible)\r\n* `bzero8`ing out the buffer before using it (costly).\r\n* only clear it if the call failed. But: On 2 subsequent scratch buf usages, where both"
+    },
+    {
+      "title": "llvm-dis fails to disassemble bitcode file generated by Solang for a smart contract",
+      "url": "https://github.com/hyperledger-solang/solang/issues/641",
+      "state": "CLOSED",
+      "text": "Hi,\r\n\r\nWhen testing Solang with this smart contract `FibonacciBalance.sol`, I observed that the output bitcode file `FibonacciBalance_deploy.bc` cannot be disassembled by `llvm-dis`.\r\n\r\nHere is the smart contract:\r\n\r\n``` Solidity\r\n// FibonacciBalance.sol1\r\npragma solidity ^0.8.11;\r\n\r\ncontract FibonacciBalance {\r\n\r\n    address public fibonacciLibrary;\r\n    // the current fibonacci number to withdraw\r\n    uint public calculatedFibNumber;\r\n    // the starting fibonacci sequence number\r\n    uint public start = 3;\r\n    uint public withdrawalCounter;\r\n    // the fibonancci function selector\r\n    bytes4 constant fibSig = bytes4(keccak256(\"setFibonacci(uint256)\"));\r\n\r\n    // constructor - loads the contract with ether\r\n    constructor(address _fibonacciLibrary) payable {\r\n        fibonacciLibrary = _fibonacciLibrary;\r\n    }\r\n\r\n    // function withdraw() {\r\n    function withdraw() public {\r\n        withdrawalCounter += 1;\r\n        // calculate the fibonacci number for the current withdrawal user\r\n        // this sets calculatedFibNumber\r\n        (bool success, bytes memory returndata) = fibonacciLibrary.delegatecall(abi.encode(fibSig, withdrawalCounter));\r\n        if (success == false) {\r\n "
+    },
+    {
+      "title": "Error message for \"now\" is wrong",
+      "url": "https://github.com/hyperledger-solang/solang/issues/779",
+      "state": "CLOSED",
+      "text": "In this contract, \r\n```solidity\r\ncontract test {\r\n      event LockRecord(address,uint,uint256); \r\n      function foo() public {\r\n          emit LockRecord(address(this), now, 34);\r\n      }\r\n}\r\n```\r\n\r\nI get this error: `'now' is not found`, however I should be given instructions to change `now` to `block.timestamp`."
+    }
+  ]
+}

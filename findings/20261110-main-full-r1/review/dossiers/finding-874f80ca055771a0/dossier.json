@@ -1,0 +1,190 @@
+{
+  "case": {
+    "case_id": "finding-874f80ca055771a0",
+    "origin": "finding",
+    "spec": {
+      "name": "crypto-hash-packed-vs-encode-single-int-width",
+      "solidity": "pragma solidity >=0.8.0;\n\ncontract CryptoHashWidthProbe {\n    bytes32 public k16;\n    bytes32 public e16;\n    bytes32 public k32;\n    bytes32 public e32;\n    bytes32 public k64;\n    bytes32 public e64;\n\n    function set(uint16 a, uint32 b, uint64 c) public {\n        k16 = keccak256(abi.encodePacked(a));\n        e16 = keccak256(abi.encode(a));\n        k32 = keccak256(abi.encodePacked(b));\n        e32 = keccak256(abi.encode(b));\n        k64 = keccak256(abi.encodePacked(c));\n        e64 = keccak256(abi.encode(c));\n    }\n}\n",
+      "contract": "CryptoHashWidthProbe",
+      "solc": {
+        "optimizer": false
+      },
+      "solang": {
+        "opt_level": "default"
+      },
+      "oracle": {
+        "storage": "count",
+        "events": true,
+        "revert_reasons": true,
+        "gas": false
+      },
+      "steps": [
+        {
+          "action": "call",
+          "function": "set",
+          "args": [
+            0,
+            0,
+            0
+          ],
+          "sender": "alice",
+          "value": 0
+        }
+      ],
+      "execution": "on-chain",
+      "meta": {
+        "parent_id": "8f4c6600ec0296de",
+        "origin": "mutated_llm"
+      }
+    },
+    "verdict": "DIVERGENCE",
+    "earliest_divergence": {
+      "point": 0,
+      "signature": "STORAGE_MISMATCH|0|set|multiset(count)"
+    },
+    "divergences": [
+      {
+        "kind": "STORAGE_MISMATCH",
+        "step": 0,
+        "detail": "contract storage differs (mode=count)",
+        "evm": {
+          "nonzero_entries": 6,
+          "values": [
+            "-10446551254174361523047807172649316427104996572770475611352622933819532303284",
+            "18569430475105882587588266137607568536673111973893317399460219858819262702947",
+            "18569430475105882587588266137607568536673111973893317399460219858819262702947",
+            "18569430475105882587588266137607568536673111973893317399460219858819262702947",
+            "38292439343987868037672198288784556730787963328266909981497454499372014593944",
+            "500549258012437878224561338362079327067368301550791134293299473726337612750"
+          ]
+        },
+        "polkadot": {
+          "nonzero_entries": 6,
+          "values": [
+            "-10446551254174361523047807172649316427104996572770475611352622933819532303284",
+            "-10446551254174361523047807172649316427104996572770475611352622933819532303284",
+            "38292439343987868037672198288784556730787963328266909981497454499372014593944",
+            "38292439343987868037672198288784556730787963328266909981497454499372014593944",
+            "500549258012437878224561338362079327067368301550791134293299473726337612750",
+            "500549258012437878224561338362079327067368301550791134293299473726337612750"
+          ]
+        },
+        "point": 0,
+        "signature": "STORAGE_MISMATCH|0|set|multiset(count)"
+      }
+    ]
+  },
+  "screening": {
+    "case_id": "finding-874f80ca055771a0",
+    "probe_id": "ab87eb2707b14074a795870a5848e6a6",
+    "finding_id": "874f80ca055771a0",
+    "origin": "finding",
+    "ts": 1794377760.6009858,
+    "panel": [
+      {
+        "category": "bug_candidate",
+        "confidence": "high",
+        "evidence": "EVM storage (6 nonzero entries): one copy each of -10446551254174361523047807172649316427104996572770475611352622933819532303284, 38292439343987868037672198288784556730787963328266909981497454499372014593944, 500549258012437878224561338362079327067368301550791134293299473726337612750 (the three distinct keccak256(abi.encodePacked(x)) hashes of 2-, 4-, and 8-zero-byte inputs), plus 3x 18569430475105882587588266137607568536673111973893317399460219858819262702947 (keccak256 of 32 zero bytes, identical for e16=e32=e64). Polkadot storage has exactly 2 copies of each of the three distinct values: every k-slot equals its paired e-slot (k16==e16, k32==e32, k64==e64), i.e. solang produced the same hash for packed and standard encoding.",
+        "rationale": "With args (0,0,0), Solidity semantics require abi.encodePacked(uint16(0)) to hash 2 zero bytes while abi.encode(uint16(0)) hashes 32 zero bytes; solc reflects this with three distinct packed hashes and three identical encode hashes. Solang collapsing k and e pairs means it is encoding the single narrow integer as a 32-byte padded word inside abi.encodePacked (or otherwise aliasing packed to standard encoding), a real semantic defect, not an environment/gas/known-difference artifact. The negative values in the oracle output are just signed interpretation of bytes32 by the storage-count projection and do not explain the duplicated-hash pattern. The supplied historical records (encodeCall argument parsing, BlindAuction codegen panic) do not match this hashing/encoding behavior.",
+        "historical_match_url": "",
+        "cluster_hint": "solang computes keccak256(abi.encodePacked(x)) over the 32-byte ABI-padded encoding for a single narrow integer, so packed and encode hashes collide for uint16/uint32/uint64"
+      },
+      {
+        "category": "bug_candidate",
+        "confidence": "medium",
+        "evidence": "EVM stores 18569430475105882587588266137607568536673111973893317399460219858819262702947 (= keccak256 of 32 zero bytes, 0x290decd9...) three times, matching the correct Solidity semantics: abi.encode(uint16/32/64 zero) pads to 32 bytes so e16==e32==e64, while k16/k32/k64 are the three distinct values -1044655..., 38292439..., 500549258.... Polkadot stores each of those three distinct packed-hash values exactly twice and never stores the padded-hash value at all, i.e. the e-slots got the same hash as the k-slots. Both chains show 6 nonzero entries, so all six slots were written and this is a content difference, not a storage-count projection artifact.",
+        "rationale": "For input 0, the only way Polkadot's multiset contains the three packed-width hashes each duplicated and entirely lacks keccak256(32 zero bytes) is if solang encoded abi.encode(a) for a single narrow uint without 32-byte padding (i.e. identical to encodePacked), or reused the packed hash for the encode slot. That is a genuine Solidity semantic violation (abi.encode must left-pad to 32 bytes) unrelated to the documented env/gas known differences. Skeptical caveat: the signed-int rendering of bytes32 in count mode is odd, but three values match exactly across chains, so the projection is consistent and the divergence is real; I cannot fully exclude an upstream reporting overlap, hence medium confidence.",
+        "historical_match_url": "",
+        "cluster_hint": "solang abi.encode of a single narrow-width integer produces unpadded (packed-like) encoding, so keccak256(abi.encode(x)) == keccak256(abi.encodePacked(x)) for uint16/32/64"
+      }
+    ],
+    "panel_bug_votes": 2,
+    "adversarial": {
+      "rebuttal_succeeds": false,
+      "category": "bug_candidate",
+      "evidence": "Both chains write exactly 6 nonzero storage slots, but the multisets are disjoint in content: EVM stores keccak256 of 32 zero bytes (18569430475105882587588266137607568536673111973893317399460219858819262702947) three times for the e-slots plus three distinct packed-width hashes for the k-slots; Polkadot stores each packed-width hash exactly twice and never stores the 32-byte-padded hash. Since all six slots are written on both sides, the difference is in the hashed values, not in slot selection or an unwritten-slot artifact. The signed rendering of bytes32 by the count projection is consistent across chains (the packed-hash values match EVM exactly), so the projection is not the cause. None of the documented known differences (env values, gas metering) apply: no environment markers or gas comparison is involved, and none of the supplied historical records describe abi.encode padding or abi.encodePacked aliasing on the Polkadot target.",
+      "rationale": "For solang to produce e16==k16, e32==k32, e64==e64 while still distinguishing the three packed widths, its abi.encode of a single uint16/uint32/uint64 must be omitting the mandatory 32-byte left-padding that Solidity specifies for standard encoding \u2014 a genuine compiler semantic defect, not an intentional platform difference, since abi.encode semantics are target-independent. I attempted rebuttals as storage-layout permutation, count-projection artifact, codec known difference (Borsh/SCALE apply to call data, not the abi.encode builtin), and rediscovery against the supplied records; all fail on the evidence above. The only residual uncertainty is whether an unsupplied upstream issue already tracks this, which lowers but does not eliminate confidence.",
+      "historical_match_url": ""
+    },
+    "status": "survivor",
+    "survives": true,
+    "cluster_hint": "solang computes keccak256(abi.encodePacked(x)) over the 32-byte ABI-padded encoding for a single narrow integer, so packed and encode hashes collide for uint16/uint32/uint64",
+    "historical_match_urls": [],
+    "prompt_version": 1,
+    "model": "kimi-for-coding",
+    "temperature": 1.0,
+    "replay": {
+      "verdict": "DIVERGENCE",
+      "earliest_signature": "STORAGE_MISMATCH|0|set|multiset(count)",
+      "tool_versions": {
+        "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+        "solang": "solang version v0.3.5",
+        "anvil": "anvil Version: 1.7.1-dev",
+        "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+      },
+      "oracle_runs": 1,
+      "stable": true
+    },
+    "usage": {
+      "calls": 3,
+      "errors": 0,
+      "prompt_tokens": 13158,
+      "cached_prompt_tokens": 5148,
+      "completion_tokens": 4671,
+      "total_tokens": 17829,
+      "cost_usd": 0.2502774,
+      "latency_ms": 275358.49000999995,
+      "avg_latency_ms": 91786.16333666665
+    }
+  },
+  "history": [
+    {
+      "title": "thread 'main' panicked while compiling BlindAuction from Solidity official website",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1076",
+      "state": "CLOSED",
+      "text": "**Describe the bug**\r\nSolang failed to compile BlindAuction.sol, which is an example from the solidity [official website](https://github.com/raineorshine/solidity-by-example).\r\n\r\n**To Reproduce**\r\nThe code I try to compile is [here](https://gist.github.com/yisun92/12e608b002cbc2b6db5b482fa11fa7e6)\r\n\r\nI tried to compile the code using the following commands.\r\n`solang compile --target solana -v BlindAuction.sol`\r\nor\r\n`solang compile --target substrate -v BlindAuction.sol\r\n`\r\nBoth commands failed and threw the following error.\r\n`thread 'main' panicked at 'Found PointerValue(PointerValue { ptr_value: Value { name: \"elem\", address: 0x600000f0c080, is_const: false, is_null: false, is_undef: false, llvm_value: \"  %elem = bitcast i8* %index_access to i256*\", llvm_type: \"i256*\" } }) but expected the IntValue variant', /Users/runner/.cargo/registry/src/github.com-1ecc6299db9ec823/inkwell-0.1.0-beta.4/src/values/enums.rs:269:13\r\n`\r\n\r\nIf I remove the the code from line 73-82, the error is gone.\r\n\r\n```solidity\r\nif (bidToCheck.blindedBid != keccak256(abi.encodePacked(value, fake, secret))) {\r\n    // Bid was not actually revealed.\r\n    // Do not refund deposit.\r\n    continue;\r\n}\r\nrefund += bidToC"
+    },
+    {
+      "title": "refactor src/codegen",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1923",
+      "state": "2026-06-23T10:42:51Z",
+      "text": "## Problem\r\n\r\nTarget-specific policy was scattered across shared codegen files as inline `if ns.target == \u2026` / `match ns.target { \u2026 }` branches.\r\n\r\n---\r\n\r\n## Solution: `TargetCodegen` trait\r\n\r\n`src/codegen/interface.rs` introduces a single `TargetCodegen` trait. `SorobanTarget`, `SolanaTarget`, and `PolkadotTarget` each implement it.\r\n\r\n---\r\n\r\n### 1. Selector hash algorithm \u2014 `selector_hash_algorithm()`\r\n\r\nA target *property* (constant that differs per target) replaces a branch. Solana uses Sha256; every other target uses Keccak256. (`c3ae3d24`, `expression.rs`)\r\n\r\n```diff\r\n-    let hash_algorithm = if ns.target == Target::Solana {\r\n-        ast::Builtin::Sha256\r\n-    } else {\r\n-        ast::Builtin::Keccak256\r\n-    };\r\n+    let hash_algorithm = target.selector_hash_algorithm();\r\n```\r\n\r\n---\r\n\r\n### 2. Function dispatch \u2014 `function_dispatch()`\r\n\r\nA standalone `match ns.target` factory in `dispatch/mod.rs` is replaced by a trait method; each target owns its dispatcher. (`b9cbddb7`, `dispatch/mod.rs` \u2192 `mod.rs`)\r\n\r\n```diff\r\n-    match &ns.target {\r\n-        Target::Solana => vec![solana::function_dispatch(contract_no, all_cfg, ns, opt)],\r\n-        Target::Polkadot { .. } | Target::EVM "
+    },
+    {
+      "title": "CHANGELOG v0.3.4",
+      "url": "",
+      "state": "fixed",
+      "text": "Fix a bug in abi.encodeCall() argument parsing when there is only a single argument [seanyoung](https://github.com/seanyoung)"
+    },
+    {
+      "title": "llvm-dis fails to disassemble bitcode file generated by Solang for a smart contract",
+      "url": "https://github.com/hyperledger-solang/solang/issues/641",
+      "state": "CLOSED",
+      "text": "Hi,\r\n\r\nWhen testing Solang with this smart contract `FibonacciBalance.sol`, I observed that the output bitcode file `FibonacciBalance_deploy.bc` cannot be disassembled by `llvm-dis`.\r\n\r\nHere is the smart contract:\r\n\r\n``` Solidity\r\n// FibonacciBalance.sol1\r\npragma solidity ^0.8.11;\r\n\r\ncontract FibonacciBalance {\r\n\r\n    address public fibonacciLibrary;\r\n    // the current fibonacci number to withdraw\r\n    uint public calculatedFibNumber;\r\n    // the starting fibonacci sequence number\r\n    uint public start = 3;\r\n    uint public withdrawalCounter;\r\n    // the fibonancci function selector\r\n    bytes4 constant fibSig = bytes4(keccak256(\"setFibonacci(uint256)\"));\r\n\r\n    // constructor - loads the contract with ether\r\n    constructor(address _fibonacciLibrary) payable {\r\n        fibonacciLibrary = _fibonacciLibrary;\r\n    }\r\n\r\n    // function withdraw() {\r\n    function withdraw() public {\r\n        withdrawalCounter += 1;\r\n        // calculate the fibonacci number for the current withdrawal user\r\n        // this sets calculatedFibNumber\r\n        (bool success, bytes memory returndata) = fibonacciLibrary.delegatecall(abi.encode(fibSig, withdrawalCounter));\r\n        if (success == false) {\r\n "
+    },
+    {
+      "title": "Error in sema parsing contract",
+      "url": "https://github.com/hyperledger-solang/solang/issues/731",
+      "state": "CLOSED",
+      "text": "I found that parsing this contract ends in a stack overflow.\r\n```solidity\r\npragma solidity ^0.8.7;\r\n\r\ncontract TestContract {\r\n    struct Data {\r\n        bytes32 a1;\r\n        bytes32 a2;\r\n    }\r\n\r\n    mapping(uint176 => bytes32) Hashes;\r\n\r\n    constructor() {}\r\n\r\n    function getdata(uint176 id, bool needHash) public view returns (Data memory g) {\r\n        (g.a1, g.a2) = (Hashes[id+1], Hashes[id+2]);\r\n    }\r\n}\r\n```\r\n\r\nthis seems to be when its casting the `StorageRef(false, Bytes(32))` to  `Ref(Bytes(32))`\r\n\r\n```js\r\nfrom cast: StorageRef(false, Bytes(32))\r\nto cast: Ref(Bytes(32))\r\nfrom cast: Ref(StorageRef(false, Bytes(32)))\r\nto cast: Ref(Bytes(32))\r\n```\r\nbased on the result that I was getting with some debug prints in the function `cast` I noticed that the function checks if the `to` needs a `Ref`, and try creates a `Ref` from the `from`.  this cause an infinite loop.\r\n\r\nhttps://github.com/hyperledger-labs/solang/blob/5da5377b6fce0d1aec98fa58041a4126540a226d/src/sema/expression.rs#L540-L550\r\n\r\none solution that seems to be working is not dereference when the `to` object type is a `Type::StorageRef`, but as I don't have experience with this codebase I didn't create a pull request.\r"
+    },
+    {
+      "title": "Solang loads vectors from storage incorrectly",
+      "url": "https://github.com/hyperledger-solang/solang/issues/933",
+      "state": "OPEN",
+      "text": "```solidity\r\n      contract Testing {\r\n\r\n    struct PaddedStruct {\r\n        uint128 a;\r\n        uint8 b;\r\n        bytes32 c;\r\n    }\r\n\r\n    PaddedStruct[2][3][] stor_arr;\r\n\r\n    function addData() public {\r\n        PaddedStruct memory a = PaddedStruct(56, 1, \"oi\");\r\n        PaddedStruct memory b = PaddedStruct(78, 6, \"bc\");\r\n        PaddedStruct memory c = PaddedStruct(89, 4, \"sn\");\r\n        PaddedStruct memory d = PaddedStruct(42, 56, \"cn\");\r\n        PaddedStruct memory e = PaddedStruct(23, 78, \"fr\");\r\n        PaddedStruct memory f = PaddedStruct(445, 46, \"br\");\r\n\r\n        PaddedStruct[2][3] memory vec = [[a, b], [c, d], [e, f]];\r\n        stor_arr.push(vec);\r\n    }\r\n\r\n    function getThis() public view returns (uint32) {\r\n        PaddedStruct[2][3][] memory arr2 = stor_arr;\r\n\r\n        return arr2.length;\r\n    }\r\n}\r\n  \r\n```\r\nCalling `getThis` after `addData` returns 6, instead it should return 1. If we modify `stor_arr` to `PaddedStruct[2][2][] stor_arr` and do all the necessary changes, `addData` returns 4. I think we are incorrectly merging the first two dimensions into one.\r\n"
+    },
+    {
+      "title": "\ud83d\ude80 Use Borsh encoding everywhere on Solana \u2693",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1053",
+      "state": "2022-10-31T19:59:45Z",
+      "text": "This PR includes many changes in order to enable Borsh encoding everywhere on Solana. Here is a list of all of them:\r\n\r\n1. Borsh encoding is used whenever we need to encode or decode things on Solana.\r\n2. There is now a single interface for AbiEncoding that is used by both Borsh and Scale codecs.\r\n3. CFG expressions the encoder normally utilizes are now wired up in constant folding and strength reduce to optimize the output.\r\n4. All Solana runtime tests now use `BorshToken` for arguments and returns instead of `ethabi::Token`.\r\n5. Integration tests and Anchor tests underwent many changes to accommodate the new encoding scheme.\r\n6. `ethabiencoder.rs` has been deleted.\r\n7. Borsh encoding now saves to a variable all basic types that are read from buffer. This made the code less optimal, but solved the problem with `Expression::ReturnData`. A fix has been suggested int #1054.\r\n\r\n\r\nIntegration tests are failing because the Typescript library needs [this PR](https://github.com/solana-labs/solana-solidity.js/pull/44) merged in order to work."
+    },
+    {
+      "title": "Use named enums for a few cfg expressions",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1214",
+      "state": "2023-03-09T13:48:17Z",
+      "text": "Make the More, Less, MoreEqual, LessEqual cfg expression named. Also Replace Expression::SignedMore and UnsignedMore with a single expression enum. This should make it more consistent.\r\n\r\nNote for CSE we now have consistent handling for Less and LessEqual wrt signedness. I am not sure this fixes any bugs, but it makes the code consistent/readable.\r\n\r\nFixes #1200 "
+    }
+  ]
+}

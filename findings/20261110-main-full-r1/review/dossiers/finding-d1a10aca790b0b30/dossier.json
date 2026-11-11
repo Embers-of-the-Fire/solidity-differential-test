@@ -1,0 +1,229 @@
+{
+  "case": {
+    "case_id": "finding-d1a10aca790b0b30",
+    "origin": "finding",
+    "spec": {
+      "name": "int-semantics-sar256-mask-p0",
+      "solidity": "pragma solidity >=0.8.0;\ncontract Sar256Mask {\n    int256 public last;\n    uint256 public count;\n    event Did(int256 r, uint256 n);\n    function sar256(int256 x, uint256 n) public returns (int256) {\n        int256 r = x >> n;\n        last = r;\n        count += 1;\n        emit Did(r, n);\n        return r;\n    }\n}",
+      "contract": "Sar256Mask",
+      "constructor": {
+        "args": []
+      },
+      "solc": {
+        "optimizer": false
+      },
+      "solang": {
+        "opt_level": "default"
+      },
+      "oracle": {
+        "storage": "count",
+        "events": true,
+        "revert_reasons": true,
+        "gas": false
+      },
+      "steps": [
+        {
+          "action": "call",
+          "function": "sar256",
+          "args": [
+            1,
+            256
+          ],
+          "sender": "alice",
+          "value": 0
+        }
+      ],
+      "meta": {
+        "parent_id": null,
+        "origin": "generated"
+      },
+      "execution": "on-chain"
+    },
+    "verdict": "DIVERGENCE",
+    "earliest_divergence": {
+      "point": 0,
+      "signature": "RETURN_MISMATCH|0|sar256|int\u2260int"
+    },
+    "divergences": [
+      {
+        "kind": "RETURN_MISMATCH",
+        "step": 0,
+        "detail": "dry-run return values differ",
+        "evm": 0,
+        "polkadot": 1,
+        "point": 0,
+        "signature": "RETURN_MISMATCH|0|sar256|int\u2260int"
+      },
+      {
+        "kind": "EVENT_MISMATCH",
+        "step": 0,
+        "detail": "emitted events differ",
+        "evm": [
+          {
+            "name": "Did",
+            "args": [
+              {
+                "name": "r",
+                "value": 0
+              },
+              {
+                "name": "n",
+                "value": 256
+              }
+            ]
+          }
+        ],
+        "polkadot": [
+          {
+            "name": "Did",
+            "args": [
+              {
+                "name": "r",
+                "value": 1
+              },
+              {
+                "name": "n",
+                "value": 256
+              }
+            ]
+          }
+        ],
+        "point": 0,
+        "signature": "EVENT_MISMATCH|0|sar256|args"
+      },
+      {
+        "kind": "STORAGE_MISMATCH",
+        "step": 0,
+        "detail": "contract storage differs (mode=count)",
+        "evm": {
+          "nonzero_entries": 1,
+          "values": [
+            "1"
+          ]
+        },
+        "polkadot": {
+          "nonzero_entries": 2,
+          "values": [
+            "1",
+            "1"
+          ]
+        },
+        "point": 0,
+        "signature": "STORAGE_MISMATCH|0|sar256|multiset(count)"
+      }
+    ]
+  },
+  "screening": {
+    "case_id": "finding-d1a10aca790b0b30",
+    "probe_id": "23cd4ba6cffa4458968a6aa2c6a17df4",
+    "finding_id": "d1a10aca790b0b30",
+    "origin": "finding",
+    "ts": 1794377284.2233584,
+    "panel": [
+      {
+        "category": "bug_candidate",
+        "confidence": "high",
+        "evidence": "sar256(1, 256): EVM returns 0 and emits Did(r=0, n=256); Polkadot returns 1 and emits Did(r=1, n=256). Storage mode=count shows evm nonzero_entries=1 (only count=1, since last=0 is zero) vs polkadot nonzero_entries=2 (count=1 and last=1), consistent with the differing shift result. No environment markers (gasleft/block.*) in source; gas comparison disabled.",
+        "rationale": "On EVM, SAR with a shift count >= 256 is defined: the result is all sign bits, so 1 >> 256 = 0 for a positive operand. Solang's Polkadot/WASM lowering appears to mask the shift amount to 8 bits (256 mod 256 = 0), yielding 1 >> 0 = 1. The return, event, and storage projections all agree with a single root cause, ruling out an oracle projection artifact, and this is a pure arithmetic operation with no chain-specific values involved. This is a genuine semantic defect in solang's shift lowering, not an intentional chain difference.",
+        "historical_match_url": "",
+        "cluster_hint": "solang masks int256 shift amount modulo 256 instead of emulating EVM SAR saturate-to-sign-bit behavior for shifts >= 256"
+      },
+      {
+        "category": "bug_candidate",
+        "confidence": "high",
+        "evidence": "sar256(1, 256): EVM/solc returns 0 (SAR with shift count >= 256 yields 0 for positive operand), polkadot/solang returns 1, i.e. it behaves as if the shift count were reduced modulo 256 (256 % 256 = 0, so 1 >> 0 = 1). The emitted Did event mirrors this exactly (r=0 vs r=1, n=256), and the storage-count difference (1 vs 2 nonzero entries) is fully explained: 'last' is 0 on EVM (slot stays zero) but 1 on Polkadot.",
+        "rationale": "The return value, event argument, and storage side effect all agree on a single semantic difference in shift-by->=width handling: solang masks the shift amount to 8 bits (or relies on an LLVM shift that wraps the count) instead of saturating to the sign-extension result that EVM's SAR defines. This is not an environment-value, gas, packing, or endianness artifact; the oracle projections (return, event, storage) all corroborate the same root cause. None of the supplied historical records describe this shift-count behavior, though this may already be tracked upstream.",
+        "historical_match_url": "",
+        "cluster_hint": "solang right-shift (SAR/SHR) on int256 wraps the shift count modulo the bit width instead of producing 0 / sign-extension for counts >= 256"
+      }
+    ],
+    "panel_bug_votes": 2,
+    "adversarial": {
+      "rebuttal_succeeds": false,
+      "category": "bug_candidate",
+      "evidence": "The contract performs a pure arithmetic operation, `1 >> 256`, with no environment, block, transaction, gas, packing, or oracle markers. EVM and solc return 0 because SAR saturates a shift count of at least 256 to the sign-extension result; Polkadot returns 1, exactly matching a wrapped shift count (`256 % 256 = 0`). The `Did` event (r=0 versus r=1) and storage result (`last` zero on EVM but 1 on Polkadot, alongside count=1) independently corroborate that same semantic difference.",
+      "rationale": "This coherent behavior across the return value, event projection, and storage side effect makes an oracle or test artifact implausible. A runtime shift by 256 is a defined EVM/Solidity arithmetic case and is not covered by the documented environment-value or gas-metering platform differences. None of the supplied historical records reports this shift-count handling, although an upstream match may exist outside the provided set.",
+      "historical_match_url": ""
+    },
+    "status": "survivor",
+    "survives": true,
+    "cluster_hint": "solang masks int256 shift amount modulo 256 instead of emulating EVM SAR saturate-to-sign-bit behavior for shifts >= 256",
+    "historical_match_urls": [],
+    "prompt_version": 1,
+    "model": "kimi-for-coding",
+    "temperature": 1.0,
+    "replay": {
+      "verdict": "DIVERGENCE",
+      "earliest_signature": "RETURN_MISMATCH|0|sar256|int\u2260int",
+      "tool_versions": {
+        "solc": "Version: 0.8.33+commit.64118f21.Linux.g++",
+        "solang": "solang version v0.3.5",
+        "anvil": "anvil Version: 1.7.1-dev",
+        "substrate-contracts-node": "substrate-contracts-node 0.42.0-f209befc88c"
+      },
+      "oracle_runs": 1,
+      "stable": true
+    },
+    "usage": {
+      "calls": 3,
+      "errors": 0,
+      "prompt_tokens": 12734,
+      "cached_prompt_tokens": 5092,
+      "completion_tokens": 2412,
+      "total_tokens": 15146,
+      "cost_usd": 0.16745960000000001,
+      "latency_ms": 65288.07517400014,
+      "avg_latency_ms": 21762.691724666714
+    }
+  },
+  "history": [
+    {
+      "title": "LLVM crashes when building contract",
+      "url": "https://github.com/hyperledger-solang/solang/issues/776",
+      "state": "CLOSED",
+      "text": "While testing one of the contracts from #744 , I found that LLVM crashes in the following contract.\r\n\r\n\r\n```solidity\r\n//pragma solidity ^0.6.12;\r\n// SPDX-License-Identifier: Unlicensed\r\npragma experimental ABIEncoderV2;\r\n\r\n//pragma solidity ^0.8.0;\r\n\r\n/**\r\n * @dev Interface of the ERC20 standard as defined in the EIP.\r\n */\r\ninterface IERC20 {\r\n    /**\r\n     * @dev Emitted when `value` tokens are moved from one account (`from`) to\r\n     * another (`to`).\r\n     *\r\n     * Note that `value` may be zero.\r\n     */\r\n    event Transfer(address indexed from, address indexed to, uint256 value);\r\n\r\n    /**\r\n     * @dev Emitted when the allowance of a `spender` for an `owner` is set by\r\n     * a call to {approve}. `value` is the new allowance.\r\n     */\r\n    event Approval(\r\n        address indexed owner,\r\n        address indexed spender,\r\n        uint256 value\r\n    );\r\n\r\n    /**\r\n     * @dev Returns the amount of tokens in existence.\r\n     */\r\n    function totalSupply() external view returns (uint256);\r\n\r\n    /**\r\n     * @dev Returns the amount of tokens owned by `account`.\r\n     */\r\n    function balanceOf(address account) external view returns (uint256);\r\n\r\n    /**\r\n     * @dev Moves `amount`"
+    },
+    {
+      "title": "Error message for \"now\" is wrong",
+      "url": "https://github.com/hyperledger-solang/solang/issues/779",
+      "state": "CLOSED",
+      "text": "In this contract, \r\n```solidity\r\ncontract test {\r\n      event LockRecord(address,uint,uint256); \r\n      function foo() public {\r\n          emit LockRecord(address(this), now, 34);\r\n      }\r\n}\r\n```\r\n\r\nI get this error: `'now' is not found`, however I should be given instructions to change `now` to `block.timestamp`."
+    },
+    {
+      "title": "Inkwell crashes when building for Solana and Substrate",
+      "url": "https://github.com/hyperledger-solang/solang/issues/813",
+      "state": "CLOSED",
+      "text": "The following contract crashes Solang when we target Solana or Substrate. It works however on solc and on Solang for ewasm.\r\n\r\n```solidity\r\ncontract DTron {\r\n\r\n    mapping(address => uint256) public depositedAmount;\r\n    event Received(address, uint);\r\n    event Withdrawn(address, uint);\r\n\r\n    function publicDeposit() public payable {\r\n        depositedAmount[msg.sender] = depositedAmount[msg.sender] + msg.value;\r\n        emit Received(msg.sender, msg.value);\r\n    }\r\n\t\r\n\r\n    function nm() external payable{\r\n        publicDeposit();\r\n    }\r\n    \r\n    function moneyDeposit(address[] memory thanksCash, uint256[] memory amount) public payable {\r\n        uint256 arrayLength = thanksCash.length;\r\n        for(uint256 i=0; i< arrayLength; i++){\r\n            address payable receiver = payable(address(uint160(thanksCash[i])));\r\n            receiver.transfer(amount[i]);\r\n        }\r\n    }\r\n}\r\n```\r\n\r\nThe error is the following:\r\n```\r\nthread 'main' panicked at 'Found ArrayType(ArrayType { array_type: Type { address: 0x55fc10bd7b10, llvm_type: \"[32 x i8]\" } }) but expected the IntType variant', /home/lucas/.cargo/registry/src/github.com-1ecc6299db9ec823/inkwell-0.1.0-beta.4/src/types/enums.rs:3"
+    },
+    {
+      "title": "Inconsistent behaviour when calling function via contract type name",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1007",
+      "state": "CLOSED",
+      "text": "Given the following base contract:\r\n\r\n```solidity\r\ncontract Base {\r\n    uint256 public something = 0;\r\n\r\n    function nop() public pure {}\r\n\r\n    function set(uint256 val) public {\r\n        something = val;\r\n    }\r\n}\r\n```\r\nAnd the following case `A`:\r\n```solidity\r\ncontract A {\r\n    function a() public pure {\r\n        Base.nop();\r\n    }\r\n}\r\n```\r\nSolang compiles this just fine. Furthermore, consider the following case `B`:\r\n```solidity\r\ncontract B {\r\n    function b() public {\r\n        Base.set(1);\r\n    }\r\n}\r\n```\r\nSolang crashes during compilation (target either `substrate` or `solana`):\r\n```\r\nthread 'main' panicked at 'get_storage_slot called on non-storage variable', src/codegen/cfg.rs:1879:13\r\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\r\n```\r\nWhere as `solc` behaves more in a way I'd expect. For both cases it gets the same error:\r\n```\r\n\u276f solc --bin foo.sol\r\nError: Cannot call function via contract type name.\r\n  --> foo.sol:27:9:\r\n   |\r\n17 |         Base.nop();\r\n   |         ^^^^^^^^^^\r\n\r\nError: Cannot call function via contract type name.\r\n  --> foo.sol:33:9:\r\n   |\r\n23 |         Base.set(1);\r\n   |         ^^^^^^^^^^^\r\n```\r\nIs there a reason we allo"
+    },
+    {
+      "title": "Scratch buffer data leakages ",
+      "url": "https://github.com/hyperledger-solang/solang/issues/1399",
+      "state": "OPEN",
+      "text": "The scratch buffer is (re)used very often in emit (at least in the substrate target). This might lead to unwanted data leakage,  exposing access to bogus data in memory from Solidity. This code:\r\n\r\n```solidity\r\ncontract A {\r\n    function setVars(address _contract, uint256 _num) public payable returns(bytes ret) {\r\n        (bool ok, ret) =_contract.call(abi.encodeWithSignature(\"setVars(uint256)\", _num));\r\n        // Oh no, forgot to assert on ok \r\n    }\r\n}\r\n```\r\n\r\nResults in the following behaviour, if the input to the `setVars` function is invalid:\r\n\r\n![grafik](https://github.com/hyperledger/solang/assets/8707171/3336e81c-6084-4a90-98b5-4c953a822cb5)\r\n\r\n\r\nWhile sema does emit a warning about the unused variable. It can still be ignored, or it the check can be erroneous.   \r\n\r\nWe can do better here. We should identify all locations in emit with this issue (the problem _might_ be in other places too). Possible solutions inlcude\r\n* using `alloca` wherever the buffer size is small or known beforehand (performance overhead should be negligible)\r\n* `bzero8`ing out the buffer before using it (costly).\r\n* only clear it if the call failed. But: On 2 subsequent scratch buf usages, where both"
+    },
+    {
+      "title": "Zero initialized mappings do not work for Solana target",
+      "url": "https://github.com/hyperledger-solang/solang/issues/559",
+      "state": "CLOSED",
+      "text": "This contract fails when target is `Solana` and compiles on `Substrate`.\r\n```solidity\r\ncontract FixedSwap {\r\n\r\n    struct A {\r\n        mapping(uint256 => uint256) a;\r\n    }\r\n\r\n    A[] private a;\r\n\r\n    function boom() private {\r\n        a.push();\r\n    }\r\n\r\n}\r\n```\r\nWith\r\n```console\r\nthread 'main' panicked at 'internal error: entered unreachable code', src/emit/mod.rs:5936:41\r\n```"
+    },
+    {
+      "title": "llvm-dis fails to disassemble bitcode file generated by Solang for a smart contract",
+      "url": "https://github.com/hyperledger-solang/solang/issues/641",
+      "state": "CLOSED",
+      "text": "Hi,\r\n\r\nWhen testing Solang with this smart contract `FibonacciBalance.sol`, I observed that the output bitcode file `FibonacciBalance_deploy.bc` cannot be disassembled by `llvm-dis`.\r\n\r\nHere is the smart contract:\r\n\r\n``` Solidity\r\n// FibonacciBalance.sol1\r\npragma solidity ^0.8.11;\r\n\r\ncontract FibonacciBalance {\r\n\r\n    address public fibonacciLibrary;\r\n    // the current fibonacci number to withdraw\r\n    uint public calculatedFibNumber;\r\n    // the starting fibonacci sequence number\r\n    uint public start = 3;\r\n    uint public withdrawalCounter;\r\n    // the fibonancci function selector\r\n    bytes4 constant fibSig = bytes4(keccak256(\"setFibonacci(uint256)\"));\r\n\r\n    // constructor - loads the contract with ether\r\n    constructor(address _fibonacciLibrary) payable {\r\n        fibonacciLibrary = _fibonacciLibrary;\r\n    }\r\n\r\n    // function withdraw() {\r\n    function withdraw() public {\r\n        withdrawalCounter += 1;\r\n        // calculate the fibonacci number for the current withdrawal user\r\n        // this sets calculatedFibNumber\r\n        (bool success, bytes memory returndata) = fibonacciLibrary.delegatecall(abi.encode(fibSig, withdrawalCounter));\r\n        if (success == false) {\r\n "
+    },
+    {
+      "title": "[Snyk] Upgrade @solana/spl-token from 0.3.8 to 0.3.9",
+      "url": "https://github.com/hyperledger-solang/solang/pull/1607",
+      "state": "2023-12-07T08:43:05Z",
+      "text": "<p>This PR was automatically created by Snyk using the credentials of a real user.</p><br /><h3>Snyk has created this PR to upgrade @solana/spl-token from 0.3.8 to 0.3.9.</h3>\n\n:information_source: Keep your dependencies up-to-date. This makes it easier to fix existing vulnerabilities and to more quickly identify and fix newly disclosed vulnerabilities when they affect your project.\n<hr/>\n\n- The recommended version is **1 version** ahead of your current version.\n- The recommended version was released **21 days ago**, on 2023-11-14.\n\n\n<details>\n<summary><b>Release notes</b></summary>\n<br/>\n  <details>\n    <summary>Package name: <b>@solana/spl-token</b></summary>\n    <ul>\n      <li>\n        <b>0.3.9</b> - <a href=\"https://snyk.io/redirect/github/solana-labs/solana-program-library/releases/tag/token-js-v0.3.9\">2023-11-14</a></br><p>Introduces support for new Token2022 extension functionality:</p>\n<ul>\n<li><code>TransferHook</code> extension:\n<ul>\n<li>Account data seed configurations for account resolution (<a class=\"issue-link js-issue-link\" data-error-text=\"Failed to load title\" data-id=\"1990587155\" data-permission-text=\"Title is private\" data-url=\"https://github.com/solana-labs/sola"
+    }
+  ]
+}
